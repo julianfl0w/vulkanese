@@ -13,9 +13,6 @@ from vulkan_lib import *
 instance_inst = Instance()
 
 
-# optimization to avoid creating a new array each time
-submit_list = ffi.new('VkSubmitInfo[1]', [submit_create])
-
 
 # Main loop
 running = True
@@ -26,7 +23,7 @@ else:
 
 last_time = clock() * 1000
 fps = 0
-while running:
+while instance_inst.device.surface.running:
     fps += 1
     if clock() * 1000 - last_time >= 1000:
         last_time = clock() * 1000
@@ -34,5 +31,6 @@ while running:
         fps = 0
 
     instance_inst.device.surface.processEvents()
+    instance_inst.draw_frame()
 
-
+instance_inst.release()
