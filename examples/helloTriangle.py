@@ -8,7 +8,7 @@ import os
 import time
 import sys
 import json
-from vulkan_lib import *
+from vulkanese import *
 
 here = os.path.dirname(os.path.abspath(__file__))
 
