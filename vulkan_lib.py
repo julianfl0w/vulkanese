@@ -4,7 +4,9 @@ import os
 import sdl2
 import sdl2.ext
 import time
+import json
 from vulkan import *
+here = os.path.dirname(os.path.abspath(__file__))
 
 
 class Instance:
@@ -22,11 +24,15 @@ class Instance:
 
 		extensions = vkEnumerateInstanceExtensionProperties(None)
 		extensions = [e.extensionName for e in extensions]
-		print("availables extensions: %s\n" % extensions)
+		print("available extensions: ")
+		for e in extensions:
+			print("    " + e)
 
 		self.layers = vkEnumerateInstanceLayerProperties()
 		self.layers = [l.layerName for l in self.layers]
-		print("availables self.layers: %s\n" % self.layers)
+		print("available layers:")
+		for l in self.layers:
+			print("    " + l)
 
 		if 'VK_LAYER_KHRONOS_validation' in self.layers:
 			self.layers = ['VK_LAYER_KHRONOS_validation']
@@ -63,20 +69,24 @@ class Instance:
 			flags=VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT,
 			pfnCallback=debugCallback)
 		self.callback = vkCreateDebugReportCallbackEXT(self.vkInstance, debug_create, None)
+		self.activeDevices = []
 
-		# ----------
-		# Select physical device
-
-		self.device = Device(self)
-
-		return
-	
-	def draw_frame(self):
-		self.device.draw_frame()
-
+	def getDeviceList(self):
+		self.physical_devices            = vkEnumeratePhysicalDevices(self.vkInstance)
+		self.physical_devices_features   = [vkGetPhysicalDeviceFeatures(physical_device)   for physical_device in self.physical_devices]
+		self.physical_devices_properties = [vkGetPhysicalDeviceProperties(physical_device) for physical_device in self.physical_devices]
+		return self.physical_devices_properties
+			
+		
+	def getDevice(self, deviceIndex):
+		newDev = Device(self,deviceIndex)
+		self.activeDevices += [newDev]
+		return newDev
+		
 	def release(self):
-		print("destroying child device")
-		self.device.release()
+		print("destroying child devices")
+		for d in self.activeDevices:
+			d.release()
 		print("destroying debug etc")
 		self.vkDestroyDebugReportCallbackEXT(self.vkInstance, self.callback, None)
 		print("destroying instance")
@@ -84,25 +94,23 @@ class Instance:
 		
 		
 class Device:
-	def __init__(self, instance):
+	def __init__(self, instance, deviceIndex):
 		self.instance = instance
+		self.deviceIndex = deviceIndex
 		
-		devIndex = 0
-
-		physical_devices = vkEnumeratePhysicalDevices(self.instance.vkInstance)
-		physical_devices_features = {physical_device: vkGetPhysicalDeviceFeatures(physical_device)
-							for physical_device in physical_devices}
-		physical_devices_properties = {physical_device: vkGetPhysicalDeviceProperties(physical_device)
-							  for physical_device in physical_devices}
-		self.physical_device = physical_devices[devIndex]
-		print("availables devices: %s" % [p.deviceName
-										  for p in physical_devices_properties.values()])
-		print("selected device: %s\n" % physical_devices_properties[self.physical_device].deviceName)
+		print("initializing device " + str(deviceIndex))
+		self.physical_device = vkEnumeratePhysicalDevices(self.instance.vkInstance)[deviceIndex]
+		
+		
+		print("Select queue family")
 		# ----------
 		# Select queue family
 		vkGetPhysicalDeviceSurfaceSupportKHR = vkGetInstanceProcAddr(
 			self.instance.vkInstance, 'vkGetPhysicalDeviceSurfaceSupportKHR')
+		
+		#queue_families = vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice=self.physical_device)
 		queue_families = vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice=self.physical_device)
+		
 		print("%s available queue family" % len(queue_families))
 
 		self.queue_family_graphic_index = -1
@@ -129,7 +137,7 @@ class Device:
 		# Create logical device and queues
 		extensions = vkEnumerateDeviceExtensionProperties(physicalDevice=self.physical_device, pLayerName=None)
 		extensions = [e.extensionName for e in extensions]
-		print("availables device extensions: %s\n" % extensions)
+		print("available device extensions: %s\n" % extensions)
 
 		#only use the extensions necessary
 		extensions = [VK_KHR_SWAPCHAIN_EXTENSION_NAME]
@@ -146,7 +154,7 @@ class Device:
 			sType=VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 			pQueueCreateInfos=queues_create,
 			queueCreateInfoCount=len(queues_create),
-			pEnabledFeatures=physical_devices_features[self.physical_device],
+			pEnabledFeatures=self.instance.physical_devices_features[self.deviceIndex],
 			flags=0,
 			enabledLayerCount=len(self.instance.layers),
 			ppEnabledLayerNames=self.instance.layers,
@@ -155,9 +163,6 @@ class Device:
 		)
 
 		self.vkDevice = vkCreateDevice(self.physical_device, self.device_create, None)
-		
-		self.surface = Surface(self.instance, self)
-		self.commandPool = [CommandPool(self)]
 		
 		self.graphic_queue = vkGetDeviceQueue(
 			device=self.vkDevice,
@@ -169,7 +174,16 @@ class Device:
 			queueIndex=0)
 	
 		print("Logical device and graphic queue successfully created\n")
+		self.commandPool = []
 		
+		
+	def createCommandPool(self):
+		newCommandPool = CommandPool(self)
+		self.commandPool += [newCommandPool]
+		return newCommandPool
+		
+	def createShader(self, path, stage):
+		return Shader(self.vkDevice, path, stage)
 		
 	def draw_frame(self):
 		try:
@@ -186,19 +200,12 @@ class Device:
 		for i in self.commandPool:
 			print("destroying command pool i")
 			i.release()
-		self.surface.release()
 		print("destroying device")
 		vkDestroyDevice(self.vkDevice, None)
 
 class Surface:
-	def processEvents(self):
-		events = sdl2.ext.get_events()
-		#self.draw_frame()
-		for event in events:
-			if event.type == sdl2.SDL_QUIT:
-				self.running = False
-				vkDeviceWaitIdle(self.vkDevice)
-				break
+	def getEvents(self):
+		return sdl2.ext.get_events()
 				
 	def surface_xlib(self):
 		print("Create Xlib surface")
@@ -238,8 +245,9 @@ class Surface:
 			flags=0)
 		return vkCreateWin32SurfaceKHR(self.vkInstance, surface_create, None)
 
-	def __init__(self, instance, device):
+	def __init__(self, instance, device, commandBuffer):
 		self.running = True
+		self.commandBuffer = commandBuffer
 		
 		self.WIDTH = 400
 		self.HEIGHT = 400
@@ -291,8 +299,8 @@ class Surface:
 		vkGetPhysicalDeviceSurfaceFormatsKHR = vkGetInstanceProcAddr(instance.vkInstance, "vkGetPhysicalDeviceSurfaceFormatsKHR")
 		vkGetPhysicalDeviceSurfacePresentModesKHR = vkGetInstanceProcAddr(instance.vkInstance, "vkGetPhysicalDeviceSurfacePresentModesKHR")
 
-		surface_capabilities = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice=device.physical_device, surface=self.vkSurface)
-		self.surface_formats = vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice=device.physical_device, surface=self.vkSurface)
+		surface_capabilities  = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice=device.physical_device, surface=self.vkSurface)
+		self.surface_formats  = vkGetPhysicalDeviceSurfaceFormatsKHR     (physicalDevice=device.physical_device, surface=self.vkSurface)
 		surface_present_modes = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice=device.physical_device, surface=self.vkSurface)
 
 		if not self.surface_formats or not surface_present_modes:
@@ -349,9 +357,9 @@ class Surface:
 			queueFamilyIndexCount = 2
 			pQueueFamilyIndices = [device.queue_family_graphic_index, device.queue_family_present_index]
 
-		vkCreateSwapchainKHR = vkGetInstanceProcAddr(instance.vkInstance, 'vkCreateSwapchainKHR')
+		vkCreateSwapchainKHR       = vkGetInstanceProcAddr(instance.vkInstance, 'vkCreateSwapchainKHR')
 		self.vkDestroySwapchainKHR = vkGetInstanceProcAddr(instance.vkInstance, 'vkDestroySwapchainKHR')
-		vkGetSwapchainImagesKHR = vkGetInstanceProcAddr(instance.vkInstance, 'vkGetSwapchainImagesKHR')
+		vkGetSwapchainImagesKHR    = vkGetInstanceProcAddr(instance.vkInstance, 'vkGetSwapchainImagesKHR')
 
 		swapchain_create = VkSwapchainCreateInfoKHR(
 			sType=VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
@@ -426,12 +434,17 @@ class CommandPool:
 
 		self.vkCommandPool = vkCreateCommandPool(self.vkDevice, command_pool_create, None)
 
-		self.commandBuffer = [CommandBuffer(self)]
+		self.commandBuffer = []
 	
 	def draw_frame(self):
 		for commandBuffer in self.commandBuffer:
 			commandBuffer.draw_frame()
-
+	
+	def createCommandBuffer(self, setupDict):
+		newCommandBuffer = CommandBuffer(self, setupDict)
+		self.commandBuffer += [newCommandBuffer]
+		return newCommandBuffer
+		
 	def release(self):
 		print("destroying command buffs")
 		for b in self.commandBuffer:
@@ -441,74 +454,32 @@ class CommandPool:
 		
 		
 class CommandBuffer:
-	def __init__(self, commandPool):
-		self.commandPool = commandPool
-		self.device      = commandPool.device
-		self.vkDevice = commandPool.vkDevice
-		self.pipeline = Pipeline(self, self.device.surface.extent)
+	def __init__(self, commandPool, setupDict):
+		self.commandPool  = commandPool
+		self.device       = commandPool.device
+		self.vkDevice     = commandPool.vkDevice
+		self.outputWidthPixels  = setupDict["outputWidthPixels"]
+		self.outputHeightPixels = setupDict["outputHeightPixels"]
+		
+		print("GOOOOOO")
+		print(setupDict["outputClass"])
+		if "surface" in setupDict["outputClass"]:
+			self.createSurface()
+		self.createPipeline(setupDict["pipeline"])
 	
+		print("Creating buffers of size " + str(self.outputWidthPixels) + 
+			", " + str(self.outputHeightPixels))
 		# Create command buffers, one for each image in the triple-buffer (swapchain + framebuffer)
 		self.command_buffers_create = VkCommandBufferAllocateInfo(
 			sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
 			commandPool=self.commandPool.vkCommandPool,
 			level=VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-			commandBufferCount=len(commandPool.device.surface.image_views))
+			commandBufferCount=len(self.surface.image_views))
 
 		self.command_buffers = vkAllocateCommandBuffers(self.vkDevice, self.command_buffers_create)
 		
 		self.framebuffers = []
-		
-		# Record command buffer
-		for i, command_buffer in enumerate(self.command_buffers):
-			print("recording command_buffer " + str(i))
-			command_buffer_begin_create = VkCommandBufferBeginInfo(
-				sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-				flags=VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
-				pInheritanceInfo=None)
-
-			vkBeginCommandBuffer(command_buffer, command_buffer_begin_create)
-
-			# Create Graphics render pass
-			render_area = VkRect2D(offset=VkOffset2D(x=0, y=0),
-								   extent=self.pipeline.extent)
-			color = VkClearColorValue(float32=[0, 1, 0, 1])
-			clear_value = VkClearValue(color=color)
-
-			# Framebuffers creation
-			attachments = [commandPool.device.surface.image_views[i]]
-			framebuffer_create = VkFramebufferCreateInfo(
-				sType=VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-				flags=0,
-				renderPass=self.pipeline.render_pass,
-				attachmentCount=len(attachments),
-				pAttachments=attachments,
-				width=self.pipeline.extent.width,
-				height=self.pipeline.extent.height,
-				layers=1)
-				
-			thisFramebuffer = vkCreateFramebuffer(self.vkDevice, framebuffer_create, None)
-			self.framebuffers.append(thisFramebuffer)
-			
-			render_pass_begin_create = VkRenderPassBeginInfo(
-				sType=VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-				renderPass=self.pipeline.render_pass,
-				framebuffer=thisFramebuffer,
-				renderArea=render_area,
-				clearValueCount=1,
-				pClearValues=[clear_value])
-
-			vkCmdBeginRenderPass(command_buffer, render_pass_begin_create, VK_SUBPASS_CONTENTS_INLINE)
-
-			# Bind pipeline
-			vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.vkPipeline)
-
-			# Draw
-			vkCmdDraw(command_buffer, 3, 1, 0, 0)
-
-			# End
-			vkCmdEndRenderPass(command_buffer)
-			vkEndCommandBuffer(command_buffer)
-			
+	
 		# Create semaphore
 		semaphore_create = VkSemaphoreCreateInfo(
 			sType=VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
@@ -541,10 +512,74 @@ class CommandBuffer:
 			waitSemaphoreCount=1,
 			pWaitSemaphores=signal_semaphores,
 			swapchainCount=1,
-			pSwapchains=[self.device.surface.swapchain],
+			pSwapchains=[self.surface.swapchain],
 			pImageIndices=[0],
 			pResults=None)
 			
+		# Record command buffer
+		for i, command_buffer in enumerate(self.command_buffers):
+			print("recording command_buffer " + str(i))
+			command_buffer_begin_create = VkCommandBufferBeginInfo(
+				sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+				flags=VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
+				pInheritanceInfo=None)
+
+			vkBeginCommandBuffer(command_buffer, command_buffer_begin_create)
+
+			# Create Graphics render pass
+			render_area = VkRect2D(offset=VkOffset2D(x=0, y=0),
+								   extent=self.pipeline.extent)
+			color = VkClearColorValue(float32=[0, 1, 0, 1])
+			clear_value = VkClearValue(color=color)
+
+			# Framebuffers creation
+			attachments = [self.surface.image_views[i]]
+			framebuffer_create = VkFramebufferCreateInfo(
+				sType=VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+				flags=0,
+				renderPass=self.pipeline.render_pass,
+				attachmentCount=len(attachments),
+				pAttachments=attachments,
+				width=self.outputWidthPixels,
+				height=self.outputHeightPixels,
+				layers=1)
+				
+			thisFramebuffer = vkCreateFramebuffer(self.vkDevice, framebuffer_create, None)
+			self.framebuffers.append(thisFramebuffer)
+			
+			self.render_pass_begin_create = VkRenderPassBeginInfo(
+				sType=VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+				renderPass=self.pipeline.render_pass,
+				framebuffer=thisFramebuffer,
+				renderArea=render_area,
+				clearValueCount=1,
+				pClearValues=[clear_value])
+
+			vkCmdBeginRenderPass(command_buffer, self.render_pass_begin_create, VK_SUBPASS_CONTENTS_INLINE)
+
+			# Bind pipeline
+			vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.vkPipeline)
+
+			# Draw
+			vkCmdDraw(command_buffer, 3, 1, 0, 0)
+
+			# End
+			vkCmdEndRenderPass(command_buffer)
+			vkEndCommandBuffer(command_buffer)
+			
+	def getEvents(self):
+		return self.surface.getEvents()
+	
+	def createSurface(self):
+		newSurface   = Surface(self.device.instance, self.device, self)
+		self.surface = newSurface
+		return newSurface
+		
+	def createPipeline(self, setupDict):
+		newPipeline   = Pipeline(self, setupDict)
+		self.pipeline = newPipeline
+		return newPipeline
+		
 		
 	def release(self):
 		print("destroying framebuffers")
@@ -556,11 +591,12 @@ class CommandBuffer:
 		vkDestroySemaphore(self.vkDevice, self.semaphore_image_available, None)
 		vkDestroySemaphore(self.vkDevice, self.semaphore_render_finished, None)
 		
+		self.surface.release()
 		self.pipeline.release()
 		
 
 	def draw_frame(self):
-		image_index = self.vkAcquireNextImageKHR(self.vkDevice, self.device.surface.swapchain, UINT64_MAX, self.semaphore_image_available, None)
+		image_index = self.vkAcquireNextImageKHR(self.vkDevice, self.surface.swapchain, UINT64_MAX, self.semaphore_image_available, None)
 
 		self.submit_create.pCommandBuffers[0] = self.command_buffers[image_index]
 		vkQueueSubmit(self.device.graphic_queue, 1, self.submit_list, None)
@@ -574,14 +610,16 @@ class CommandBuffer:
 		
 class Pipeline:
 
-	def __init__(self, command_buffer, extent):
-		self.extent = extent
+	def __init__(self, command_buffer, setupDict):
 		self.vkDevice = command_buffer.vkDevice
+		self.command_buffer = command_buffer
+		self.outputWidthPixels  = setupDict["outputWidthPixels"]
+		self.outputHeightPixels = setupDict["outputHeightPixels"]
 		
 		# Create render pass
 		color_attachement = VkAttachmentDescription(
 			flags=0,
-			format=command_buffer.commandPool.device.surface.surface_format.format,
+			format=command_buffer.surface.surface_format.format,
 			samples=VK_SAMPLE_COUNT_1_BIT,
 			loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR,
 			storeOp=VK_ATTACHMENT_STORE_OP_STORE,
@@ -626,7 +664,12 @@ class Pipeline:
 			pDependencies=[dependency])
 
 		self.render_pass = vkCreateRenderPass(self.vkDevice, render_pass_create, None)
-				
+		
+		# Add Shaders
+		self.shaders = []
+		for shaderDict in setupDict["shaders"]:
+			self.shaders += [Shader(self.vkDevice, shaderDict)]
+		
 		# Create graphic pipeline
 		vertex_input_create = VkPipelineVertexInputStateCreateInfo(
 			sType=VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
@@ -642,10 +685,12 @@ class Pipeline:
 			topology=VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
 			primitiveRestartEnable=VK_FALSE)
 		viewport = VkViewport(
-			x=0., y=0., width=float(self.extent.width), height=float(self.extent.height),
+			x=0., y=0., width=float(self.outputWidthPixels), height=float(self.outputHeightPixels),
 			minDepth=0., maxDepth=1.)
 
 		scissor_offset = VkOffset2D(x=0, y=0)
+		self.extent = VkExtent2D(width=self.outputWidthPixels,
+						height=self.outputHeightPixels)
 		scissor = VkRect2D(offset=scissor_offset, extent=self.extent)
 		viewport_state_create = VkPipelineViewportStateCreateInfo(
 			sType=VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
@@ -713,19 +758,13 @@ class Pipeline:
 
 		self.pipeline_layout = vkCreatePipelineLayout(self.vkDevice, pipeline_layout_create, None)
 
-		path = os.path.dirname(os.path.abspath(__file__))
-		self.shaders= []
-		vert_shader = Shader(self.vkDevice, os.path.join(path, "vert.spv"), VK_SHADER_STAGE_VERTEX_BIT)
-		self.shaders += [vert_shader]
-		frag_shader = Shader(self.vkDevice, os.path.join(path, "frag.spv"), VK_SHADER_STAGE_FRAGMENT_BIT)
-		self.shaders += [frag_shader]
-
+		
 		# Finally create graphic pipeline
 		self.pipeline_create = VkGraphicsPipelineCreateInfo(
 			sType=VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 			flags=0,
-			stageCount=2,
-			pStages=[vert_shader.shader_stage_create, frag_shader.shader_stage_create],
+			stageCount=len(self.shaders),
+			pStages=[s.shader_stage_create for s in self.shaders],
 			pVertexInputState=vertex_input_create,
 			pInputAssemblyState=input_assembly_create,
 			pTessellationState=None,
@@ -744,7 +783,6 @@ class Pipeline:
 		pipelines = vkCreateGraphicsPipelines(self.vkDevice, None, 1, [self.pipeline_create], None)
 		self.vkPipeline = pipelines[0]
 	
-	
 	def release(self):
 		print("destroying pipeline")
 		for shader in self.shaders:
@@ -756,10 +794,16 @@ class Pipeline:
 		
 		
 class Shader:
-	def __init__(self, vkDevice, path, stage):
+	def __init__(self, vkDevice, shaderDict):
 		self.vkDevice = vkDevice
+		self.outputWidthPixels  = shaderDict["outputWidthPixels"]
+		self.outputHeightPixels = shaderDict["outputHeightPixels"]
+		
+		print("creating shader with description")
+		print(json.dumps(shaderDict, indent=4))
+		self.path = os.path.join(here, shaderDict["path"])
 
-		with open(path, 'rb') as f:
+		with open(self.path, 'rb') as f:
 			shader_spirv = f.read()
 
 		# Create shader
@@ -775,7 +819,7 @@ class Shader:
 		# Create shader stage
 		self.shader_stage_create = VkPipelineShaderStageCreateInfo(
 			sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-			stage=stage,
+			stage=eval(shaderDict["stage"]),
 			module=self.shader_module,
 			flags=0,
 			pSpecializationInfo=None,

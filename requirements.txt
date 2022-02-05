@@ -1,0 +1,2 @@
+pysdl2
+vulkan

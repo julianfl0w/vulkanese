@@ -11,6 +11,8 @@ from vulkan import *
 from vulkan_lib import *
 
 instance_inst = Instance()
+device_inst   = instance_inst.device
+
 
 
 
@@ -31,6 +33,6 @@ while instance_inst.device.surface.running:
         fps = 0
 
     instance_inst.device.surface.processEvents()
-    instance_inst.device.surface.processEvents()
+    instance_inst.draw_frame()
 
 instance_inst.release()
