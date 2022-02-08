@@ -275,7 +275,29 @@ class Device:
 			queueIndex=0)
 	
 		print("Logical device and graphic queue successfully created\n")
-		self.commandPool = CommandPool(self)
+		
+		# Create command pool
+		command_pool_create = VkCommandPoolCreateInfo(
+			sType=VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+			queueFamilyIndex=self.device.queue_family_graphic_index,
+			flags=0)
+
+		self.vkCommandPool = vkCreateCommandPool(self.vkDevice, command_pool_create, None)
+
+		# create descriptor pool.
+		# Our descriptor pool can only allocate a single storage buffer.
+		descriptorPoolSize = VkDescriptorPoolSize(
+			type=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, # Do we need different types of pool?
+			descriptorCount=1
+		)
+		descriptorPoolCreateInfo = VkDescriptorPoolCreateInfo(
+			sType=VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+			maxSets=1,  # we only need to allocate one descriptor set from the pool.
+			poolSizeCount=1,
+			pPoolSizes=descriptorPoolSize
+		)
+		self.vkDescriptorPool = vkCreateDescriptorPool(self.vkDevice, descriptorPoolCreateInfo, None)
+
 	
 	def getFeatures(self):
 	
@@ -482,60 +504,33 @@ class Surface:
 		for i in self.image_views:
 			vkDestroyImageView(self.vkDevice, i, None)
 			
-	
-class CommandPool:
-	def __init__(self, device):
-		self.device = device
-		self.vkDevice = device.vkDevice
-		# Create command pools
-		command_pool_create = VkCommandPoolCreateInfo(
-			sType=VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-			queueFamilyIndex=self.device.queue_family_graphic_index,
-			flags=0)
-
-		self.vkCommandPool = vkCreateCommandPool(self.vkDevice, command_pool_create, None)
-
-		self.commandBuffer = []
-	
-	def draw_frame(self):
-		for commandBuffer in self.commandBuffer:
-			commandBuffer.draw_frame()
-	
-	def createCommandBuffer(self, setupDict):
-		newCommandBuffer = CommandBuffer(self, setupDict)
-		self.commandBuffer += [newCommandBuffer]
-		return newCommandBuffer
-		
-	def release(self):
-		print("destroying command buffs")
-		for b in self.commandBuffer:
-			b.release()
 		print("destroying command pool")
 		vkDestroyCommandPool(self.vkDevice, self.vkCommandPool, None)
-		
-		
+			
+	
 class CommandBuffer:
-	def __init__(self, commandPool, setupDict):
+	def __init__(self, commandPool, pipeline):
+		self.pipelineDict = pipeline.setupDict
 		self.commandPool  = commandPool
 		self.device       = commandPool.device
 		self.vkDevice     = commandPool.vkDevice
 		self.outputWidthPixels  = setupDict["outputWidthPixels"]
 		self.outputHeightPixels = setupDict["outputHeightPixels"]
 		self.commandBufferCount = 0
-		for pipelineDict in setupDict["pipelines"]:
-			# assume triple-buffering for surfaces
-			if pipelineDict["outputClass"] == "surface":
-				self.commandBufferCount += 3 
-			# single-buffering for images
-			else:
-				self.commandBufferCount += 1 
+		
+		# assume triple-buffering for surfaces
+		if pipelineDict["outputClass"] == "surface":
+			self.commandBufferCount += 3 
+		# single-buffering for images
+		else:
+			self.commandBufferCount += 1 
 				
 				
 		print("Creating buffers of size " + str(self.outputWidthPixels) + 
 			", " + str(self.outputHeightPixels))
 			
 		# Create command buffers, one for each image in the triple-buffer (swapchain + framebuffer)
-		# and one for each non-surface pass
+		# OR one for each non-surface pass
 		self.command_buffers_create = VkCommandBufferAllocateInfo(
 			sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
 			commandPool=self.commandPool.vkCommandPool,
@@ -544,11 +539,10 @@ class CommandBuffer:
 
 		self.command_buffers = vkAllocateCommandBuffers(self.vkDevice, self.command_buffers_create)
 		
-		for pipelineDict in setupDict["pipelines"]:
-			if pipelineDict["class"] == "raster":
-				self.createRasterPipeline(pipelineDict)
-			else:
-				self.createComputePipeline(pipelineDict)
+		if pipelineDict["class"] == "raster":
+			self.createRasterPipeline(pipelineDict)
+		else:
+			self.createComputePipeline(pipelineDict)
 				
 			
 		# Record command buffer
@@ -560,22 +554,15 @@ class CommandBuffer:
 				pInheritanceInfo=None)
 
 			vkBeginCommandBuffer(command_buffer, command_buffer_begin_create)
-
 			vkCmdBeginRenderPass(command_buffer, self.render_pass_begin_create, VK_SUBPASS_CONTENTS_INLINE)
-
 			# Bind graphicsPipeline
 			vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, self.graphicsPipeline.vkPipeline)
-
 			# Draw
 			vkCmdDraw(command_buffer, 3, 1, 0, 0)
-
 			# End
 			vkCmdEndRenderPass(command_buffer)
 			vkEndCommandBuffer(command_buffer)
 			
-	def getEvents(self):
-		return self.surface.getEvents()
-	
 		
 	def createRasterPipeline(self, setupDict):
 		newPipeline   = RasterPipeline(self, setupDict)
@@ -671,31 +658,12 @@ class DescriptorSet:
 		# perform the update of the descriptor set.
 		vkUpdateDescriptorSets(self.vkDevice, 1, [writeDescriptorSet], 0, None)
 
+# all pipelines contain:
+# references to instance, device, etc
+# at least 1 shader
+# an output size
+class Pipeline:
 
-class DescriptorPool:
-	def __init__(self):
-	
-		# Our descriptor pool can only allocate a single storage buffer.
-		descriptorPoolSize = VkDescriptorPoolSize(
-			type=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-			descriptorCount=1
-		)
-
-		descriptorPoolCreateInfo = VkDescriptorPoolCreateInfo(
-			sType=VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			maxSets=1,  # we only need to allocate one descriptor set from the pool.
-			poolSizeCount=1,
-			pPoolSizes=descriptorPoolSize
-		)
-
-		# create descriptor pool.
-		self.vkDescriptorPool = vkCreateDescriptorPool(self.vkDevice, descriptorPoolCreateInfo, None)
-
-
-# the compute pipeline is so much simpler than the old-school 
-# graphics pipeline. it should be considered separately
-class ComputePipeline:
-	
 	def __init__(self, command_buffer, setupDict):
 		self.vkDevice = command_buffer.vkDevice
 		self.device   = self.command_buffer.commandPool.device
@@ -708,7 +676,30 @@ class ComputePipeline:
 		self.shaders = []
 		for shaderDict in setupDict["shaders"]:
 			self.shaders += [Shader(self.vkDevice, shaderDict)]
+			
+		# Create a surface, if indicated
+		if setupDict["outputClass"] == "surface":
+			self.createSurface()
 
+	def createSurface(self):
+		newSurface   = Surface(self.device.instance, self.device, self)
+		self.surface = newSurface
+		return newSurface
+	
+	def release(self):
+		for shader in self.shaders:
+			shader.release()
+		vkDestroyPipeline(self.vkDevice, self.vkPipeline, None)
+		vkDestroyPipelineLayout(self.vkDevice, self.pipelineLayout, None)
+	
+
+# the compute pipeline is so much simpler than the old-school 
+# graphics pipeline. it should be considered separately
+class ComputePipeline(Pipeline):
+	
+	def __init__(self, command_buffer, setupDict):
+		Pipeline.__init__(self, command_buffer, setupDict)
+		
 		# The pipeline layout allows the pipeline to access descriptor sets.
 		# So we just specify the descriptor set layout we created earlier.
 		pipelineLayoutCreateInfo = VkPipelineLayoutCreateInfo(
@@ -718,26 +709,23 @@ class ComputePipeline:
 		)
 		self.pipelineLayout = vkCreatePipelineLayout(self.vkDevice, pipelineLayoutCreateInfo, None)
 
-		pipelineCreateInfo = VkComputePipelineCreateInfo(
+		self.pipelineCreateInfo = VkComputeself.pipelineCreateInfo(
 			sType=VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
 			stage=shaderStageCreateInfo,
 			layout=self.pipelineLayout
 		)
 
 		# Now, we finally create the compute pipeline.
-		pipelines = vkCreateComputePipelines(self.vkDevice, VK_NULL_HANDLE, 1, pipelineCreateInfo, None)
+		pipelines = vkCreateComputePipelines(self.vkDevice, VK_NULL_HANDLE, 1, self.pipelineCreateInfo, None)
 		if len(pipelines) == 1:
 			self.__pipeline = pipelines[0]
 			
 	def release(self):
 		print("destroying graphicsPipeline")
-		for shader in self.shaders:
-			shader.release()
+		Pipeline.release(self)
 		self.inputBuffer.release()
 		vkDestroyRenderPass(self.vkDevice, self.render_pass, None)
-		vkDestroyPipeline(self.vkDevice, self.vkPipeline, None)
-		vkDestroyPipelineLayout(self.vkDevice, self.pipelineLayout, None)
-	
+		
 class RenderPass:
 	def __init__(self, setupDict, surface):
 		self.surface = surface
@@ -892,24 +880,11 @@ class RenderPass:
 
 		print("%s images view created" % len(self.image_views))
 
-class RasterPipeline:
+class RasterPipeline(Pipeline):
 
 	def __init__(self, command_buffer, setupDict):
-		self.command_buffer = command_buffer
-		self.vkDevice = command_buffer.vkDevice
-		self.device   = self.command_buffer.commandPool.device
-		self.pipelineClass = setupDict["class"]
-		self.outputWidthPixels  = setupDict["outputWidthPixels"]
-		self.outputHeightPixels = setupDict["outputHeightPixels"]
+		Pipeline.__init__(self, command_buffer, setupDict)
 		
-		# Add Shaders
-		self.shaders = []
-		for shaderDict in setupDict["shaders"]:
-			self.shaders += [Shader(self.vkDevice, shaderDict)]
-		
-		# Create a surface, if indicated
-		if setupDict["outputClass"] == "surface":
-			self.createSurface()
 			
 		# Create a generic render pass
 		self.renderPass = RenderPass(setupDict, self.surface)
@@ -995,7 +970,7 @@ class RasterPipeline:
 			offset=0,
 			size=0)
 
-		pipelineCreateInfo = VkPipelineLayoutCreateInfo(
+		self.pipelineCreateInfo = VkPipelineLayoutCreateInfo(
 			sType=VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 			flags=0,
 			setLayoutCount=0,
@@ -1003,11 +978,11 @@ class RasterPipeline:
 			pushConstantRangeCount=0,
 			pPushConstantRanges=[push_constant_ranges])
 
-		self.pipelineLayout = vkCreatePipelineLayout(self.vkDevice, pipelineCreateInfo, None)
+		self.pipelineLayout = vkCreatePipelineLayout(self.vkDevice, self.pipelineCreateInfo, None)
 
 		
 		# Finally create graphic graphicsPipeline
-		self.pipelinecreate = VkGraphicsPipelineCreateInfo(
+		self.pipelinecreate = VkGraphicsself.pipelineCreateInfo(
 			sType=VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 			flags=0,
 			stageCount=len(self.shaders),
@@ -1032,21 +1007,11 @@ class RasterPipeline:
 		self.vkPipeline = pipelines[0]
 		
 		
-	def createSurface(self):
-		newSurface   = Surface(self.device.instance, self.device, self)
-		self.surface = newSurface
-		return newSurface
-	
 	def release(self):
 		print("destroying graphicsPipeline")
-		for shader in self.shaders:
-			shader.release()
+		Pipeline.release(self)
 		self.inputBuffer.release()
 		vkDestroyRenderPass(self.vkDevice, self.render_pass, None)
-		vkDestroyPipeline(self.vkDevice, self.vkPipeline, None)
-		vkDestroyPipelineLayout(self.vkDevice, self.pipelineLayout, None)
-		
-		
 		
 class Shader:
 	def __init__(self, vkDevice, shaderDict):

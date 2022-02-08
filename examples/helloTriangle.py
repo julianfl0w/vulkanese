@@ -31,7 +31,7 @@ with open(setupDictPath, 'r') as f:
 # for now, only one commandPool per device
 print("naively choosing device 0")
 device      = instance_inst.getDevice(0)
-commandPool = device.createCommandPool()
+commandPool = device.commandPool
 
 # As of now, SimpleVulkan has no settable options for
 # Device or CommandPool class. setupDict describes 
