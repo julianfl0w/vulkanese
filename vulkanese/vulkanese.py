@@ -542,13 +542,13 @@ class CommandBuffer:
 			
 		# Create command buffers, one for each image in the triple-buffer (swapchain + framebuffer)
 		# OR one for each non-surface pass
-		self.command_buffers_create = VkCommandBufferAllocateInfo(
+		self.vkCommandBuffers_create = VkCommandBufferAllocateInfo(
 			sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
 			commandPool=self.vkCommandPool,
 			level=VK_COMMAND_BUFFER_LEVEL_PRIMARY,
 			commandBufferCount=self.commandBufferCount)
 
-		self.command_buffers = vkAllocateCommandBuffers(self.vkDevice, self.command_buffers_create)
+		self.vkCommandBuffers = vkAllocateCommandBuffers(self.vkDevice, self.vkCommandBuffers_create)
 		
 		# Information describing the queue submission
 		self.submit_create = VkSubmitInfo(
@@ -557,7 +557,7 @@ class CommandBuffer:
 			pWaitSemaphores=self.pipeline.wait_semaphores,
 			pWaitDstStageMask=self.pipeline.wait_stages,
 			commandBufferCount=1,
-			pCommandBuffers=[self.command_buffers[0]],
+			pCommandBuffers=[self.vkCommandBuffers[0]],
 			signalSemaphoreCount=len(self.pipeline.signal_semaphores),
 			pSignalSemaphores=self.pipeline.signal_semaphores)
 
@@ -574,22 +574,22 @@ class CommandBuffer:
 			pResults=None)
 		
 		# Record command buffer
-		for i, command_buffer in enumerate(self.command_buffers):
-			print("recording command_buffer " + str(i))
-			command_buffer_begin_create = VkCommandBufferBeginInfo(
+		for i, vkCommandBuffer in enumerate(self.vkCommandBuffers):
+			print("recording vkCommandBuffer " + str(i))
+			vkCommandBuffer_begin_create = VkCommandBufferBeginInfo(
 				sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 				flags=VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
 				pInheritanceInfo=None)
 
-			vkBeginCommandBuffer(command_buffer, command_buffer_begin_create)
-			vkCmdBeginRenderPass(command_buffer, self.pipeline.renderPass.render_pass_begin_create, VK_SUBPASS_CONTENTS_INLINE)
+			vkBeginCommandBuffer(vkCommandBuffer, vkCommandBuffer_begin_create)
+			vkCmdBeginRenderPass(vkCommandBuffer, self.pipeline.renderPass.render_pass_begin_create, VK_SUBPASS_CONTENTS_INLINE)
 			# Bind graphicsPipeline
-			vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.vkPipeline)
+			vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.vkPipeline)
 			# Draw
-			vkCmdDraw(command_buffer, 3, 1, 0, 0)
+			vkCmdDraw(vkCommandBuffer, 3, 1, 0, 0)
 			# End
-			vkCmdEndRenderPass(command_buffer)
-			vkEndCommandBuffer(command_buffer)
+			vkCmdEndRenderPass(vkCommandBuffer)
+			vkEndCommandBuffer(vkCommandBuffer)
 			
 			
 	def release(self):
@@ -597,7 +597,7 @@ class CommandBuffer:
 		
 
 	def draw_frame(self, image_index):
-		self.submit_create.pCommandBuffers[0] = self.command_buffers[image_index]
+		self.submit_create.pCommandBuffers[0] = self.vkCommandBuffers[image_index]
 		vkQueueSubmit(self.device.graphic_queue, 1, self.submit_list, None)
 
 		self.present_create.pImageIndices[0] = image_index
