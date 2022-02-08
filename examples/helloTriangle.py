@@ -38,13 +38,13 @@ device      = instance_inst.getDevice(0)
 print("Applying the following layout:")
 print(json.dumps(setupDict, indent = 4))
 pipelines = device.applyLayout(setupDict)
+
+print("")
+print("Object tree:")
+print(device)
 rasterPipeline = pipelines[0]
 
-# Python peculiarities
-if sys.version_info >= (3, 3):
-	clock = time.perf_counter
-else:
-	clock = time.clock
+clock = time.perf_counter
 
 # Main loop
 last_time = clock() * 1000

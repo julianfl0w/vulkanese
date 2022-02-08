@@ -322,7 +322,6 @@ class Device:
 	def createShader(self, path, stage):
 		return Shader(self.vkDevice, path, stage)
 		
-
 	def release(self):
 		print("destroying command pool")
 		vkDestroyCommandPool(self.vkDevice, self.vkCommandPool, None)
@@ -335,6 +334,17 @@ class Device:
 		
 		print("destroying device")
 		vkDestroyDevice(self.vkDevice, None)
+		
+	def __str__(self):
+		retstr = "Device: " 
+		retstr += "  " + str(self.vkDevice) + "\n"
+		for pipeline in self.pipelines:
+			retstr += "    " + str(pipeline).replace("\n", "    \n") + "\n"
+		
+		return retstr
+		
+	def __unicode__(self):
+		return self.__str__()
 
 class Surface:
 	def getEvents(self):
@@ -576,6 +586,7 @@ class CommandBuffer:
 		# Record command buffer
 		for i, vkCommandBuffer in enumerate(self.vkCommandBuffers):
 			print("recording vkCommandBuffer " + str(i))
+			print("with handle " + str(vkCommandBuffer))
 			vkCommandBuffer_begin_create = VkCommandBufferBeginInfo(
 				sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 				flags=VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
@@ -727,12 +738,28 @@ class Pipeline:
 		self.inputBuffer.release()
 		self.commandBuffer.release()
 
+	def __str__(self):
+		retstr = "Pipeline: " 
+		retstr += "  " + str(self.vkPipeline) + "\n"
+		for commandBuffer in self.commandBuffer.vkCommandBuffers:
+			retstr += "      " + str(commandBuffer) + "\n"
+		
+		if self.renderPass is not None:
+			retstr += str(self.renderPass)
+		
+		return retstr
+		
+	def __unicode__(self):
+		return self.__str__()
+		
 # the compute pipeline is so much simpler than the old-school 
 # graphics pipeline. it should be considered separately
 class ComputePipeline(Pipeline):
 	
 	def __init__(self, device, setupDict):
 		Pipeline.__init__(self, device, setupDict)
+		
+		self.descriptorSet = DescriptorSet(device.descriptorPool)
 		
 		# The pipeline layout allows the pipeline to access descriptor sets.
 		# So we just specify the descriptor set layout we created earlier.
@@ -883,6 +910,15 @@ class RenderPass:
 			vkDestroyImageView(self.vkDevice, i, None)
 		vkDestroyRenderPass(self.vkDevice, self.vkRenderPass, None)
 		
+	def __str__(self):
+		retstr = "\n      RenderPass: " 
+		for image in self.image_views:
+			retstr += "\n         " + str(image)
+		
+		return retstr
+		
+	def __unicode__(self):
+		return self.__str__()
 			
 class RasterPipeline(Pipeline):
 
