@@ -181,6 +181,7 @@ class Buffer:
 		print("destroying buffer")
 		vkFreeMemory(self.vkDevice, self.vkBufferMemory, None)
 		vkDestroyBuffer(self.vkDevice, self.vkBuffer, None)
+		print("buffer destroyed")
 	
 class Device:
 	def createBuffer(self, sizeBytes):
@@ -325,6 +326,9 @@ class Device:
 	def release(self):
 		print("destroying command pool")
 		vkDestroyCommandPool(self.vkDevice, self.vkCommandPool, None)
+		
+		print("destroying descriptor pool")
+		vkDestroyDescriptorPool(self.vkDevice, self.vkDescriptorPool, None)
 		
 		for pipeline in self.pipelines:
 			pipeline.release()
@@ -509,13 +513,8 @@ class Surface:
 
 	def release(self):
 		print("destroying surface")
-		vkDestroySemaphore(self.vkDevice, self.semaphore_image_available, None)
-		vkDestroySemaphore(self.vkDevice, self.semaphore_render_finished, None)
-		
 		self.vkDestroySwapchainKHR(self.vkDevice, self.swapchain, None)
 		self.vkDestroySurfaceKHR(self.vkInstance, self.vkSurface, None)
-		for i in self.image_views:
-			vkDestroyImageView(self.vkDevice, i, None)
 			
 	
 class CommandBuffer:
@@ -594,15 +593,7 @@ class CommandBuffer:
 			
 			
 	def release(self):
-		print("destroying framebuffers")
-		for f in self.framebuffers:
-			print("destroying framebuffer f")
-			vkDestroyFramebuffer(self.vkDevice, f, None)
-
-		print("destroying semaphore")
-		
-		self.surface.release()
-		self.graphicsPipeline.release()
+		print("destroying command buffer")
 		
 
 	def draw_frame(self, image_index):
@@ -675,6 +666,11 @@ class DescriptorSet:
 		# perform the update of the descriptor set.
 		vkUpdateDescriptorSets(self.vkDevice, 1, [writeDescriptorSet], 0, None)
 
+	def release():
+		
+		vkDestroyDescriptorSetLayout(self.device, self.descriptorSetLayout, None)
+		vkDestroyDescriptorSet(self.device, self.descriptorSet, None)
+
 # all pipelines contain:
 # references to instance, device, etc
 # at least 1 shader
@@ -713,18 +709,23 @@ class Pipeline:
 		return newSurface
 	
 	def release(self):
+		vkDestroySemaphore(self.vkDevice, self.semaphore_image_available, None)
+		vkDestroySemaphore(self.vkDevice, self.semaphore_render_finished, None)
+		
 		for shader in self.shaders:
 			shader.release()
 		vkDestroyPipeline(self.vkDevice, self.vkPipeline, None)
 		vkDestroyPipelineLayout(self.vkDevice, self.pipelineLayout, None)
 		
-		if surface is not None:
+		if self.surface is not None:
 			print("releasing surface")
 			self.surface.release()
+			
+		if self.renderPass is not None:
+			self.renderPass.release()
 	
 		self.inputBuffer.release()
-		vkDestroyRenderPass(self.vkDevice, self.render_pass, None)
-		
+		self.commandBuffer.release()
 
 # the compute pipeline is so much simpler than the old-school 
 # graphics pipeline. it should be considered separately
@@ -871,7 +872,18 @@ class RenderPass:
 				pClearValues=[clear_value])
 
 		print("%s images view created" % len(self.image_views))
-
+	def release(self):
+	
+		print("destroying framebuffers")
+		for i, f in enumerate(self.framebuffers):
+			print("destroying framebuffer " + str(i))
+			vkDestroyFramebuffer(self.vkDevice, f, None)
+			
+		for i in self.image_views:
+			vkDestroyImageView(self.vkDevice, i, None)
+		vkDestroyRenderPass(self.vkDevice, self.vkRenderPass, None)
+		
+			
 class RasterPipeline(Pipeline):
 
 	def __init__(self, device, setupDict):
@@ -1012,12 +1024,6 @@ class RasterPipeline(Pipeline):
 		# wrap it all up into a command buffer
 		self.commandBuffer = CommandBuffer(self)
 
-		
-	def release(self):
-		print("destroying graphicsPipeline")
-		Pipeline.release(self)
-		self.inputBuffer.release()
-		vkDestroyRenderPass(self.vkDevice, self.render_pass, None)
 		
 class Shader:
 	def __init__(self, vkDevice, shaderDict):
