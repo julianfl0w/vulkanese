@@ -185,7 +185,19 @@ class Buffer:
 class Device:
 	def createBuffer(self, sizeBytes):
 		return Buffer(self, sizeBytes)
-
+			
+	def applyLayout(self, setupDict):
+		self.pipelines = []
+		for pipelineDict in setupDict["pipelines"]:
+			if pipelineDict["class"] == "raster":
+				self.pipelines += [RasterPipeline(self, pipelineDict)]
+			elif pipelineDict["class"] == "compute":
+				self.pipelines += [ComputePipeline(self, pipelineDict)]
+			else:
+				self.pipelines += [RaytracePipeline(self, pipelineDict)]
+				
+		return self.pipelines
+	
 	def __init__(self, instance, deviceIndex):
 		self.instance = instance
 		self.deviceIndex = deviceIndex
@@ -279,7 +291,7 @@ class Device:
 		# Create command pool
 		command_pool_create = VkCommandPoolCreateInfo(
 			sType=VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-			queueFamilyIndex=self.device.queue_family_graphic_index,
+			queueFamilyIndex=self.queue_family_graphic_index,
 			flags=0)
 
 		self.vkCommandPool = vkCreateCommandPool(self.vkDevice, command_pool_create, None)
@@ -311,10 +323,12 @@ class Device:
 		
 
 	def release(self):
-		print("destroying all command pools")
-		for i in self.commandPool:
-			print("destroying command pool i")
-			i.release()
+		print("destroying command pool")
+		vkDestroyCommandPool(self.vkDevice, self.vkCommandPool, None)
+		
+		for pipeline in self.pipelines:
+			pipeline.release()
+		
 		print("destroying device")
 		vkDestroyDevice(self.vkDevice, None)
 
@@ -383,7 +397,6 @@ class Surface:
 
 	def __init__(self, instance, device, pipeline):
 		self.running = True
-		self.commandBuffer = pipeline.command_buffer
 		self.pipeline = pipeline
 		
 		self.WIDTH = 400
@@ -504,22 +517,21 @@ class Surface:
 		for i in self.image_views:
 			vkDestroyImageView(self.vkDevice, i, None)
 			
-		print("destroying command pool")
-		vkDestroyCommandPool(self.vkDevice, self.vkCommandPool, None)
-			
 	
 class CommandBuffer:
-	def __init__(self, commandPool, pipeline):
+	def __init__(self, pipeline):
+		self.pipeline = pipeline
 		self.pipelineDict = pipeline.setupDict
-		self.commandPool  = commandPool
-		self.device       = commandPool.device
-		self.vkDevice     = commandPool.vkDevice
-		self.outputWidthPixels  = setupDict["outputWidthPixels"]
-		self.outputHeightPixels = setupDict["outputHeightPixels"]
+		self.vkCommandPool  = pipeline.device.vkCommandPool
+		self.device       = pipeline.device
+		self.vkDevice     = pipeline.device.vkDevice
+		self.outputWidthPixels  = self.pipelineDict["outputWidthPixels"]
+		self.outputHeightPixels = self.pipelineDict["outputHeightPixels"]
 		self.commandBufferCount = 0
 		
 		# assume triple-buffering for surfaces
-		if pipelineDict["outputClass"] == "surface":
+		if self.pipelineDict["outputClass"] == "surface":
+			print("allocating 3 command buffers, one for each image")
 			self.commandBufferCount += 3 
 		# single-buffering for images
 		else:
@@ -533,18 +545,35 @@ class CommandBuffer:
 		# OR one for each non-surface pass
 		self.command_buffers_create = VkCommandBufferAllocateInfo(
 			sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-			commandPool=self.commandPool.vkCommandPool,
+			commandPool=self.vkCommandPool,
 			level=VK_COMMAND_BUFFER_LEVEL_PRIMARY,
 			commandBufferCount=self.commandBufferCount)
 
 		self.command_buffers = vkAllocateCommandBuffers(self.vkDevice, self.command_buffers_create)
 		
-		if pipelineDict["class"] == "raster":
-			self.createRasterPipeline(pipelineDict)
-		else:
-			self.createComputePipeline(pipelineDict)
-				
-			
+		# Information describing the queue submission
+		self.submit_create = VkSubmitInfo(
+			sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			waitSemaphoreCount=len(self.pipeline.wait_semaphores),
+			pWaitSemaphores=self.pipeline.wait_semaphores,
+			pWaitDstStageMask=self.pipeline.wait_stages,
+			commandBufferCount=1,
+			pCommandBuffers=[self.command_buffers[0]],
+			signalSemaphoreCount=len(self.pipeline.signal_semaphores),
+			pSignalSemaphores=self.pipeline.signal_semaphores)
+
+		# optimization to avoid creating a new array each time
+		self.submit_list = ffi.new('VkSubmitInfo[1]', [self.submit_create])
+
+		self.present_create = VkPresentInfoKHR(
+			sType=VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+			waitSemaphoreCount=1,
+			pWaitSemaphores=self.pipeline.signal_semaphores,
+			swapchainCount=1,
+			pSwapchains=[self.pipeline.surface.swapchain],
+			pImageIndices=[0],
+			pResults=None)
+		
 		# Record command buffer
 		for i, command_buffer in enumerate(self.command_buffers):
 			print("recording command_buffer " + str(i))
@@ -554,25 +583,15 @@ class CommandBuffer:
 				pInheritanceInfo=None)
 
 			vkBeginCommandBuffer(command_buffer, command_buffer_begin_create)
-			vkCmdBeginRenderPass(command_buffer, self.render_pass_begin_create, VK_SUBPASS_CONTENTS_INLINE)
+			vkCmdBeginRenderPass(command_buffer, self.pipeline.renderPass.render_pass_begin_create, VK_SUBPASS_CONTENTS_INLINE)
 			# Bind graphicsPipeline
-			vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, self.graphicsPipeline.vkPipeline)
+			vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.vkPipeline)
 			# Draw
 			vkCmdDraw(command_buffer, 3, 1, 0, 0)
 			# End
 			vkCmdEndRenderPass(command_buffer)
 			vkEndCommandBuffer(command_buffer)
 			
-		
-	def createRasterPipeline(self, setupDict):
-		newPipeline   = RasterPipeline(self, setupDict)
-		self.graphicsPipeline = newPipeline
-		return newPipeline
-	
-	def createComputePipeline(self, setupDict):
-		newPipeline   = ComputePipeline(self, setupDict)
-		self.computePipeline = newPipeline
-		return newPipeline
 			
 	def release(self):
 		print("destroying framebuffers")
@@ -586,14 +605,12 @@ class CommandBuffer:
 		self.graphicsPipeline.release()
 		
 
-	def draw_frame(self):
-		image_index = self.vkAcquireNextImageKHR(self.vkDevice, self.surface.swapchain, UINT64_MAX, self.semaphore_image_available, None)
-
+	def draw_frame(self, image_index):
 		self.submit_create.pCommandBuffers[0] = self.command_buffers[image_index]
 		vkQueueSubmit(self.device.graphic_queue, 1, self.submit_list, None)
 
 		self.present_create.pImageIndices[0] = image_index
-		self.vkQueuePresentKHR(self.device.presentation_queue, self.present_create)
+		self.pipeline.vkQueuePresentKHR(self.device.presentation_queue, self.present_create)
 
 		# Fix #55 but downgrade performance -1000FPS)
 		vkQueueWaitIdle(self.device.presentation_queue)
@@ -664,14 +681,18 @@ class DescriptorSet:
 # an output size
 class Pipeline:
 
-	def __init__(self, command_buffer, setupDict):
-		self.vkDevice = command_buffer.vkDevice
-		self.device   = self.command_buffer.commandPool.device
-		self.command_buffer = command_buffer
+	def __init__(self, device, setupDict):
+		self.setupDict = setupDict
+		self.vkDevice  = device.vkDevice
+		self.device    = device
+		self.instance  = device.instance
 		self.pipelineClass = setupDict["class"]
 		self.outputWidthPixels  = setupDict["outputWidthPixels"]
 		self.outputHeightPixels = setupDict["outputHeightPixels"]
 		
+		self.vkAcquireNextImageKHR = vkGetInstanceProcAddr(self.instance.vkInstance, "vkAcquireNextImageKHR")
+		self.vkQueuePresentKHR     = vkGetInstanceProcAddr(self.instance.vkInstance, "vkQueuePresentKHR")
+
 		# Add Shaders
 		self.shaders = []
 		for shaderDict in setupDict["shaders"]:
@@ -680,7 +701,12 @@ class Pipeline:
 		# Create a surface, if indicated
 		if setupDict["outputClass"] == "surface":
 			self.createSurface()
+		
+	def draw_frame(self):
+		image_index = self.vkAcquireNextImageKHR(self.vkDevice, self.surface.swapchain, UINT64_MAX, self.semaphore_image_available, None)
 
+		self.commandBuffer.draw_frame(image_index)
+		
 	def createSurface(self):
 		newSurface   = Surface(self.device.instance, self.device, self)
 		self.surface = newSurface
@@ -691,14 +717,21 @@ class Pipeline:
 			shader.release()
 		vkDestroyPipeline(self.vkDevice, self.vkPipeline, None)
 		vkDestroyPipelineLayout(self.vkDevice, self.pipelineLayout, None)
+		
+		if surface is not None:
+			print("releasing surface")
+			self.surface.release()
 	
+		self.inputBuffer.release()
+		vkDestroyRenderPass(self.vkDevice, self.render_pass, None)
+		
 
 # the compute pipeline is so much simpler than the old-school 
 # graphics pipeline. it should be considered separately
 class ComputePipeline(Pipeline):
 	
-	def __init__(self, command_buffer, setupDict):
-		Pipeline.__init__(self, command_buffer, setupDict)
+	def __init__(self, device, setupDict):
+		Pipeline.__init__(self, device, setupDict)
 		
 		# The pipeline layout allows the pipeline to access descriptor sets.
 		# So we just specify the descriptor set layout we created earlier.
@@ -709,7 +742,7 @@ class ComputePipeline(Pipeline):
 		)
 		self.pipelineLayout = vkCreatePipelineLayout(self.vkDevice, pipelineLayoutCreateInfo, None)
 
-		self.pipelineCreateInfo = VkComputeself.pipelineCreateInfo(
+		self.pipelineCreateInfo = VkComputePipelineCreateInfo(
 			sType=VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
 			stage=shaderStageCreateInfo,
 			layout=self.pipelineLayout
@@ -720,18 +753,12 @@ class ComputePipeline(Pipeline):
 		if len(pipelines) == 1:
 			self.__pipeline = pipelines[0]
 			
-	def release(self):
-		print("destroying graphicsPipeline")
-		Pipeline.release(self)
-		self.inputBuffer.release()
-		vkDestroyRenderPass(self.vkDevice, self.render_pass, None)
-		
 class RenderPass:
-	def __init__(self, setupDict, surface):
+	def __init__(self, pipeline, setupDict, surface):
+		self.pipeline = pipeline
 		self.surface = surface
 		self.vkDevice = self.surface.device.vkDevice
 		self.instance = self.surface.device.instance
-		self.commandBuffer = self.surface.commandBuffer
 		
 		# Create render pass
 		color_attachement = VkAttachmentDescription(
@@ -742,7 +769,8 @@ class RenderPass:
 			storeOp=VK_ATTACHMENT_STORE_OP_STORE,
 			stencilLoadOp=VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 			stencilStoreOp=VK_ATTACHMENT_STORE_OP_DONT_CARE,
-			initialLayout=VK_IMAGE_LAYOUT_UNDEFINED,
+			#initialLayout=VK_IMAGE_LAYOUT_UNDEFINED,
+			initialLayout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
 			finalLayout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
 
 		color_attachement_reference = VkAttachmentReference(
@@ -785,42 +813,6 @@ class RenderPass:
 		self.framebuffers = []
 		
 	
-		# Create semaphore
-		semaphore_create = VkSemaphoreCreateInfo(
-			sType=VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-			flags=0)
-		self.semaphore_image_available = vkCreateSemaphore(self.vkDevice, semaphore_create, None)
-		self.semaphore_render_finished = vkCreateSemaphore(self.vkDevice, semaphore_create, None)
-
-		self.vkAcquireNextImageKHR = vkGetInstanceProcAddr(self.instance.vkInstance, "vkAcquireNextImageKHR")
-		self.vkQueuePresentKHR     = vkGetInstanceProcAddr(self.instance.vkInstance, "vkQueuePresentKHR")
-
-		wait_semaphores = [self.semaphore_image_available]
-		wait_stages = [VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT]
-		signal_semaphores = [self.semaphore_render_finished]
-
-		# Some presentation aspects?
-		self.submit_create = VkSubmitInfo(
-			sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,
-			waitSemaphoreCount=len(wait_semaphores),
-			pWaitSemaphores=wait_semaphores,
-			pWaitDstStageMask=wait_stages,
-			commandBufferCount=1,
-			pCommandBuffers=[self.commandBuffer.command_buffers[0]],
-			signalSemaphoreCount=len(signal_semaphores),
-			pSignalSemaphores=signal_semaphores)
-
-		# optimization to avoid creating a new array each time
-		self.submit_list = ffi.new('VkSubmitInfo[1]', [self.submit_create])
-
-		self.present_create = VkPresentInfoKHR(
-			sType=VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-			waitSemaphoreCount=1,
-			pWaitSemaphores=signal_semaphores,
-			swapchainCount=1,
-			pSwapchains=[self.surface.swapchain],
-			pImageIndices=[0],
-			pResults=None)
 			
 		# Create image view for each image in swapchain
 		self.image_views = []
@@ -882,12 +874,23 @@ class RenderPass:
 
 class RasterPipeline(Pipeline):
 
-	def __init__(self, command_buffer, setupDict):
-		Pipeline.__init__(self, command_buffer, setupDict)
+	def __init__(self, device, setupDict):
+		Pipeline.__init__(self, device, setupDict)
 		
+		# Create semaphore
+		semaphore_create = VkSemaphoreCreateInfo(
+			sType=VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+			flags=0)
+		self.semaphore_image_available = vkCreateSemaphore(self.vkDevice, semaphore_create, None)
+		self.semaphore_render_finished = vkCreateSemaphore(self.vkDevice, semaphore_create, None)
+
+		self.wait_stages       = [VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT]
+		self.wait_semaphores   = [self.semaphore_image_available]
+		self.signal_semaphores = [self.semaphore_render_finished]
+
 			
 		# Create a generic render pass
-		self.renderPass = RenderPass(setupDict, self.surface)
+		self.renderPass = RenderPass(self, setupDict, self.surface)
 		
 		# create the input buffer
 		self.inputBuffer = self.device.createBuffer(60000)
@@ -982,7 +985,7 @@ class RasterPipeline(Pipeline):
 
 		
 		# Finally create graphic graphicsPipeline
-		self.pipelinecreate = VkGraphicsself.pipelineCreateInfo(
+		self.pipelinecreate = VkGraphicsPipelineCreateInfo(
 			sType=VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 			flags=0,
 			stageCount=len(self.shaders),
@@ -1006,6 +1009,9 @@ class RasterPipeline(Pipeline):
 			
 		self.vkPipeline = pipelines[0]
 		
+		# wrap it all up into a command buffer
+		self.commandBuffer = CommandBuffer(self)
+
 		
 	def release(self):
 		print("destroying graphicsPipeline")

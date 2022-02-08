@@ -31,14 +31,14 @@ with open(setupDictPath, 'r') as f:
 # for now, only one commandPool per device
 print("naively choosing device 0")
 device      = instance_inst.getDevice(0)
-commandPool = device.commandPool
 
 # As of now, SimpleVulkan has no settable options for
 # Device or CommandPool class. setupDict describes 
 # CommandBuffer and its children 
-print("Applying the following CommandBuffer layout:")
+print("Applying the following layout:")
 print(json.dumps(setupDict, indent = 4))
-commandBuffer = commandPool.createCommandBuffer(setupDict)
+pipelines = device.applyLayout(setupDict)
+rasterPipeline = pipelines[0]
 
 # Python peculiarities
 if sys.version_info >= (3, 3):
@@ -59,14 +59,17 @@ while running:
 		fps = 0
 
 	# get quit, mouse, keypress etc
-	for event in commandBuffer.getEvents():
+	for event in rasterPipeline.surface.getEvents():
 		if event.type == sdl2.SDL_QUIT:
 			running = False
 			vkDeviceWaitIdle(device.vkDevice)
 			break
 	
 	# draw the frame!
-	commandBuffer.draw_frame()
+	rasterPipeline.draw_frame()
+	
+	if fps > 5:
+		break
 
 # elegantly free all memory
 instance_inst.release()
