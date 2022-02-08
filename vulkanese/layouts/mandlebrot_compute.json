@@ -2,19 +2,13 @@
 	
 	"outputWidthPixels"  : 400,
 	"outputHeightPixels" : 400,
-	"outputClass"  : "surface",
+	"outputClass"  : "image",
 	"pipeline"     : {
 		"outputWidthPixels"  : 400,
 		"outputHeightPixels" : 400,
 		"shaders"  : [
 		{
-			"path"         : "shaders/vert.spv",
-			"stage"        : "VK_SHADER_STAGE_VERTEX_BIT",
-			"outputWidthPixels"  : 400,
-			"outputHeightPixels" : 400
-		},
-		{
-			"path"         : "shaders/frag.spv",
+			"path"         : "shaders/hello_triangle.frag.spv",
 			"stage"        : "VK_SHADER_STAGE_FRAGMENT_BIT",
 			"outputWidthPixels"  : 400,
 			"outputHeightPixels" : 400

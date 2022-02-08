@@ -1,0 +1,26 @@
+{
+   "outputWidthPixels":400,
+   "outputHeightPixels":400,
+   "pipelines":[
+      {
+         "class":"raster",
+         "outputClass":"surface",
+         "outputWidthPixels":400,
+         "outputHeightPixels":400,
+         "shaders":[
+            {
+               "path":"shaders/hello_triangle.vert.spv",
+               "stage":"VK_SHADER_STAGE_VERTEX_BIT",
+               "outputWidthPixels":400,
+               "outputHeightPixels":400
+            },
+            {
+               "path":"shaders/hello_triangle.frag.spv",
+               "stage":"VK_SHADER_STAGE_FRAGMENT_BIT",
+               "outputWidthPixels":400,
+               "outputHeightPixels":400
+            }
+         ]
+      }
+   ]
+}

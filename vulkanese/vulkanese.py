@@ -6,7 +6,12 @@ import sdl2.ext
 import time
 import json
 from vulkan import *
+from PIL import Image as pilImage
+
 here = os.path.dirname(os.path.abspath(__file__))
+def getVulkanesePath():
+	return here
+
 
 
 class Instance:
@@ -92,8 +97,95 @@ class Instance:
 		print("destroying instance")
 		vkDestroyInstance(self.vkInstance, None)
 		
+class Buffer:
+
+	# find memory type with desired properties.
+	def findMemoryType(self, memoryTypeBits, properties):
+		memoryProperties = vkGetPhysicalDeviceMemoryProperties(self.device.physical_device)
+
+		# How does this search work?
+		# See the documentation of VkPhysicalDeviceMemoryProperties for a detailed description.
+		for i, mt in enumerate(memoryProperties.memoryTypes):
+			if memoryTypeBits & (1 << i) and (mt.propertyFlags & properties) == properties:
+				return i
+
+		return -1
+
+	def __init__(self, device, sizeBytes):
+		self.device   = device
+		self.vkDevice = device.vkDevice
+		self.sizeBytes= sizeBytes
 		
+		# We will now create a buffer. We will render the mandelbrot set into this buffer
+		# in a computer shade later.
+		bufferCreateInfo = VkBufferCreateInfo(
+			sType=VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+			size=self.sizeBytes,  # buffer size in bytes.
+			usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,  # buffer is used as a storage buffer.
+			sharingMode=VK_SHARING_MODE_EXCLUSIVE  # buffer is exclusive to a single queue family at a time.
+		)
+
+		self.vkBuffer = vkCreateBuffer(self.vkDevice, bufferCreateInfo, None)
+
+		# But the buffer doesn't allocate memory for itself, so we must do that manually.
+
+		# First, we find the memory requirements for the buffer.
+		memoryRequirements = vkGetBufferMemoryRequirements(self.vkDevice, self.vkBuffer)
+
+		# There are several types of memory that can be allocated, and we must choose a memory type that:
+		# 1) Satisfies the memory requirements(memoryRequirements.memoryTypeBits).
+		# 2) Satifies our own usage requirements. We want to be able to read the buffer memory from the GPU to the CPU
+		#    with vkMapMemory, so we set VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT.
+		# Also, by setting VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, memory written by the device(GPU) will be easily
+		# visible to the host(CPU), without having to call any extra flushing commands. So mainly for convenience, we set
+		# this flag.
+		index = self.findMemoryType(memoryRequirements.memoryTypeBits,
+									VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+		# Now use obtained memory requirements info to allocate the memory for the buffer.
+		allocateInfo = VkMemoryAllocateInfo(
+			sType=VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+			allocationSize=memoryRequirements.size,  # specify required memory.
+			memoryTypeIndex=index
+		)
+
+		# allocate memory on device.
+		self.vkBufferMemory = vkAllocateMemory(self.vkDevice, allocateInfo, None)
+
+		# Now associate that allocated memory with the buffer. With that, the buffer is backed by actual memory.
+		vkBindBufferMemory(self.vkDevice, self.vkBuffer, self.vkBufferMemory, 0)
+		
+		# Map the buffer memory, so that we can read from it on the CPU.
+		self.pmap = vkMapMemory(self.vkDevice, self.vkBufferMemory, 0, self.sizeBytes, 0)
+
+
+	def saveAsImage(self, height, width, path = 'mandelbrot.png'):
+
+		# Get the color data from the buffer, and cast it to bytes.
+		# We save the data to a vector.
+		st = time.time()
+
+		pa = np.frombuffer(self.pmap, np.float32)
+		pa = pa.reshape((height, width, 4))
+		pa *= 255
+
+		self.cpuDataConverTime = time.time() - st
+
+		# Done reading, so unmap.
+		# vkUnmapMemory(self.vkDevice, self.__bufferMemory)
+
+		# Now we save the acquired color data to a .png.
+		image = pilImage.fromarray(pa.astype(np.uint8))
+		image.save(path)
+
+	def release(self):
+		print("destroying buffer")
+		vkFreeMemory(self.vkDevice, self.vkBufferMemory, None)
+		vkDestroyBuffer(self.vkDevice, self.vkBuffer, None)
+	
 class Device:
+	def createBuffer(self, sizeBytes):
+		return Buffer(self, sizeBytes)
+
 	def __init__(self, instance, deviceIndex):
 		self.instance = instance
 		self.deviceIndex = deviceIndex
@@ -131,6 +223,15 @@ class Device:
 
 		print("indice of selected queue families, graphic: %s, presentation: %s\n" % (
 			self.queue_family_graphic_index, self.queue_family_present_index))
+
+		self.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE
+		self.queueFamilyIndexCount = 0
+		self.pQueueFamilyIndices = None
+
+		if self.queue_family_graphic_index != self.queue_family_present_index:
+			self.imageSharingMode = VK_SHARING_MODE_CONCURRENT
+			self.queueFamilyIndexCount = 2
+			self.pQueueFamilyIndices = [device.queue_family_graphic_index, device.queue_family_present_index]
 
 
 		# ----------
@@ -174,26 +275,18 @@ class Device:
 			queueIndex=0)
 	
 		print("Logical device and graphic queue successfully created\n")
-		self.commandPool = []
-		
-		
-	def createCommandPool(self):
-		newCommandPool = CommandPool(self)
-		self.commandPool += [newCommandPool]
-		return newCommandPool
+		self.commandPool = CommandPool(self)
+	
+	def getFeatures(self):
+	
+		self.features   = vkGetPhysicalDeviceFeatures(self.physical_device)  
+		self.properties = vkGetPhysicalDeviceProperties(self.physical_device)
+		self.memoryProperties = vkGetPhysicalDeviceMemoryProperties(self.physical_device)
+		return [self.features, self.properties, self.memoryProperties]
 		
 	def createShader(self, path, stage):
 		return Shader(self.vkDevice, path, stage)
 		
-	def draw_frame(self):
-		try:
-			for commandPool in self.commandPool:
-				commandPool.draw_frame()
-
-		except VkNotReady:
-			print('not ready')
-			return
-
 
 	def release(self):
 		print("destroying all command pools")
@@ -206,7 +299,28 @@ class Device:
 class Surface:
 	def getEvents(self):
 		return sdl2.ext.get_events()
-				
+	
+	def get_surface_format(self):
+		for f in self.formats:
+			if f.format == VK_FORMAT_UNDEFINED:
+				return  f
+			if (f.format == VK_FORMAT_B8G8R8A8_UNORM and
+				f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR):
+				return f
+		return self.formats[0]
+
+	def get_surface_present_mode(self):
+		for p in self.present_modes:
+			if p == VK_PRESENT_MODE_MAILBOX_KHR:
+				return p
+		return VK_PRESENT_MODE_FIFO_KHR;
+
+	def get_swap_extent(self):
+		uint32_max = 4294967295
+		if self.capabilities.currentExtent.width != uint32_max:
+			return VkExtent2D(width=self.capabilities.currentExtent.width,
+							  height=self.capabilities.currentExtent.height)
+
 	def surface_xlib(self):
 		print("Create Xlib surface")
 		vkCreateXlibSurfaceKHR = vkGetInstanceProcAddr(self.vkInstance, "vkCreateXlibSurfaceKHR")
@@ -245,16 +359,20 @@ class Surface:
 			flags=0)
 		return vkCreateWin32SurfaceKHR(self.vkInstance, surface_create, None)
 
-	def __init__(self, instance, device, commandBuffer):
+	def __init__(self, instance, device, pipeline):
 		self.running = True
-		self.commandBuffer = commandBuffer
+		self.commandBuffer = pipeline.command_buffer
+		self.pipeline = pipeline
 		
 		self.WIDTH = 400
 		self.HEIGHT = 400
+		self.extent = VkExtent2D(width=self.WIDTH,
+							  height=self.HEIGHT )
 	
 		self.instance = instance
 		self.vkInstance = instance.vkInstance
 		self.vkDevice   = device.vkDevice
+		self.device     = device
 		
 		# ----------
 		# Init sdl2
@@ -296,36 +414,15 @@ class Surface:
 		# ----------
 		# Create swapchain
 		vkGetPhysicalDeviceSurfaceCapabilitiesKHR = vkGetInstanceProcAddr(instance.vkInstance, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR")
-		vkGetPhysicalDeviceSurfaceFormatsKHR = vkGetInstanceProcAddr(instance.vkInstance, "vkGetPhysicalDeviceSurfaceFormatsKHR")
+		vkGetPhysicalDeviceSurfaceFormatsKHR      = vkGetInstanceProcAddr(instance.vkInstance, "vkGetPhysicalDeviceSurfaceFormatsKHR")
 		vkGetPhysicalDeviceSurfacePresentModesKHR = vkGetInstanceProcAddr(instance.vkInstance, "vkGetPhysicalDeviceSurfacePresentModesKHR")
 
-		surface_capabilities  = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice=device.physical_device, surface=self.vkSurface)
-		self.surface_formats  = vkGetPhysicalDeviceSurfaceFormatsKHR     (physicalDevice=device.physical_device, surface=self.vkSurface)
-		surface_present_modes = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice=device.physical_device, surface=self.vkSurface)
+		self.capabilities  = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice=device.physical_device, surface=self.vkSurface)
+		self.formats       = vkGetPhysicalDeviceSurfaceFormatsKHR     (physicalDevice=device.physical_device, surface=self.vkSurface)
+		self.present_modes = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice=device.physical_device, surface=self.vkSurface)
 
-		if not self.surface_formats or not surface_present_modes:
+		if not self.formats or not self.present_modes:
 			raise Exception('No available swapchain')
-
-		def get_surface_format(formats):
-			for f in formats:
-				if f.format == VK_FORMAT_UNDEFINED:
-					return  f
-				if (f.format == VK_FORMAT_B8G8R8A8_UNORM and
-					f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR):
-					return f
-			return formats[0]
-
-		def get_surface_present_mode(present_modes):
-			for p in present_modes:
-				if p == VK_PRESENT_MODE_MAILBOX_KHR:
-					return p
-			return VK_PRESENT_MODE_FIFO_KHR;
-
-		def get_swap_extent(capabilities):
-			uint32_max = 4294967295
-			if capabilities.currentExtent.width != uint32_max:
-				return VkExtent2D(width=capabilities.currentExtent.width,
-								  height=capabilities.currentExtent.height)
 
 			width = max(
 				capabilities.minImageExtent.width,
@@ -337,25 +434,16 @@ class Surface:
 			return actualExtent
 
 
-		self.surface_format = get_surface_format(self.surface_formats)
-		present_mode = get_surface_present_mode(surface_present_modes)
-		self.extent = get_swap_extent(surface_capabilities)
-		imageCount = surface_capabilities.minImageCount + 1;
-		if surface_capabilities.maxImageCount > 0 and imageCount > surface_capabilities.maxImageCount:
-			imageCount = surface_capabilities.maxImageCount
+		self.surface_format = self.get_surface_format()
+		present_mode = self.get_surface_present_mode()
+		self.extent  = self.get_swap_extent()
+		imageCount   = self.capabilities.minImageCount + 1;
+		if self.capabilities.maxImageCount > 0 and imageCount > self.capabilities.maxImageCount:
+			imageCount = self.capabilities.maxImageCount
 
 		print('selected format: %s' % self.surface_format.format)
-		print('%s available swapchain present modes' % len(surface_present_modes))
+		print('%s available swapchain present modes' % len(self.present_modes))
 
-
-		imageSharingMode = VK_SHARING_MODE_EXCLUSIVE
-		queueFamilyIndexCount = 0
-		pQueueFamilyIndices = None
-
-		if device.queue_family_graphic_index != device.queue_family_present_index:
-			imageSharingMode = VK_SHARING_MODE_CONCURRENT
-			queueFamilyIndexCount = 2
-			pQueueFamilyIndices = [device.queue_family_graphic_index, device.queue_family_present_index]
 
 		vkCreateSwapchainKHR       = vkGetInstanceProcAddr(instance.vkInstance, 'vkCreateSwapchainKHR')
 		self.vkDestroySwapchainKHR = vkGetInstanceProcAddr(instance.vkInstance, 'vkDestroySwapchainKHR')
@@ -371,56 +459,29 @@ class Surface:
 			imageExtent=self.extent,
 			imageArrayLayers=1,
 			imageUsage=VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-			imageSharingMode=imageSharingMode,
-			queueFamilyIndexCount=queueFamilyIndexCount,
-			pQueueFamilyIndices=pQueueFamilyIndices,
+			imageSharingMode=device.imageSharingMode,
+			queueFamilyIndexCount=device.queueFamilyIndexCount,
+			pQueueFamilyIndices=device.pQueueFamilyIndices,
 			compositeAlpha=VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
 			presentMode=present_mode,
 			clipped=VK_TRUE,
 			oldSwapchain=None,
-			preTransform=surface_capabilities.currentTransform)
+			preTransform=self.capabilities.currentTransform)
 
 		self.swapchain = vkCreateSwapchainKHR(device.vkDevice, swapchain_create, None)
-		swapchain_images = vkGetSwapchainImagesKHR(device.vkDevice, self.swapchain)
+		self.swapchain_images = vkGetSwapchainImagesKHR(device.vkDevice, self.swapchain)
 
-		# Create image view for each image in swapchain
-		self.image_views = []
-		for image in swapchain_images:
-			subresourceRange = VkImageSubresourceRange(
-				aspectMask=VK_IMAGE_ASPECT_COLOR_BIT,
-				baseMipLevel=0,
-				levelCount=1,
-				baseArrayLayer=0,
-				layerCount=1)
-
-			components = VkComponentMapping(
-				r=VK_COMPONENT_SWIZZLE_IDENTITY,
-				g=VK_COMPONENT_SWIZZLE_IDENTITY,
-				b=VK_COMPONENT_SWIZZLE_IDENTITY,
-				a=VK_COMPONENT_SWIZZLE_IDENTITY)
-
-			imageview_create = VkImageViewCreateInfo(
-				sType=VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-				image=image,
-				flags=0,
-				viewType=VK_IMAGE_VIEW_TYPE_2D,
-				format=self.surface_format.format,
-				components=components,
-				subresourceRange=subresourceRange)
-
-			self.image_views.append(vkCreateImageView(device.vkDevice, imageview_create, None))
-
-
-		print("%s images view created" % len(self.image_views))
 
 	def release(self):
 		print("destroying surface")
+		vkDestroySemaphore(self.vkDevice, self.semaphore_image_available, None)
+		vkDestroySemaphore(self.vkDevice, self.semaphore_render_finished, None)
+		
 		self.vkDestroySwapchainKHR(self.vkDevice, self.swapchain, None)
 		self.vkDestroySurfaceKHR(self.vkInstance, self.vkSurface, None)
 		for i in self.image_views:
 			vkDestroyImageView(self.vkDevice, i, None)
 			
-		
 	
 class CommandPool:
 	def __init__(self, device):
@@ -460,61 +521,35 @@ class CommandBuffer:
 		self.vkDevice     = commandPool.vkDevice
 		self.outputWidthPixels  = setupDict["outputWidthPixels"]
 		self.outputHeightPixels = setupDict["outputHeightPixels"]
-		
-		print("GOOOOOO")
-		print(setupDict["outputClass"])
-		if "surface" in setupDict["outputClass"]:
-			self.createSurface()
-		self.createPipeline(setupDict["pipeline"])
-	
+		self.commandBufferCount = 0
+		for pipelineDict in setupDict["pipelines"]:
+			# assume triple-buffering for surfaces
+			if pipelineDict["outputClass"] == "surface":
+				self.commandBufferCount += 3 
+			# single-buffering for images
+			else:
+				self.commandBufferCount += 1 
+				
+				
 		print("Creating buffers of size " + str(self.outputWidthPixels) + 
 			", " + str(self.outputHeightPixels))
+			
 		# Create command buffers, one for each image in the triple-buffer (swapchain + framebuffer)
+		# and one for each non-surface pass
 		self.command_buffers_create = VkCommandBufferAllocateInfo(
 			sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
 			commandPool=self.commandPool.vkCommandPool,
 			level=VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-			commandBufferCount=len(self.surface.image_views))
+			commandBufferCount=self.commandBufferCount)
 
 		self.command_buffers = vkAllocateCommandBuffers(self.vkDevice, self.command_buffers_create)
 		
-		self.framebuffers = []
-	
-		# Create semaphore
-		semaphore_create = VkSemaphoreCreateInfo(
-			sType=VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-			flags=0)
-		self.semaphore_image_available = vkCreateSemaphore(self.vkDevice, semaphore_create, None)
-		self.semaphore_render_finished = vkCreateSemaphore(self.vkDevice, semaphore_create, None)
-
-		self.vkAcquireNextImageKHR = vkGetInstanceProcAddr(self.device.instance.vkInstance, "vkAcquireNextImageKHR")
-		self.vkQueuePresentKHR = vkGetInstanceProcAddr(self.device.instance.vkInstance, "vkQueuePresentKHR")
-
-		wait_semaphores = [self.semaphore_image_available]
-		wait_stages = [VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT]
-		signal_semaphores = [self.semaphore_render_finished]
-
-		self.submit_create = VkSubmitInfo(
-			sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,
-			waitSemaphoreCount=len(wait_semaphores),
-			pWaitSemaphores=wait_semaphores,
-			pWaitDstStageMask=wait_stages,
-			commandBufferCount=1,
-			pCommandBuffers=[self.command_buffers[0]],
-			signalSemaphoreCount=len(signal_semaphores),
-			pSignalSemaphores=signal_semaphores)
-
-		# optimization to avoid creating a new array each time
-		self.submit_list = ffi.new('VkSubmitInfo[1]', [self.submit_create])
-
-		self.present_create = VkPresentInfoKHR(
-			sType=VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-			waitSemaphoreCount=1,
-			pWaitSemaphores=signal_semaphores,
-			swapchainCount=1,
-			pSwapchains=[self.surface.swapchain],
-			pImageIndices=[0],
-			pResults=None)
+		for pipelineDict in setupDict["pipelines"]:
+			if pipelineDict["class"] == "raster":
+				self.createRasterPipeline(pipelineDict)
+			else:
+				self.createComputePipeline(pipelineDict)
+				
 			
 		# Record command buffer
 		for i, command_buffer in enumerate(self.command_buffers):
@@ -526,39 +561,10 @@ class CommandBuffer:
 
 			vkBeginCommandBuffer(command_buffer, command_buffer_begin_create)
 
-			# Create Graphics render pass
-			render_area = VkRect2D(offset=VkOffset2D(x=0, y=0),
-								   extent=self.pipeline.extent)
-			color = VkClearColorValue(float32=[0, 1, 0, 1])
-			clear_value = VkClearValue(color=color)
-
-			# Framebuffers creation
-			attachments = [self.surface.image_views[i]]
-			framebuffer_create = VkFramebufferCreateInfo(
-				sType=VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-				flags=0,
-				renderPass=self.pipeline.render_pass,
-				attachmentCount=len(attachments),
-				pAttachments=attachments,
-				width=self.outputWidthPixels,
-				height=self.outputHeightPixels,
-				layers=1)
-				
-			thisFramebuffer = vkCreateFramebuffer(self.vkDevice, framebuffer_create, None)
-			self.framebuffers.append(thisFramebuffer)
-			
-			self.render_pass_begin_create = VkRenderPassBeginInfo(
-				sType=VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-				renderPass=self.pipeline.render_pass,
-				framebuffer=thisFramebuffer,
-				renderArea=render_area,
-				clearValueCount=1,
-				pClearValues=[clear_value])
-
 			vkCmdBeginRenderPass(command_buffer, self.render_pass_begin_create, VK_SUBPASS_CONTENTS_INLINE)
 
-			# Bind pipeline
-			vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.vkPipeline)
+			# Bind graphicsPipeline
+			vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, self.graphicsPipeline.vkPipeline)
 
 			# Draw
 			vkCmdDraw(command_buffer, 3, 1, 0, 0)
@@ -570,17 +576,17 @@ class CommandBuffer:
 	def getEvents(self):
 		return self.surface.getEvents()
 	
-	def createSurface(self):
-		newSurface   = Surface(self.device.instance, self.device, self)
-		self.surface = newSurface
-		return newSurface
 		
-	def createPipeline(self, setupDict):
-		newPipeline   = Pipeline(self, setupDict)
-		self.pipeline = newPipeline
+	def createRasterPipeline(self, setupDict):
+		newPipeline   = RasterPipeline(self, setupDict)
+		self.graphicsPipeline = newPipeline
 		return newPipeline
-		
-		
+	
+	def createComputePipeline(self, setupDict):
+		newPipeline   = ComputePipeline(self, setupDict)
+		self.computePipeline = newPipeline
+		return newPipeline
+			
 	def release(self):
 		print("destroying framebuffers")
 		for f in self.framebuffers:
@@ -588,11 +594,9 @@ class CommandBuffer:
 			vkDestroyFramebuffer(self.vkDevice, f, None)
 
 		print("destroying semaphore")
-		vkDestroySemaphore(self.vkDevice, self.semaphore_image_available, None)
-		vkDestroySemaphore(self.vkDevice, self.semaphore_render_finished, None)
 		
 		self.surface.release()
-		self.pipeline.release()
+		self.graphicsPipeline.release()
 		
 
 	def draw_frame(self):
@@ -607,19 +611,144 @@ class CommandBuffer:
 		# Fix #55 but downgrade performance -1000FPS)
 		vkQueueWaitIdle(self.device.presentation_queue)
 		
-		
-class Pipeline:
+class DescriptorSet:
+	def __init__(self, descriptorPool):
+		self.descriptorPool = descriptorPool
+		# Here we specify a descriptor set layout. This allows us to bind our descriptors to
+		# resources in the shader.
 
+		# Here we specify a binding of type VK_DESCRIPTOR_TYPE_STORAGE_BUFFER to the binding point
+		# 0. This binds to
+		#   layout(std140, binding = 0) buffer buf
+		# in the compute shader.
+
+		self.descriptorSetLayoutBinding = VkDescriptorSetLayoutBinding(
+			binding=0,
+			descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+			descriptorCount=1,
+			stageFlags=VK_SHADER_STAGE_COMPUTE_BIT
+		)
+
+		descriptorSetLayoutCreateInfo = VkDescriptorSetLayoutCreateInfo(
+			sType=VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+			bindingCount=1,  # only a single binding in this descriptor set layout.
+			pBindings=self.descriptorSetLayoutBinding
+		)
+
+		# Create the descriptor set layout.
+		self.vkCreateDescriptorSetLayout = vkCreateDescriptorSetLayout(self.vkDevice, descriptorSetLayoutCreateInfo, None)
+
+		# So we will allocate a descriptor set here.
+		descriptorSetAllocateInfo = VkDescriptorSetAllocateInfo(
+			sType=VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+			descriptorPool=self.vkDescriptorPool,
+			descriptorSetCount=1,
+			pSetLayouts=[self.vkCreateDescriptorSetLayout]
+		)
+
+		# allocate descriptor set.
+		self.vkDescriptorSet = vkAllocateDescriptorSets(self.vkDevice, descriptorSetAllocateInfo)[0]
+
+		# Next, we need to connect our actual storage buffer with the descrptor.
+		# We use vkUpdateDescriptorSets() to update the descriptor set.
+
+		# Specify the buffer to bind to the descriptor.
+		descriptorBufferInfo = VkDescriptorBufferInfo(
+			buffer=self.vkBuffer,
+			offset=0,
+			range=self.vkBufferSize
+		)
+
+		writeDescriptorSet = VkWriteDescriptorSet(
+			sType=VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			dstSet=self.vkDescriptorSet,
+			dstBinding=0,  # write to the first, and only binding.
+			descriptorCount=1,
+			descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+			pBufferInfo=descriptorBufferInfo
+		)
+
+		# perform the update of the descriptor set.
+		vkUpdateDescriptorSets(self.vkDevice, 1, [writeDescriptorSet], 0, None)
+
+
+class DescriptorPool:
+	def __init__(self):
+	
+		# Our descriptor pool can only allocate a single storage buffer.
+		descriptorPoolSize = VkDescriptorPoolSize(
+			type=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+			descriptorCount=1
+		)
+
+		descriptorPoolCreateInfo = VkDescriptorPoolCreateInfo(
+			sType=VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+			maxSets=1,  # we only need to allocate one descriptor set from the pool.
+			poolSizeCount=1,
+			pPoolSizes=descriptorPoolSize
+		)
+
+		# create descriptor pool.
+		self.vkDescriptorPool = vkCreateDescriptorPool(self.vkDevice, descriptorPoolCreateInfo, None)
+
+
+# the compute pipeline is so much simpler than the old-school 
+# graphics pipeline. it should be considered separately
+class ComputePipeline:
+	
 	def __init__(self, command_buffer, setupDict):
 		self.vkDevice = command_buffer.vkDevice
+		self.device   = self.command_buffer.commandPool.device
 		self.command_buffer = command_buffer
+		self.pipelineClass = setupDict["class"]
 		self.outputWidthPixels  = setupDict["outputWidthPixels"]
 		self.outputHeightPixels = setupDict["outputHeightPixels"]
+		
+		# Add Shaders
+		self.shaders = []
+		for shaderDict in setupDict["shaders"]:
+			self.shaders += [Shader(self.vkDevice, shaderDict)]
+
+		# The pipeline layout allows the pipeline to access descriptor sets.
+		# So we just specify the descriptor set layout we created earlier.
+		pipelineLayoutCreateInfo = VkPipelineLayoutCreateInfo(
+			sType=VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+			setLayoutCount=1,
+			pSetLayouts=[self.__descriptorSetLayout]
+		)
+		self.pipelineLayout = vkCreatePipelineLayout(self.vkDevice, pipelineLayoutCreateInfo, None)
+
+		pipelineCreateInfo = VkComputePipelineCreateInfo(
+			sType=VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+			stage=shaderStageCreateInfo,
+			layout=self.pipelineLayout
+		)
+
+		# Now, we finally create the compute pipeline.
+		pipelines = vkCreateComputePipelines(self.vkDevice, VK_NULL_HANDLE, 1, pipelineCreateInfo, None)
+		if len(pipelines) == 1:
+			self.__pipeline = pipelines[0]
+			
+	def release(self):
+		print("destroying graphicsPipeline")
+		for shader in self.shaders:
+			shader.release()
+		self.inputBuffer.release()
+		vkDestroyRenderPass(self.vkDevice, self.render_pass, None)
+		vkDestroyPipeline(self.vkDevice, self.vkPipeline, None)
+		vkDestroyPipelineLayout(self.vkDevice, self.pipelineLayout, None)
+	
+class RenderPass:
+	def __init__(self, setupDict, surface):
+		self.surface = surface
+		self.vkDevice = self.surface.device.vkDevice
+		self.instance = self.surface.device.instance
+		self.commandBuffer = self.surface.commandBuffer
 		
 		# Create render pass
 		color_attachement = VkAttachmentDescription(
 			flags=0,
-			format=command_buffer.surface.surface_format.format,
+			format=self.surface.surface_format.format,
 			samples=VK_SAMPLE_COUNT_1_BIT,
 			loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR,
 			storeOp=VK_ATTACHMENT_STORE_OP_STORE,
@@ -663,14 +792,132 @@ class Pipeline:
 			dependencyCount=1,
 			pDependencies=[dependency])
 
-		self.render_pass = vkCreateRenderPass(self.vkDevice, render_pass_create, None)
+		self.vkRenderPass = vkCreateRenderPass(self.vkDevice, render_pass_create, None)
+		
+		self.framebuffers = []
+		
+	
+		# Create semaphore
+		semaphore_create = VkSemaphoreCreateInfo(
+			sType=VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+			flags=0)
+		self.semaphore_image_available = vkCreateSemaphore(self.vkDevice, semaphore_create, None)
+		self.semaphore_render_finished = vkCreateSemaphore(self.vkDevice, semaphore_create, None)
+
+		self.vkAcquireNextImageKHR = vkGetInstanceProcAddr(self.instance.vkInstance, "vkAcquireNextImageKHR")
+		self.vkQueuePresentKHR     = vkGetInstanceProcAddr(self.instance.vkInstance, "vkQueuePresentKHR")
+
+		wait_semaphores = [self.semaphore_image_available]
+		wait_stages = [VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT]
+		signal_semaphores = [self.semaphore_render_finished]
+
+		# Some presentation aspects?
+		self.submit_create = VkSubmitInfo(
+			sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			waitSemaphoreCount=len(wait_semaphores),
+			pWaitSemaphores=wait_semaphores,
+			pWaitDstStageMask=wait_stages,
+			commandBufferCount=1,
+			pCommandBuffers=[self.commandBuffer.command_buffers[0]],
+			signalSemaphoreCount=len(signal_semaphores),
+			pSignalSemaphores=signal_semaphores)
+
+		# optimization to avoid creating a new array each time
+		self.submit_list = ffi.new('VkSubmitInfo[1]', [self.submit_create])
+
+		self.present_create = VkPresentInfoKHR(
+			sType=VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+			waitSemaphoreCount=1,
+			pWaitSemaphores=signal_semaphores,
+			swapchainCount=1,
+			pSwapchains=[self.surface.swapchain],
+			pImageIndices=[0],
+			pResults=None)
+			
+		# Create image view for each image in swapchain
+		self.image_views = []
+		for i, image in enumerate(self.surface.swapchain_images):
+			subresourceRange = VkImageSubresourceRange(
+				aspectMask=VK_IMAGE_ASPECT_COLOR_BIT,
+				baseMipLevel=0,
+				levelCount=1,
+				baseArrayLayer=0,
+				layerCount=1)
+
+			components = VkComponentMapping(
+				r=VK_COMPONENT_SWIZZLE_IDENTITY,
+				g=VK_COMPONENT_SWIZZLE_IDENTITY,
+				b=VK_COMPONENT_SWIZZLE_IDENTITY,
+				a=VK_COMPONENT_SWIZZLE_IDENTITY)
+
+			imageview_create = VkImageViewCreateInfo(
+				sType=VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+				image=image,
+				flags=0,
+				viewType=VK_IMAGE_VIEW_TYPE_2D,
+				format=self.surface.surface_format.format,
+				components=components,
+				subresourceRange=subresourceRange)
+
+			self.image_views.append(vkCreateImageView(self.vkDevice, imageview_create, None))
+			
+			# Create Graphics render pass
+			render_area = VkRect2D(offset=VkOffset2D(x=0, y=0),
+								   extent=self.surface.extent)
+			color = VkClearColorValue(float32=[0, 1, 0, 1])
+			clear_value = VkClearValue(color=color)
+
+			# Framebuffers creation
+			attachments = [self.image_views[i]]
+			framebuffer_create = VkFramebufferCreateInfo(
+				sType=VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+				flags=0,
+				renderPass=self.vkRenderPass,
+				attachmentCount=len(attachments),
+				pAttachments=attachments,
+				width=self.surface.WIDTH,
+				height=self.surface.HEIGHT,
+				layers=1)
+				
+			thisFramebuffer = vkCreateFramebuffer(self.vkDevice, framebuffer_create, None)
+			self.framebuffers.append(thisFramebuffer)
+			
+			self.render_pass_begin_create = VkRenderPassBeginInfo(
+				sType=VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+				renderPass=self.vkRenderPass,
+				framebuffer=thisFramebuffer,
+				renderArea=render_area,
+				clearValueCount=1,
+				pClearValues=[clear_value])
+
+		print("%s images view created" % len(self.image_views))
+
+class RasterPipeline:
+
+	def __init__(self, command_buffer, setupDict):
+		self.command_buffer = command_buffer
+		self.vkDevice = command_buffer.vkDevice
+		self.device   = self.command_buffer.commandPool.device
+		self.pipelineClass = setupDict["class"]
+		self.outputWidthPixels  = setupDict["outputWidthPixels"]
+		self.outputHeightPixels = setupDict["outputHeightPixels"]
 		
 		# Add Shaders
 		self.shaders = []
 		for shaderDict in setupDict["shaders"]:
 			self.shaders += [Shader(self.vkDevice, shaderDict)]
 		
-		# Create graphic pipeline
+		# Create a surface, if indicated
+		if setupDict["outputClass"] == "surface":
+			self.createSurface()
+			
+		# Create a generic render pass
+		self.renderPass = RenderPass(setupDict, self.surface)
+		
+		# create the input buffer
+		self.inputBuffer = self.device.createBuffer(60000)
+		
+		# Create graphic Pipeline
 		vertex_input_create = VkPipelineVertexInputStateCreateInfo(
 			sType=VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 			flags=0,
@@ -748,7 +995,7 @@ class Pipeline:
 			offset=0,
 			size=0)
 
-		pipeline_layout_create = VkPipelineLayoutCreateInfo(
+		pipelineCreateInfo = VkPipelineLayoutCreateInfo(
 			sType=VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 			flags=0,
 			setLayoutCount=0,
@@ -756,11 +1003,11 @@ class Pipeline:
 			pushConstantRangeCount=0,
 			pPushConstantRanges=[push_constant_ranges])
 
-		self.pipeline_layout = vkCreatePipelineLayout(self.vkDevice, pipeline_layout_create, None)
+		self.pipelineLayout = vkCreatePipelineLayout(self.vkDevice, pipelineCreateInfo, None)
 
 		
-		# Finally create graphic pipeline
-		self.pipeline_create = VkGraphicsPipelineCreateInfo(
+		# Finally create graphic graphicsPipeline
+		self.pipelinecreate = VkGraphicsPipelineCreateInfo(
 			sType=VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 			flags=0,
 			stageCount=len(self.shaders),
@@ -774,22 +1021,30 @@ class Pipeline:
 			pDepthStencilState=None,
 			pColorBlendState=color_blend_create,
 			pDynamicState=None,
-			layout=self.pipeline_layout,
-			renderPass=self.render_pass,
+			layout=self.pipelineLayout,
+			renderPass=self.renderPass.vkRenderPass,
 			subpass=0,
 			basePipelineHandle=None,
 			basePipelineIndex=-1)
 
-		pipelines = vkCreateGraphicsPipelines(self.vkDevice, None, 1, [self.pipeline_create], None)
+		pipelines = vkCreateGraphicsPipelines(self.vkDevice, None, 1, [self.pipelinecreate], None)
+			
 		self.vkPipeline = pipelines[0]
+		
+		
+	def createSurface(self):
+		newSurface   = Surface(self.device.instance, self.device, self)
+		self.surface = newSurface
+		return newSurface
 	
 	def release(self):
-		print("destroying pipeline")
+		print("destroying graphicsPipeline")
 		for shader in self.shaders:
 			shader.release()
+		self.inputBuffer.release()
 		vkDestroyRenderPass(self.vkDevice, self.render_pass, None)
 		vkDestroyPipeline(self.vkDevice, self.vkPipeline, None)
-		vkDestroyPipelineLayout(self.vkDevice, self.pipeline_layout, None)
+		vkDestroyPipelineLayout(self.vkDevice, self.pipelineLayout, None)
 		
 		
 		

@@ -8,6 +8,8 @@ import os
 import time
 import sys
 import json
+import open3d as o3d
+import numpy as np
 vkpath = "C:\\Users\\jcloi\\Documents\\vulkanese\\vulkanese"
 sys.path.append(vkpath)
 from vulkanese import *
@@ -45,7 +47,35 @@ if sys.version_info >= (3, 3):
 	clock = time.perf_counter
 else:
 	clock = time.clock
+	
+print("Testing IO for textured meshes ...")
+textured_mesh = o3d.io.read_triangle_mesh("resources/suzanne.obj")
+print(textured_mesh)
+print(np.asarray(textured_mesh.vertices))
+print(np.asarray(textured_mesh.triangles))
 
+#features, properties, memoryProperties = device.getFeatures()
+#print(features)
+#print(properties)
+#
+## ['memoryHeapCount', 'memoryHeaps', 'memoryTypeCount', 'memoryTypes']
+#print("memoryHeapCount: " + str(memoryProperties.memoryHeapCount))
+#print("memoryTypeCount: " + str(memoryProperties.memoryTypeCount))
+#print("memoryTypes:     " + str(memoryProperties.memoryTypes))
+#print("memoryTypes:     " + str(memoryProperties.memoryTypes.heapIndex))
+#
+#elements = dir(memoryProperties.memoryHeaps)
+#print(str(elements))
+#for e in elements:
+#	print("    " + e + " " + str(eval("memoryProperties.memoryHeaps." + e)))
+#print(memoryProperties.memoryHeaps)
+#print(memoryProperties.memoryTypes)
+
+#VkBufferCreateInfo bufferInfo{};
+#bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+#bufferInfo.size = sizeof(vertices[0]) * vertices.size();
+
+	
 # Main loop
 last_time = clock() * 1000
 fps = 0

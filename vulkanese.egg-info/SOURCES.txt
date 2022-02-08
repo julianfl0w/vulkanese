@@ -1,0 +1,14 @@
+LICENSE
+MANIFEST.in
+README.md
+setup.py
+examples/helloTriangle.py
+examples/helloTriangle.py.bak
+vulkanese/__init__.py
+vulkanese/vulkanese.py
+vulkanese.egg-info/PKG-INFO
+vulkanese.egg-info/SOURCES.txt
+vulkanese.egg-info/dependency_links.txt
+vulkanese.egg-info/top_level.txt
+vulkanese/layouts/__init__.py
+vulkanese/shaders/__init__.py
