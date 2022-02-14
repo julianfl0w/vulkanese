@@ -13,7 +13,7 @@
                "stage":"VK_SHADER_STAGE_VERTEX_BIT",
                "outputWidthPixels":400,
                "outputHeightPixels":400,
-               "buffers": 
+               "bufferDict": 
                {
                    "POSITION" : 10000,
                    "NORMAL"   : 10000,

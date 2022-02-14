@@ -1,8 +1,4 @@
 #!/bin/env python
-
-# coding: utf-8
-
-# flake8: noqa
 import ctypes
 import os
 import time
@@ -11,11 +7,10 @@ import json
 vkpath = "C:\\Users\\jcloi\\Documents\\vulkanese\\vulkanese"
 sys.path.append(vkpath)
 from vulkanese import *
-
+here = os.path.dirname(os.path.abspath(__file__))
 print(sys.path)
 #from vulkanese.vulkanese import *
 
-here = os.path.dirname(os.path.abspath(__file__))
 # device selection and instantiation
 instance_inst = Instance()
 print("available Devices:")
@@ -23,23 +18,22 @@ for i, d in enumerate(instance_inst.getDeviceList()):
 	print("    " + str(i) + ": " + d.deviceName)
 print("")
 
-# load the CommandBuffer setup dictionary
-setupDictPath = os.path.join(getVulkanesePath(), "layouts", "standard_raster.json")
+# choose a device
+print("naively choosing device 0")
+device = instance_inst.getDevice(0)
+
+# read the setup dictionary
+setupDictPath = os.path.join(getVulkanesePath(), "layouts", "hello_triangle.json")
 with open(setupDictPath, 'r') as f:
 	setupDict = json.loads(f.read())
-	
-# for now, only one commandPool per device
-print("naively choosing device 0")
-device      = instance_inst.getDevice(0)
 
-# As of now, SimpleVulkan has no settable options for
-# Device or CommandPool class. setupDict describes 
-# CommandBuffer and its children 
+# apply setup to device
 print("Applying the following layout:")
 print(json.dumps(setupDict, indent = 4))
 pipelines = device.applyLayout(setupDict)
-
 print("")
+
+# print the object hierarchy
 print("Object tree:")
 print(json.dumps(device.asDict(), indent=4))
 rasterPipeline = pipelines[0]
@@ -67,10 +61,6 @@ while running:
 	
 	# draw the frame!
 	rasterPipeline.draw_frame()
-	
-	#time.sleep(1)
-	#if fps > 5:
-	#	break
 
 # elegantly free all memory
 instance_inst.release()

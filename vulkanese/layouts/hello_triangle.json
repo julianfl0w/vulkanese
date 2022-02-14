@@ -9,17 +9,10 @@
          "outputHeightPixels":400,
          "shaders":[
             {
-               "path":"shaders/tri_mesh.vert.template",
+               "path":"shaders/hello_triangle.vert.spv",
                "stage":"VK_SHADER_STAGE_VERTEX_BIT",
                "outputWidthPixels":400,
-               "outputHeightPixels":400,
-               "buffers": 
-               {
-                   "POSITION" : 10000,
-                   "NORMAL"   : 10000,
-                   "COLOR"    : 10000,
-                   "OUTPUT"   : 10000
-               }
+               "outputHeightPixels":400
             },
             {
                "path":"shaders/hello_triangle.frag.spv",

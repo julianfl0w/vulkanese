@@ -1,0 +1,13 @@
+#version 450
+
+layout (location = LOCATION_POSITION) in vec3 vPosition;
+layout (location = LOCATION_NORMAL)   in vec3 vNormal;
+layout (location = LOCATION_COLOR)    in vec3 vColor;
+
+layout (location = LOCATION_OUTPUT) out vec3 outColor;
+
+void main()
+{
+	gl_Position = vec4(vPosition, 1.0f);
+	outColor = vColor;
+}
