@@ -41,7 +41,7 @@ pipelines = device.applyLayout(setupDict)
 
 print("")
 print("Object tree:")
-print(device)
+print(json.dumps(device.asDict(), indent=4))
 rasterPipeline = pipelines[0]
 
 clock = time.perf_counter
