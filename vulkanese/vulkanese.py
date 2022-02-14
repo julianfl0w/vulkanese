@@ -29,7 +29,7 @@ class PrintClass(object):
 			try:
 				retList += [child.asDict()]
 			except:
-				retList += [str(child)]
+				retList += [str(child)] # + " " + hex(id(child))]
 				
 		retDict = {}
 		retDict[str(type(self))] = retList
@@ -525,13 +525,11 @@ class Surface(PrintClass):
 			imageCount = self.capabilities.maxImageCount
 
 		print('selected format: %s' % self.surface_format.format)
+		print('selected colorspace: %s' % self.surface_format.colorSpace)
 		print('%s available swapchain present modes' % len(self.present_modes))
-
-
-		vkCreateSwapchainKHR       = vkGetInstanceProcAddr(instance.vkInstance, 'vkCreateSwapchainKHR')
+		print("image count " + str(imageCount))
 		self.vkDestroySwapchainKHR = vkGetInstanceProcAddr(instance.vkInstance, 'vkDestroySwapchainKHR')
-		vkGetSwapchainImagesKHR    = vkGetInstanceProcAddr(instance.vkInstance, 'vkGetSwapchainImagesKHR')
-
+		
 		swapchain_create = VkSwapchainCreateInfoKHR(
 			sType=VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
 			flags=0,
@@ -551,10 +549,22 @@ class Surface(PrintClass):
 			oldSwapchain=None,
 			preTransform=self.capabilities.currentTransform)
 
-		self.swapchain = vkCreateSwapchainKHR(device.vkDevice, swapchain_create, None)
-		self.vkSwapchainImages = vkGetSwapchainImagesKHR(device.vkDevice, self.swapchain)
+		vkCreateSwapchainKHR    = vkGetInstanceProcAddr(instance.vkInstance, 'vkCreateSwapchainKHR')
+		self.swapchain          = vkCreateSwapchainKHR(device.vkDevice, swapchain_create, None)
+		vkGetSwapchainImagesKHR = vkGetInstanceProcAddr(instance.vkInstance, 'vkGetSwapchainImagesKHR')
+		self.vkSwapchainImages  = vkGetSwapchainImagesKHR(device.vkDevice, self.swapchain)
+		print("swapchain images " + str(self.vkSwapchainImages))
 		self.children += [self.vkSwapchainImages]
 
+		# preesentation creator
+		self.present_create = VkPresentInfoKHR(
+			sType=VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+			waitSemaphoreCount=1,
+			pWaitSemaphores=self.pipeline.signal_semaphores,
+			swapchainCount=1,
+			pSwapchains=[self.swapchain],
+			pImageIndices=[0],
+			pResults=None)
 
 	def release(self):
 		print("destroying surface")
@@ -611,14 +621,6 @@ class CommandBuffer(PrintClass):
 		# optimization to avoid creating a new array each time
 		self.submit_list = ffi.new('VkSubmitInfo[1]', [self.submit_create])
 
-		self.present_create = VkPresentInfoKHR(
-			sType=VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-			waitSemaphoreCount=1,
-			pWaitSemaphores=self.pipeline.signal_semaphores,
-			swapchainCount=1,
-			pSwapchains=[self.pipeline.surface.swapchain],
-			pImageIndices=[0],
-			pResults=None)
 		
 		# Record command buffer
 		for i, vkCommandBuffer in enumerate(self.vkCommandBuffers):
@@ -630,7 +632,7 @@ class CommandBuffer(PrintClass):
 				pInheritanceInfo=None)
 
 			vkBeginCommandBuffer(vkCommandBuffer, vkCommandBuffer_begin_create)
-			vkCmdBeginRenderPass(vkCommandBuffer, self.pipeline.renderPass.render_pass_begin_create, VK_SUBPASS_CONTENTS_INLINE)
+			vkCmdBeginRenderPass(vkCommandBuffer, self.pipeline.renderPass.render_pass_begin_create[i], VK_SUBPASS_CONTENTS_INLINE)
 			# Bind graphicsPipeline
 			vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.vkPipeline)
 			# Draw
@@ -645,8 +647,8 @@ class CommandBuffer(PrintClass):
 		self.submit_create.pCommandBuffers[0] = self.vkCommandBuffers[image_index]
 		vkQueueSubmit(self.device.graphic_queue, 1, self.submit_list, None)
 
-		self.present_create.pImageIndices[0] = image_index
-		self.pipeline.vkQueuePresentKHR(self.device.presentation_queue, self.present_create)
+		self.pipeline.surface.present_create.pImageIndices[0] = image_index
+		self.pipeline.vkQueuePresentKHR(self.device.presentation_queue, self.pipeline.surface.present_create)
 
 		# Fix #55 but downgrade performance -1000FPS)
 		vkQueueWaitIdle(self.device.presentation_queue)
@@ -726,11 +728,31 @@ class DescriptorSet(PrintClass):
 class Pipeline(PrintClass):
 
 	def __init__(self, device, setupDict):
+	
 		PrintClass.__init__(self)
 		self.setupDict = setupDict
 		self.vkDevice  = device.vkDevice
 		self.device    = device
 		self.instance  = device.instance
+		
+		# Create semaphores
+		semaphore_create = VkSemaphoreCreateInfo(
+			sType=VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+			flags=0)
+		self.semaphore_image_available = vkCreateSemaphore(self.vkDevice, semaphore_create, None)
+		self.semaphore_render_finished = vkCreateSemaphore(self.vkDevice, semaphore_create, None)
+
+		self.wait_stages       = [VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT]
+		self.wait_semaphores   = [self.semaphore_image_available]
+		self.signal_semaphores = [self.semaphore_render_finished]
+			
+			
+		# Create a surface, if indicated
+		if setupDict["outputClass"] == "surface":
+			newSurface   = Surface(self.device.instance, self.device, self)
+			self.surface = newSurface
+			self.children += [self.surface]
+			
 		self.pipelineClass = setupDict["class"]
 		self.outputWidthPixels  = setupDict["outputWidthPixels"]
 		self.outputHeightPixels = setupDict["outputHeightPixels"]
@@ -745,20 +767,12 @@ class Pipeline(PrintClass):
 			
 		self.children += self.shaders
 		
-		# Create a surface, if indicated
-		if setupDict["outputClass"] == "surface":
-			self.createSurface()
 		
 	def draw_frame(self):
 		image_index = self.vkAcquireNextImageKHR(self.vkDevice, self.surface.swapchain, UINT64_MAX, self.semaphore_image_available, None)
-
 		self.commandBuffer.draw_frame(image_index)
-		
-	def createSurface(self):
-		newSurface   = Surface(self.device.instance, self.device, self)
-		self.surface = newSurface
-		self.children += [self.surface]
-		return newSurface
+
+
 	
 	def release(self):
 		vkDestroySemaphore(self.vkDevice, self.semaphore_image_available, None)
@@ -826,8 +840,8 @@ class RenderPass(PrintClass):
 			storeOp=VK_ATTACHMENT_STORE_OP_STORE,
 			stencilLoadOp=VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 			stencilStoreOp=VK_ATTACHMENT_STORE_OP_DONT_CARE,
-			#initialLayout=VK_IMAGE_LAYOUT_UNDEFINED,
-			initialLayout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+			initialLayout=VK_IMAGE_LAYOUT_UNDEFINED,
+			#initialLayout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
 			finalLayout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
 
 		color_attachement_reference = VkAttachmentReference(
@@ -868,12 +882,11 @@ class RenderPass(PrintClass):
 		self.vkRenderPass = vkCreateRenderPass(self.vkDevice, render_pass_create, None)
 		self.children += [self.vkRenderPass]
 		
-		self.framebuffers = []
-		
-	
-			
 		# Create image view for each image in swapchain
 		self.image_views = []
+		self.framebuffers = []
+		self.render_pass_begin_create = []
+		
 		for i, image in enumerate(self.surface.vkSwapchainImages):
 			subresourceRange = VkImageSubresourceRange(
 				aspectMask=VK_IMAGE_ASPECT_COLOR_BIT,
@@ -888,6 +901,7 @@ class RenderPass(PrintClass):
 				b=VK_COMPONENT_SWIZZLE_IDENTITY,
 				a=VK_COMPONENT_SWIZZLE_IDENTITY)
 
+			print("fuckin format " + str(self.surface.surface_format.format))
 			imageview_create = VkImageViewCreateInfo(
 				sType=VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 				image=image,
@@ -897,7 +911,8 @@ class RenderPass(PrintClass):
 				components=components,
 				subresourceRange=subresourceRange)
 
-			self.image_views.append(vkCreateImageView(self.vkDevice, imageview_create, None))
+			newImageView = vkCreateImageView(self.vkDevice, imageview_create, None)
+			self.image_views += [newImageView]
 			
 			# Create Graphics render pass
 			render_area = VkRect2D(offset=VkOffset2D(x=0, y=0),
@@ -906,7 +921,7 @@ class RenderPass(PrintClass):
 			clear_value = VkClearValue(color=color)
 
 			# Framebuffers creation
-			attachments = [self.image_views[i]]
+			attachments = [newImageView]
 			framebuffer_create = VkFramebufferCreateInfo(
 				sType=VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
 				flags=0,
@@ -918,16 +933,18 @@ class RenderPass(PrintClass):
 				layers=1)
 				
 			thisFramebuffer = vkCreateFramebuffer(self.vkDevice, framebuffer_create, None)
-			self.framebuffers.append(thisFramebuffer)
+			self.framebuffers += [thisFramebuffer]
 			
-			self.render_pass_begin_create = VkRenderPassBeginInfo(
+			thisRenderPass = VkRenderPassBeginInfo(
 				sType=VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
 				renderPass=self.vkRenderPass,
 				framebuffer=thisFramebuffer,
 				renderArea=render_area,
 				clearValueCount=1,
 				pClearValues=[clear_value])
-
+				
+			self.render_pass_begin_create += [thisRenderPass]
+			
 		self.children += self.framebuffers
 		self.children += self.image_views
 		
@@ -948,18 +965,6 @@ class RasterPipeline(Pipeline):
 	def __init__(self, device, setupDict):
 		Pipeline.__init__(self, device, setupDict)
 		
-		# Create semaphore
-		semaphore_create = VkSemaphoreCreateInfo(
-			sType=VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-			flags=0)
-		self.semaphore_image_available = vkCreateSemaphore(self.vkDevice, semaphore_create, None)
-		self.semaphore_render_finished = vkCreateSemaphore(self.vkDevice, semaphore_create, None)
-
-		self.wait_stages       = [VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT]
-		self.wait_semaphores   = [self.semaphore_image_available]
-		self.signal_semaphores = [self.semaphore_render_finished]
-
-			
 		# Create a generic render pass
 		self.renderPass = RenderPass(self, setupDict, self.surface)
 		self.children += [self.renderPass]

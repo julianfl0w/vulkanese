@@ -68,8 +68,9 @@ while running:
 	# draw the frame!
 	rasterPipeline.draw_frame()
 	
-	if fps > 5:
-		break
+	#time.sleep(1)
+	#if fps > 5:
+	#	break
 
 # elegantly free all memory
 instance_inst.release()
