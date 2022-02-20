@@ -15,10 +15,10 @@
                "outputHeightPixels":400,
                "buffers": 
                {
-                   "POSITION" : 10000,
-                   "NORMAL"   : 10000,
-                   "COLOR"    : 10000,
-                   "OUTPUT"   : 10000
+                   "POSITION" : 65536,
+                   "NORMAL"   : 65536,
+                   "COLOR"    : 65536,
+                   "OUTPUT"   : 65536
                }
             },
             {

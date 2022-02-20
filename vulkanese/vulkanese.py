@@ -14,37 +14,6 @@ here = os.path.dirname(os.path.abspath(__file__))
 def getVulkanesePath():
 	return here
 
-class PrintClass(object):
-	def __init__(self):
-		self.children = []
-		
-	def __str__(self):
-		retstr = str(type(self)) + "\n"
-		for child in self.children:
-			retstr += "  " + str(child).replace("\n", "  \n") + "\n"
-		
-		return retstr
-	
-	def asDict(self):
-		retList = []
-		for child in self.children:
-			try:
-				retList += [child.asDict()]
-			except:
-				retList += [str(child)] # + " " + hex(id(child))]
-				
-		retDict = {}
-		retDict[str(type(self))] = retList
-		return retDict
-		
-	
-	def __unicode__(self):
-		return self.__str__()
-		
-	def release(self):
-		for child in self.children:
-			child.release()
-
 class Instance(PrintClass):
 	def __init__(self):
 		PrintClass.__init__(self)
@@ -133,8 +102,6 @@ class Instance(PrintClass):
 		vkDestroyInstance(self.vkInstance, None)
 		
 class Device(PrintClass):
-	def createBuffer(self, sizeBytes):
-		return Buffer(self, sizeBytes)
 			
 	def applyLayout(self, setupDict):
 		self.pipelines = []
@@ -280,7 +247,8 @@ class Device(PrintClass):
 		print("destroying descriptor pool")
 		vkDestroyDescriptorPool(self.vkDevice, self.vkDescriptorPool, None)
 		
-		for pipeline in self.pipelines:
+		print("destroying pipelines")
+		for pipeline in self.pipelines: 
 			pipeline.release()
 		
 		print("destroying device")

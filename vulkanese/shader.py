@@ -16,19 +16,41 @@ class Shader(PrintClass):
 		print("creating shader with description")
 		print(json.dumps(shaderDict, indent=4))
 
+		# attributes are ex. location, normal, color
+		self.bufferDict = {}
+		self.buffers    = []
 		
-		self.buffers = {}
+		
 		# apply template if shader is not precompiled
 		if shaderDict["path"].endswith("template"):
 			with open(shaderDict["path"], 'r') as f:
 				shader_spirv = f.read()
-				
+			
+			# all the INPUT buffers belong to a binding
 			for dataName, bufferSize in shaderDict["buffers"].items():
-				shader_spirv = shader_spirv.replace("LOCATION_" + dataName, str(pipeline.resourceIndex))
-				pipeline.resourceIndex += 1
-				newBuffer = Buffer(pipeline.device, bufferSize, dataName)
-				self.buffers[dataName] = newBuffer
-				self.children += [newBuffer]
+				if "OUT" not in dataName:
+					shader_spirv  = shader_spirv.replace("LOCATION_" + dataName, str(pipeline.location))
+					newBuffer     = Buffer(pipeline.device, bufferSize, dataName, pipeline.binding, pipeline.location)
+					pipeline.binding += 1
+					pipeline.location     += 1
+					self.buffers  += [newBuffer]
+					self.bufferDict[dataName] = newBuffer
+					self.children += [newBuffer]
+					
+			pipeline.location = 0
+				
+			# all the OUTPUT buffers belong to a different binding
+			for dataName, bufferSize in shaderDict["buffers"].items():
+				if "OUT" in dataName:
+					shader_spirv  = shader_spirv.replace("LOCATION_" + dataName, str(pipeline.location))
+					pipeline.binding += 1
+					pipeline.location     += 1
+					newBuffer     = Buffer(pipeline.device, bufferSize, dataName, pipeline.binding, pipeline.location)
+					self.buffers  += [newBuffer]
+					self.bufferDict[dataName] = newBuffer
+					self.children += [newBuffer]
+					
+			pipeline.location += 1
 			
 			print("---final shader code---")
 			print(shader_spirv)
@@ -73,7 +95,6 @@ class Shader(PrintClass):
 			pSpecializationInfo=None,
 			pName='main')
 		
-		self.children += [self.vkShader, self.shader_stage_create]
 		
 	def release(self):
 		print("destroying shader")

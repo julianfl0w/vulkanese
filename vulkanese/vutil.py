@@ -27,4 +27,5 @@ class PrintClass(object):
 		
 	def release(self):
 		for child in self.children:
+			#print("PK releasing " + str(child))
 			child.release()

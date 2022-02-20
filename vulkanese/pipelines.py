@@ -15,6 +15,7 @@ here = os.path.dirname(os.path.abspath(__file__))
 def getVulkanesePath():
 	return here
 
+
 # all pipelines contain:
 # references to instance, device, etc
 # at least 1 shader
@@ -54,7 +55,8 @@ class Pipeline(PrintClass):
 		self.vkAcquireNextImageKHR = vkGetInstanceProcAddr(self.instance.vkInstance, "vkAcquireNextImageKHR")
 		self.vkQueuePresentKHR     = vkGetInstanceProcAddr(self.instance.vkInstance, "vkQueuePresentKHR")
 
-		self.resourceIndex = 0
+		self.location = 0
+		self.binding  = 0
 
 		# Add Shaders
 		self.shaders = []
@@ -71,14 +73,17 @@ class Pipeline(PrintClass):
 
 	
 	def release(self):
+		print("generic pipeline release")
 		vkDestroySemaphore(self.vkDevice, self.semaphore_image_available, None)
 		vkDestroySemaphore(self.vkDevice, self.semaphore_render_finished, None)
 		
 		for shader in self.shaders:
 			shader.release()
+			
 		vkDestroyPipeline(self.vkDevice, self.vkPipeline, None)
 		vkDestroyPipelineLayout(self.vkDevice, self.pipelineLayout, None)
 		
+		print("releasing surface")
 		if self.surface is not None:
 			print("releasing surface")
 			self.surface.release()
@@ -86,7 +91,6 @@ class Pipeline(PrintClass):
 		if self.renderPass is not None:
 			self.renderPass.release()
 	
-		self.inputBuffer.release()
 		self.commandBuffer.release()
 
 # the compute pipeline is so much simpler than the old-school 
@@ -128,17 +132,21 @@ class RasterPipeline(Pipeline):
 		self.renderPass = RenderPass(self, setupDict, self.surface)
 		self.children += [self.renderPass]
 		
-		# create the input buffer
-		self.inputBuffer = self.device.createBuffer(60000)
+		# get global lists 
+		allVertexBuffers = []
+		for s in self.shaders:
+			allVertexBuffers += [b for b in s.buffers]
+		allBindingDescriptors   = [b.bindingDescription for b in allVertexBuffers]
+		allAttributeDescriptors = [b.attributeDescription for b in allVertexBuffers]
 		
 		# Create graphic Pipeline
 		vertex_input_create = VkPipelineVertexInputStateCreateInfo(
-			sType=VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-			flags=0,
-			vertexBindingDescriptionCount=0,
-			pVertexBindingDescriptions=None,
-			vertexAttributeDescriptionCount=0,
-			pVertexAttributeDescriptions=None)
+			sType                          = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+			flags                          = 0,
+			vertexBindingDescriptionCount  = len(allBindingDescriptors),
+			pVertexBindingDescriptions     = allBindingDescriptors,
+			vertexAttributeDescriptionCount= len(allAttributeDescriptors),
+			pVertexAttributeDescriptions   = allAttributeDescriptors)
 
 		input_assembly_create = VkPipelineInputAssemblyStateCreateInfo(
 			sType=VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,

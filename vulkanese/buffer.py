@@ -18,25 +18,32 @@ class Buffer(PrintClass):
 
 		return -1
 
-	def __init__(self, device, sizeBytes, name, usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sharingMode = VK_SHARING_MODE_EXCLUSIVE):
+	def __init__(self, device, sizeBytes, name, binding, location, stage = "vertex", usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sharingMode = VK_SHARING_MODE_EXCLUSIVE):
 		PrintClass.__init__(self)
 		self.name     = name
 		self.device   = device
 		self.vkDevice = device.vkDevice
 		self.sizeBytes= sizeBytes
 		
-		# We will now create a buffer. We will render the mandelbrot set into this buffer
-		# in a computer shade later.
+		# We will now create a buffer with these options
 		bufferCreateInfo = VkBufferCreateInfo(
 			sType=VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 			size=self.sizeBytes,  # buffer size in bytes.
 			usage=usage,  # buffer is used as a storage buffer.
 			sharingMode=sharingMode  # buffer is exclusive to a single queue family at a time.
 		)
-
 		self.vkBuffer = vkCreateBuffer(self.vkDevice, bufferCreateInfo, None)
 		self.children += [self.vkBuffer]
 
+		# we will standadize its bindings with a attribute description
+		self.attributeDescription = VkVertexInputAttributeDescription(
+			binding  = binding,
+			location = location,
+			format   = VK_FORMAT_R32_SFLOAT, # single, 4 bytes
+			offset   = 0
+		)
+		# ^^ Consider VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^ 
+		
 		# But the buffer doesn't allocate memory for itself, so we must do that manually.
 
 		# First, we find the memory requirements for the buffer.
@@ -68,6 +75,16 @@ class Buffer(PrintClass):
 		# Map the buffer memory, so that we can read from it on the CPU.
 		self.pmap = vkMapMemory(self.vkDevice, self.vkBufferMemory, 0, self.sizeBytes, 0)
 
+		self.bindingDescription = VkVertexInputBindingDescription(
+			binding = binding,
+			stride  = 4, #4 bytes/element
+			inputRate = VK_VERTEX_INPUT_RATE_VERTEX)
+			
+		#VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
+		#VK_VERTEX_INPUT_RATE_INSTANCE: Move to the next data entry after each instance
+
+		
+
 	def saveAsImage(self, height, width, path = 'mandelbrot.png'):
 
 		# Get the color data from the buffer, and cast it to bytes.
@@ -88,8 +105,7 @@ class Buffer(PrintClass):
 		image.save(path)
 
 	def release(self):
-		print("destroying buffer")
+		print("destroying buffer " + self.name)
 		vkFreeMemory(self.vkDevice, self.vkBufferMemory, None)
 		vkDestroyBuffer(self.vkDevice, self.vkBuffer, None)
-		print("buffer destroyed")
 	
