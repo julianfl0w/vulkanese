@@ -55,8 +55,8 @@ class Pipeline(PrintClass):
 		self.vkAcquireNextImageKHR = vkGetInstanceProcAddr(self.instance.vkInstance, "vkAcquireNextImageKHR")
 		self.vkQueuePresentKHR     = vkGetInstanceProcAddr(self.instance.vkInstance, "vkQueuePresentKHR")
 
-		self.location = 0
-		self.binding  = 0
+		self.location  = 0
+		self.binding   = 0
 
 		# Add Shaders
 		self.shaders = []

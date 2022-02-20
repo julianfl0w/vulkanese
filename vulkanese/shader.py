@@ -19,38 +19,52 @@ class Shader(PrintClass):
 		# attributes are ex. location, normal, color
 		self.bufferDict = {}
 		self.buffers    = []
-		
+		self.outBufferNames = []
 		
 		# apply template if shader is not precompiled
 		if shaderDict["path"].endswith("template"):
 			with open(shaderDict["path"], 'r') as f:
 				shader_spirv = f.read()
 			
+			internalRef = False
+			location      = pipeline.location
+			binding       = pipeline.binding
+			
 			# all the INPUT buffers belong to a binding
-			for dataName, bufferSize in shaderDict["buffers"].items():
-				if "OUT" not in dataName:
-					shader_spirv  = shader_spirv.replace("LOCATION_" + dataName, str(pipeline.location))
-					newBuffer     = Buffer(pipeline.device, bufferSize, dataName, pipeline.binding, pipeline.location)
-					pipeline.binding += 1
-					pipeline.location     += 1
-					self.buffers  += [newBuffer]
-					self.bufferDict[dataName] = newBuffer
-					self.children += [newBuffer]
-					
-			pipeline.location = 0
+			for dataName, bufferSize in shaderDict["inBuffers"].items():
+				# if this dataName is the output of a different shader, match that location
+				allOutputNamesListed = []
+				for s in pipeline.shaders:
+					for name, l, b in s.outBufferNames:
+						if dataName == name:
+							internalRef = True
+							location = l
+							binding  = b
 				
-			# all the OUTPUT buffers belong to a different binding
-			for dataName, bufferSize in shaderDict["buffers"].items():
-				if "OUT" in dataName:
-					shader_spirv  = shader_spirv.replace("LOCATION_" + dataName, str(pipeline.location))
-					pipeline.binding += 1
-					pipeline.location     += 1
-					newBuffer     = Buffer(pipeline.device, bufferSize, dataName, pipeline.binding, pipeline.location)
-					self.buffers  += [newBuffer]
-					self.bufferDict[dataName] = newBuffer
-					self.children += [newBuffer]
+				# ie. if we used this index, increase it
+				if not internalRef:
+					pipeline.binding  += 1
+					pipeline.location += 1
 					
-			pipeline.location += 1
+				shader_spirv  = shader_spirv.replace("LOCATION_" + dataName, str(location))
+				newBuffer     = Buffer(pipeline.device, bufferSize, dataName, binding, location)
+				self.buffers  += [newBuffer]
+				self.bufferDict[dataName] = newBuffer
+				self.children += [newBuffer]
+					
+			# all the OUTPUT buffers belong to a different binding
+			for dataName, bufferSize in shaderDict["outBuffers"].items():
+				self.outBufferNames += [(dataName, pipeline.location, pipeline.binding)]
+				print("adding outbuff " + dataName)
+				shader_spirv  = shader_spirv.replace("LOCATION_" + dataName, str(pipeline.location))
+				pipeline.binding += 1
+				pipeline.location     += 1
+				newBuffer     = Buffer(pipeline.device, bufferSize, dataName, pipeline.binding, pipeline.location)
+				self.buffers  += [newBuffer]
+				self.bufferDict[dataName] = newBuffer
+				self.children += [newBuffer]
+					
+			#pipeline.location += 1
 			
 			print("---final shader code---")
 			print(shader_spirv)

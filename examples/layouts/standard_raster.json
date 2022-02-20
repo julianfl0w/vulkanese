@@ -22,10 +22,15 @@
                }
             },
             {
-               "path":"shaders/hello_triangle.frag.spv",
+               "path":"shaders/hello_triangle.frag.template",
                "stage":"VK_SHADER_STAGE_FRAGMENT_BIT",
                "outputWidthPixels":400,
-               "outputHeightPixels":400
+               "outputHeightPixels":400,
+               "buffers": 
+               {
+                   "FRAGCOLOR" : 65536,
+                   "OUTCOLOR"  : 65536
+               }
             }
          ]
       }

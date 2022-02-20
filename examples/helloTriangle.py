@@ -23,7 +23,7 @@ print("naively choosing device 0")
 device = instance_inst.getDevice(0)
 
 # read the setup dictionary
-setupDictPath = os.path.join(getVulkanesePath(), "layouts", "hello_triangle.json")
+setupDictPath = os.path.join("layouts", "hello_triangle.json")
 with open(setupDictPath, 'r') as f:
 	setupDict = json.loads(f.read())
 
