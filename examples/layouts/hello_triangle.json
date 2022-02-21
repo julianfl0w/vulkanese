@@ -23,7 +23,7 @@
               "format"   : "VK_FORMAT_R32G32B32_SFLOAT",
               "stride"   : 12,
               "binding"  : 0,
-              "location" : 0
+              "location" : 1
             }
           ]
         },
@@ -35,13 +35,7 @@
           "inBuffers": [
             {
               "name"     : "FRAGCOLOR",
-              "usage"    : "VK_BUFFER_USAGE_STORAGE_BUFFER_BIT",
-              "sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
-              "SIZEBYTES": 65536,
-              "format"   : "VK_FORMAT_R32G32B32_SFLOAT",
-              "stride"   : 12,
-              "binding"  : 0,
-              "location" : 0
+              "location" : 1
             }
           ],
           "outBuffers": [
@@ -52,7 +46,7 @@
               "SIZEBYTES": 65536,
               "format"   : "VK_FORMAT_R32G32B32_SFLOAT",
               "stride"   : 12,
-              "binding"  : 0,
+              "binding"  : 2,
               "location" : 0
             }
           ]

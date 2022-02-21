@@ -55,9 +55,6 @@ class Pipeline(PrintClass):
 		self.vkAcquireNextImageKHR = vkGetInstanceProcAddr(self.instance.vkInstance, "vkAcquireNextImageKHR")
 		self.vkQueuePresentKHR     = vkGetInstanceProcAddr(self.instance.vkInstance, "vkQueuePresentKHR")
 
-		self.location  = 0
-		self.binding   = 0
-
 		# Add Shaders
 		self.shaders = []
 		for shaderDict in setupDict["shaders"]:
@@ -70,7 +67,13 @@ class Pipeline(PrintClass):
 		image_index = self.vkAcquireNextImageKHR(self.vkDevice, self.surface.swapchain, UINT64_MAX, self.semaphore_image_available, None)
 		self.commandBuffer.draw_frame(image_index)
 
-
+	def getAllBuffers(self):
+		allBuffers = []
+		for shader in self.shaders:
+			for buffer in shader.buffers:
+				allBuffers += [buffer]
+				
+		return allBuffers
 	
 	def release(self):
 		print("generic pipeline release")
@@ -138,6 +141,7 @@ class RasterPipeline(Pipeline):
 			allVertexBuffers += [b for b in s.buffers]
 		allBindingDescriptors   = [b.bindingDescription for b in allVertexBuffers]
 		allAttributeDescriptors = [b.attributeDescription for b in allVertexBuffers]
+		print("allAttributeDescriptors " + str(allAttributeDescriptors))
 		
 		# Create graphic Pipeline
 		vertex_input_create = VkPipelineVertexInputStateCreateInfo(

@@ -18,26 +18,31 @@ class Shader(PrintClass):
 		print(json.dumps(setupDict, indent=4))
 
 		# attributes are ex. location, normal, color
-		self.bufferDict = {}
 		self.buffers    = []
-		self.outBufferNames = []
 		
 		# apply template if shader is not precompiled
 		if setupDict["path"].endswith("template"):
 			with open(setupDict["path"], 'r') as f:
 				shader_spirv = f.read()
 			
-			# all the INPUT buffers belong to a binding
+			# novel INPUT buffers belong to THIS shader (others are linked)
 			for bufferDict in setupDict["inBuffers"]:
+				existsAlready = False
 				shader_spirv  = shader_spirv.replace("LOCATION_" + bufferDict["name"], str(bufferDict["location"]))
-				newBuffer     = Buffer(pipeline.device, bufferDict)
-				self.buffers  += [newBuffer]
-				self.children += [newBuffer]
+				for b in pipeline.getAllBuffers():
+					if bufferDict["name"] == b.setupDict["name"]:
+						existsAlready = True
+				
+				if not existsAlready:
+					newBuffer     = Buffer(pipeline.device, bufferDict)
+					self.buffers  += [newBuffer]
+					self.children += [newBuffer]
+						
 					
-			# all the OUTPUT buffers belong to a different binding
+			# ALL the OUTPUT buffers are owned by THIS shader
 			for bufferDict in setupDict["outBuffers"]:
 				print("adding outbuff " + bufferDict["name"])
-				shader_spirv  = shader_spirv.replace("LOCATION_" + bufferDict["name"], str(pipeline.location))
+				shader_spirv  = shader_spirv.replace("LOCATION_" + bufferDict["name"], str(bufferDict["location"]))
 				newBuffer     = Buffer(pipeline.device, bufferDict)
 				self.buffers  += [newBuffer]
 				self.children += [newBuffer]

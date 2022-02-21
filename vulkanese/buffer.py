@@ -35,7 +35,7 @@ class Buffer(PrintClass):
 		self.vkBuffer = vkCreateBuffer(self.vkDevice, bufferCreateInfo, None)
 		self.children += [self.vkBuffer]
 
-		# we will standadize its setupDict["binding"]s with a attribute description
+		# we will standardize its bindings with a attribute description
 		self.attributeDescription = VkVertexInputAttributeDescription(
 			binding  = setupDict["binding"],
 			location = setupDict["location"],
