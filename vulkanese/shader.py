@@ -7,14 +7,15 @@ from buffer import *
 from pathlib import Path
 
 class Shader(PrintClass):
-	def __init__(self, pipeline, shaderDict):
+	def __init__(self, pipeline, setupDict):
 		PrintClass.__init__(self)
 		self.vkDevice = pipeline.device.vkDevice
-		self.outputWidthPixels  = shaderDict["outputWidthPixels"]
-		self.outputHeightPixels = shaderDict["outputHeightPixels"]
+		self.setupDict = setupDict
+		self.outputWidthPixels  = setupDict["outputWidthPixels"]
+		self.outputHeightPixels = setupDict["outputHeightPixels"]
 		
 		print("creating shader with description")
-		print(json.dumps(shaderDict, indent=4))
+		print(json.dumps(setupDict, indent=4))
 
 		# attributes are ex. location, normal, color
 		self.bufferDict = {}
@@ -22,50 +23,25 @@ class Shader(PrintClass):
 		self.outBufferNames = []
 		
 		# apply template if shader is not precompiled
-		if shaderDict["path"].endswith("template"):
-			with open(shaderDict["path"], 'r') as f:
+		if setupDict["path"].endswith("template"):
+			with open(setupDict["path"], 'r') as f:
 				shader_spirv = f.read()
 			
-			internalRef = False
-			location      = pipeline.location
-			binding       = pipeline.binding
-			
 			# all the INPUT buffers belong to a binding
-			for dataName, bufferSize in shaderDict["inBuffers"].items():
-				# if this dataName is the output of a different shader, match that location
-				allOutputNamesListed = []
-				for s in pipeline.shaders:
-					for name, l, b in s.outBufferNames:
-						if dataName == name:
-							internalRef = True
-							location = l
-							binding  = b
-				
-				# ie. if we used this index, increase it
-				if not internalRef:
-					pipeline.binding  += 1
-					pipeline.location += 1
-					
-				shader_spirv  = shader_spirv.replace("LOCATION_" + dataName, str(location))
-				newBuffer     = Buffer(pipeline.device, bufferSize, dataName, binding, location)
+			for bufferDict in setupDict["inBuffers"]:
+				shader_spirv  = shader_spirv.replace("LOCATION_" + bufferDict["name"], str(bufferDict["location"]))
+				newBuffer     = Buffer(pipeline.device, bufferDict)
 				self.buffers  += [newBuffer]
-				self.bufferDict[dataName] = newBuffer
 				self.children += [newBuffer]
 					
 			# all the OUTPUT buffers belong to a different binding
-			for dataName, bufferSize in shaderDict["outBuffers"].items():
-				self.outBufferNames += [(dataName, pipeline.location, pipeline.binding)]
-				print("adding outbuff " + dataName)
-				shader_spirv  = shader_spirv.replace("LOCATION_" + dataName, str(pipeline.location))
-				pipeline.binding += 1
-				pipeline.location     += 1
-				newBuffer     = Buffer(pipeline.device, bufferSize, dataName, pipeline.binding, pipeline.location)
+			for bufferDict in setupDict["outBuffers"]:
+				print("adding outbuff " + bufferDict["name"])
+				shader_spirv  = shader_spirv.replace("LOCATION_" + bufferDict["name"], str(pipeline.location))
+				newBuffer     = Buffer(pipeline.device, bufferDict)
 				self.buffers  += [newBuffer]
-				self.bufferDict[dataName] = newBuffer
 				self.children += [newBuffer]
 					
-			#pipeline.location += 1
-			
 			print("---final shader code---")
 			print(shader_spirv)
 			print("--- end shader code ---")
@@ -74,7 +50,7 @@ class Shader(PrintClass):
 			compShadersPath = os.path.join(here, "compiledShaders")
 			compShadersPath = "compiledShaders"
 			Path(compShadersPath).mkdir(parents=True, exist_ok=True)
-			basename = os.path.basename(shaderDict["path"])
+			basename = os.path.basename(setupDict["path"])
 			outfilename = os.path.join(compShadersPath, basename.replace(".template", ""))
 			with open(outfilename, 'w+') as f:
 				f.write(shader_spirv)
@@ -85,7 +61,7 @@ class Shader(PrintClass):
 				shader_spirv = f.read()
 			
 		else:
-			self.path = os.path.join(here, shaderDict["path"])
+			self.path = os.path.join(here, setupDict["path"])
 			with open(self.path, 'rb') as f:
 				shader_spirv = f.read()
 			
@@ -103,7 +79,7 @@ class Shader(PrintClass):
 		# Create shader stage
 		self.shader_stage_create = VkPipelineShaderStageCreateInfo(
 			sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-			stage=eval(shaderDict["stage"]),
+			stage=eval(setupDict["stage"]),
 			module=self.vkShader,
 			flags=0,
 			pSpecializationInfo=None,

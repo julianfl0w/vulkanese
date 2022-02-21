@@ -18,28 +18,28 @@ class Buffer(PrintClass):
 
 		return -1
 
-	def __init__(self, device, sizeBytes, name, binding, location, stage = "vertex", usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sharingMode = VK_SHARING_MODE_EXCLUSIVE):
+	def __init__(self, device, setupDict):
 		PrintClass.__init__(self)
-		self.name     = name
+		self.setupDict= setupDict
 		self.device   = device
 		self.vkDevice = device.vkDevice
-		self.sizeBytes= sizeBytes
+		self.setupDict["SIZEBYTES"]= setupDict["SIZEBYTES"]
 		
 		# We will now create a buffer with these options
 		bufferCreateInfo = VkBufferCreateInfo(
 			sType=VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-			size=self.sizeBytes,  # buffer size in bytes.
-			usage=usage,  # buffer is used as a storage buffer.
-			sharingMode=sharingMode  # buffer is exclusive to a single queue family at a time.
+			size =setupDict["SIZEBYTES"],  # buffer size in bytes.
+			usage=eval(setupDict["usage"]),  # buffer is used as a storage buffer.
+			sharingMode=eval(setupDict["sharingMode"])  # buffer is exclusive to a single queue family at a time.
 		)
 		self.vkBuffer = vkCreateBuffer(self.vkDevice, bufferCreateInfo, None)
 		self.children += [self.vkBuffer]
 
-		# we will standadize its bindings with a attribute description
+		# we will standadize its setupDict["binding"]s with a attribute description
 		self.attributeDescription = VkVertexInputAttributeDescription(
-			binding  = binding,
-			location = location,
-			format   = VK_FORMAT_R32_SFLOAT, # single, 4 bytes
+			binding  = setupDict["binding"],
+			location = setupDict["location"],
+			format   = eval(setupDict["format"]), # single, 4 bytes
 			offset   = 0
 		)
 		# ^^ Consider VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^ 
@@ -73,11 +73,11 @@ class Buffer(PrintClass):
 		vkBindBufferMemory(self.vkDevice, self.vkBuffer, self.vkBufferMemory, 0)
 		
 		# Map the buffer memory, so that we can read from it on the CPU.
-		self.pmap = vkMapMemory(self.vkDevice, self.vkBufferMemory, 0, self.sizeBytes, 0)
+		self.pmap = vkMapMemory(self.vkDevice, self.vkBufferMemory, 0, self.setupDict["SIZEBYTES"], 0)
 
 		self.bindingDescription = VkVertexInputBindingDescription(
-			binding = binding,
-			stride  = 4, #4 bytes/element
+			binding   = setupDict["binding"],
+			stride    = setupDict["stride"], #4 bytes/element
 			inputRate = VK_VERTEX_INPUT_RATE_VERTEX)
 			
 		#VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
@@ -105,7 +105,7 @@ class Buffer(PrintClass):
 		image.save(path)
 
 	def release(self):
-		print("destroying buffer " + self.name)
+		print("destroying buffer " + self.setupDict["name"])
 		vkFreeMemory(self.vkDevice, self.vkBufferMemory, None)
 		vkDestroyBuffer(self.vkDevice, self.vkBuffer, None)
 	

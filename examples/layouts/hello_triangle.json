@@ -1,41 +1,63 @@
 {
-   "outputWidthPixels":400,
-   "outputHeightPixels":400,
-   "pipelines":[
-      {
-         "class":"raster",
-         "outputClass":"surface",
-         "outputWidthPixels":400,
-         "outputHeightPixels":400,
-         "shaders":[
+  "outputWidthPixels": 400,
+  "outputHeightPixels": 400,
+  "pipelines": [
+    {
+      "class": "raster",
+      "outputClass": "surface",
+      "outputWidthPixels": 400,
+      "outputHeightPixels": 400,
+      "shaders": [
+        {
+          "path": "shaders/hello_triangle.vert.template",
+          "stage": "VK_SHADER_STAGE_VERTEX_BIT",
+          "outputWidthPixels": 400,
+          "outputHeightPixels": 400,
+          "inBuffers": [],
+          "outBuffers": [
             {
-               "path":"shaders/hello_triangle.vert.template",
-               "stage":"VK_SHADER_STAGE_VERTEX_BIT",
-               "outputWidthPixels":400,
-               "outputHeightPixels":400,
-               "inBuffers": 
-               {
-               },
-               "outBuffers": 
-               {
-                   "FRAGCOLOR" : 65536
-               }
-            },
-            {
-               "path":"shaders/hello_triangle.frag.template",
-               "stage":"VK_SHADER_STAGE_FRAGMENT_BIT",
-               "outputWidthPixels":400,
-               "outputHeightPixels":400,
-               "inBuffers": 
-               {
-                   "FRAGCOLOR" : 65536
-               },
-               "outBuffers": 
-               {
-                   "OUTCOLOR"  : 65536
-               }
+              "name"     : "FRAGCOLOR",
+              "usage"    : "VK_BUFFER_USAGE_STORAGE_BUFFER_BIT",
+              "sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
+              "SIZEBYTES": 65536,
+              "format"   : "VK_FORMAT_R32G32B32_SFLOAT",
+              "stride"   : 12,
+              "binding"  : 0,
+              "location" : 0
             }
-         ]
-      }
-   ]
+          ]
+        },
+        {
+          "path": "shaders/hello_triangle.frag.template",
+          "stage": "VK_SHADER_STAGE_FRAGMENT_BIT",
+          "outputWidthPixels": 400,
+          "outputHeightPixels": 400,
+          "inBuffers": [
+            {
+              "name"     : "FRAGCOLOR",
+              "usage"    : "VK_BUFFER_USAGE_STORAGE_BUFFER_BIT",
+              "sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
+              "SIZEBYTES": 65536,
+              "format"   : "VK_FORMAT_R32G32B32_SFLOAT",
+              "stride"   : 12,
+              "binding"  : 0,
+              "location" : 0
+            }
+          ],
+          "outBuffers": [
+            {
+              "name"     : "OUTCOLOR",
+              "usage"    : "VK_BUFFER_USAGE_STORAGE_BUFFER_BIT",
+              "sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
+              "SIZEBYTES": 65536,
+              "format"   : "VK_FORMAT_R32G32B32_SFLOAT",
+              "stride"   : 12,
+              "binding"  : 0,
+              "location" : 0
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }
