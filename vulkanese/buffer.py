@@ -35,15 +35,6 @@ class Buffer(PrintClass):
 		self.vkBuffer = vkCreateBuffer(self.vkDevice, bufferCreateInfo, None)
 		self.children += [self.vkBuffer]
 
-		# we will standardize its bindings with a attribute description
-		self.attributeDescription = VkVertexInputAttributeDescription(
-			binding  = setupDict["binding"],
-			location = setupDict["location"],
-			format   = eval(setupDict["format"]), # single, 4 bytes
-			offset   = 0
-		)
-		# ^^ Consider VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^ 
-		
 		# But the buffer doesn't allocate memory for itself, so we must do that manually.
 
 		# First, we find the memory requirements for the buffer.
@@ -75,15 +66,6 @@ class Buffer(PrintClass):
 		# Map the buffer memory, so that we can read from it on the CPU.
 		self.pmap = vkMapMemory(self.vkDevice, self.vkBufferMemory, 0, self.setupDict["SIZEBYTES"], 0)
 
-		self.bindingDescription = VkVertexInputBindingDescription(
-			binding   = setupDict["binding"],
-			stride    = setupDict["stride"], #4 bytes/element
-			inputRate = VK_VERTEX_INPUT_RATE_VERTEX)
-			
-		#VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
-		#VK_VERTEX_INPUT_RATE_INSTANCE: Move to the next data entry after each instance
-
-		
 
 	def saveAsImage(self, height, width, path = 'mandelbrot.png'):
 
@@ -109,3 +91,25 @@ class Buffer(PrintClass):
 		vkFreeMemory(self.vkDevice, self.vkBufferMemory, None)
 		vkDestroyBuffer(self.vkDevice, self.vkBuffer, None)
 	
+class VertexBuffer(Buffer):
+	def __init__(self, device, setupDict):
+		Buffer.__init__(self, device, setupDict)
+		
+		# we will standardize its bindings with a attribute description
+		self.attributeDescription = VkVertexInputAttributeDescription(
+			binding  = setupDict["binding"],
+			location = setupDict["location"],
+			format   = eval(setupDict["format"]), # single, 4 bytes
+			offset   = 0
+		)
+		# ^^ Consider VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^ 
+		
+		self.bindingDescription = VkVertexInputBindingDescription(
+			binding   = setupDict["binding"],
+			stride    = setupDict["stride"], #4 bytes/element
+			inputRate = VK_VERTEX_INPUT_RATE_VERTEX)
+			
+		#VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
+		#VK_VERTEX_INPUT_RATE_INSTANCE: Move to the next data entry after each instance
+
+		

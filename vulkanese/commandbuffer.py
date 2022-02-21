@@ -70,13 +70,15 @@ class CommandBuffer(PrintClass):
 			# Provided by VK_VERSION_1_0
 			allBuffers = self.pipeline.getAllBuffers()
 			print("allBuffers " + str(allBuffers))
+			allVertexBuffers = [b.vkBuffer for b in allBuffers if b.setupDict["usage"] == "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT"]
+			print("allVertexBuffers " + str(allVertexBuffers))
 			
 			vkCmdBindVertexBuffers(
 				commandBuffer       = vkCommandBuffer,
 				firstBinding        = 0,
-				bindingCount        = len(allBuffers),
-				pBuffers            = [b.vkBuffer for b in allBuffers],
-				pOffsets            = [0]*len(allBuffers));
+				bindingCount        = len(allVertexBuffers),
+				pBuffers            = allVertexBuffers,
+				pOffsets            = [0]*len(allVertexBuffers));
 				
 			# Draw
 			#void vkCmdDraw(
