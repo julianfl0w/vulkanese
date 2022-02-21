@@ -13,7 +13,26 @@
           "stage": "VK_SHADER_STAGE_VERTEX_BIT",
           "outputWidthPixels": 400,
           "outputHeightPixels": 400,
-          "inBuffers": [],
+          "inBuffers": [
+            {
+              "name"     : "POSITION",
+              "usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT",
+              "sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
+              "SIZEBYTES": 65536,
+              "format"   : "VK_FORMAT_R32G32B32_SFLOAT",
+              "stride"   : 12,
+              "binding"  : 0
+            },
+            {
+              "name"     : "COLOR",
+              "usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT",
+              "sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
+              "SIZEBYTES": 65536,
+              "format"   : "VK_FORMAT_R32G32B32_SFLOAT",
+              "stride"   : 12,
+              "binding"  : 1
+            }
+          ],
           "outBuffers": [
             {
               "name"     : "FRAGCOLOR",
@@ -22,8 +41,7 @@
               "SIZEBYTES": 65536,
               "format"   : "VK_FORMAT_R32G32B32_SFLOAT",
               "stride"   : 12,
-              "binding"  : 0,
-              "location" : 1
+              "binding"  : 2
             }
           ]
         },
@@ -34,8 +52,7 @@
           "outputHeightPixels": 400,
           "inBuffers": [
             {
-              "name"     : "FRAGCOLOR",
-              "location" : 1
+              "name"     : "FRAGCOLOR"
             }
           ],
           "outBuffers": [
@@ -46,8 +63,7 @@
               "SIZEBYTES": 65536,
               "format"   : "VK_FORMAT_R32G32B32_SFLOAT",
               "stride"   : 12,
-              "binding"  : 2,
-              "location" : 0
+              "binding"  : 3
             }
           ]
         }

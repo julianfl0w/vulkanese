@@ -65,8 +65,27 @@ class CommandBuffer(PrintClass):
 			vkCmdBeginRenderPass(vkCommandBuffer, self.pipeline.renderPass.render_pass_begin_create[i], VK_SUBPASS_CONTENTS_INLINE)
 			# Bind graphicsPipeline
 			vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.vkPipeline)
+
+			
+			# Provided by VK_VERSION_1_0
+			allBuffers = self.pipeline.getAllBuffers()
+			print("allBuffers " + str(allBuffers))
+			
+			vkCmdBindVertexBuffers(
+				commandBuffer       = vkCommandBuffer,
+				firstBinding        = 0,
+				bindingCount        = len(allBuffers),
+				pBuffers            = [b.vkBuffer for b in allBuffers],
+				pOffsets            = [0]*len(allBuffers));
+				
 			# Draw
-			vkCmdDraw(vkCommandBuffer, 3, 1, 0, 0)
+			#void vkCmdDraw(
+			#	VkCommandBuffer commandBuffer,
+			#	uint32_t        vertexCount,
+			#	uint32_t        instanceCount,
+			#	uint32_t        firstVertex,
+			#	uint32_t        firstInstance);
+			vkCmdDraw(vkCommandBuffer, 3, 1, 0, 1)
 			# End
 			vkCmdEndRenderPass(vkCommandBuffer)
 			vkEndCommandBuffer(vkCommandBuffer)

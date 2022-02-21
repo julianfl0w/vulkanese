@@ -3,7 +3,8 @@
 
 layout(location = LOCATION_FRAGCOLOR) in vec3 fragColor;
 
-layout(location = LOCATION_OUTCOLOR) out vec4 outColor;
+//output always location 0
+layout(location = 0) out vec4 outColor;
 
 void main() {
     outColor = vec4(fragColor, 1.0);

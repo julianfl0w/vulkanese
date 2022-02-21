@@ -25,6 +25,8 @@ class Pipeline(PrintClass):
 	def __init__(self, device, setupDict):
 	
 		PrintClass.__init__(self)
+		self.location = 0
+		
 		self.setupDict = setupDict
 		self.vkDevice  = device.vkDevice
 		self.device    = device
@@ -72,7 +74,8 @@ class Pipeline(PrintClass):
 		for shader in self.shaders:
 			for buffer in shader.buffers:
 				allBuffers += [buffer]
-				
+		
+		print("ALL BUFFERS " + str(allBuffers))
 		return allBuffers
 	
 	def release(self):

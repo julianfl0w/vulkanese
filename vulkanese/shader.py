@@ -24,24 +24,32 @@ class Shader(PrintClass):
 		if setupDict["path"].endswith("template"):
 			with open(setupDict["path"], 'r') as f:
 				shader_spirv = f.read()
-			
+				
 			# novel INPUT buffers belong to THIS shader (others are linked)
 			for bufferDict in setupDict["inBuffers"]:
 				existsAlready = False
-				shader_spirv  = shader_spirv.replace("LOCATION_" + bufferDict["name"], str(bufferDict["location"]))
 				for b in pipeline.getAllBuffers():
+					print(bufferDict["name"] + " : " + b.setupDict["name"])
 					if bufferDict["name"] == b.setupDict["name"]:
+						print(bufferDict["name"] + " exists already. linking")
+						bufferDict["location"] = b.setupDict["location"]
 						existsAlready = True
 				
 				if not existsAlready:
+					bufferDict["location"] = pipeline.location
+					pipeline.location += 1
 					newBuffer     = Buffer(pipeline.device, bufferDict)
 					self.buffers  += [newBuffer]
 					self.children += [newBuffer]
+					
+				shader_spirv  = shader_spirv.replace("LOCATION_" + bufferDict["name"], str(bufferDict["location"]))
 						
 					
 			# ALL the OUTPUT buffers are owned by THIS shader
 			for bufferDict in setupDict["outBuffers"]:
 				print("adding outbuff " + bufferDict["name"])
+				bufferDict["location"] = pipeline.location
+				pipeline.location += 1
 				shader_spirv  = shader_spirv.replace("LOCATION_" + bufferDict["name"], str(bufferDict["location"]))
 				newBuffer     = Buffer(pipeline.device, bufferDict)
 				self.buffers  += [newBuffer]
