@@ -11,6 +11,7 @@ class Shader(PrintClass):
 		PrintClass.__init__(self)
 		self.vkDevice = pipeline.device.vkDevice
 		self.setupDict = setupDict
+		self.pipeline  = pipeline
 		self.outputWidthPixels  = setupDict["outputWidthPixels"]
 		self.outputHeightPixels = setupDict["outputHeightPixels"]
 		
@@ -45,7 +46,10 @@ class Shader(PrintClass):
 						
 					self.buffers [bufferName] = newBuffer
 					self.children += [newBuffer]
-					
+				
+					if bufferDict["name"] == "INDEX":
+						self.pipeline.indexBuffer = newBuffer
+				
 				shader_spirv  = shader_spirv.replace("LOCATION_" + bufferDict["name"], str(bufferDict["location"]))
 						
 					

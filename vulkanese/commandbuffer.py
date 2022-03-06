@@ -78,7 +78,13 @@ class CommandBuffer(PrintClass):
 				firstBinding        = 0,
 				bindingCount        = len(allVertexBuffers),
 				pBuffers            = allVertexBuffers,
-				pOffsets            = [0]*len(allVertexBuffers));
+				pOffsets            = [0]*len(allVertexBuffers))
+				
+			vkCmdBindIndexBuffer(
+				commandBuffer  = vkCommandBuffer,
+				buffer         = pipeline.indexBuffer.vkBuffer, 
+				offset         = 0 ,  
+				indexType      = VK_INDEX_TYPE_UINT16 )
 				
 			# Draw
 			#void vkCmdDraw(

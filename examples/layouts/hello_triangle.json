@@ -8,7 +8,7 @@
       "outputWidthPixels": 400,
       "outputHeightPixels": 400,
       "shaders": {
-		"vertex":
+        "vertex":
         {
           "path": "shaders/hello_triangle.vert.template",
           "stage": "VK_SHADER_STAGE_VERTEX_BIT",
@@ -34,6 +34,16 @@
               "format"   : "VK_FORMAT_R32G32B32_SFLOAT",
               "stride"   : 12,
               "binding"  : 1
+            },
+            "INDEX":
+            {
+              "name"     : "INDEX",
+              "usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT",
+              "sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
+              "SIZEBYTES": 65536,
+              "format"   : "VK_FORMAT_R16_UNORM",
+              "stride"   : 4,
+              "binding"  : 10
             }
           },
           "outBuffers": {
@@ -49,7 +59,7 @@
             }
           }
         },
-		"fragment":
+        "fragment":
         {
           "path": "shaders/hello_triangle.frag.template",
           "stage": "VK_SHADER_STAGE_FRAGMENT_BIT",

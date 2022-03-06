@@ -137,7 +137,7 @@ class RasterPipeline(Pipeline):
 		# Create a generic render pass
 		self.renderPass = RenderPass(self, setupDict, self.surface)
 		self.children += [self.renderPass]
-		
+				
 		# get global lists 
 		allVertexBuffers = []
 		for s in self.shaderDict.values():
@@ -237,7 +237,7 @@ class RasterPipeline(Pipeline):
 		self.children += [self.pipelineLayout]
 
 		
-		# Finally create graphic graphicsPipeline
+		# Finally create graphicsPipeline
 		self.pipelinecreate = VkGraphicsPipelineCreateInfo(
 			sType=VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 			flags=0,
