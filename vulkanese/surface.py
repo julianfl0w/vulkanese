@@ -76,8 +76,8 @@ class Surface(PrintClass):
 		self.running = True
 		self.pipeline = pipeline
 		
-		self.WIDTH = 400
-		self.HEIGHT = 400
+		self.WIDTH = pipeline.setupDict["outputWidthPixels"]
+		self.HEIGHT = pipeline.setupDict["outputHeightPixels"]
 		self.extent = VkExtent2D(width=self.WIDTH,
 							  height=self.HEIGHT )
 	
