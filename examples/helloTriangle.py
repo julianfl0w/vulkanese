@@ -40,11 +40,11 @@ print(json.dumps(device.asDict(), indent=4))
 rasterPipeline = pipelines[0]
 
 verticesPos = \
-np.array([[0.0, -0.5], [0.5, 0.5], [-0.5, 0.5]], dtype=np.dtype('f4'))
+np.array([[0.0, -0.5, 0.0], [0.5, 0.5, 0.0], [-0.5, 0.5, 0.0]], dtype=np.dtype('f4'))
 #np.array([[-0.5, -0.0], [0.0, 0.5], [0.5, 0.0]], dtype=np.dtype('f4'))	
 
 verticesColor = \
-np.array([[1.0, 1.0, 1.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], dtype=np.dtype('f4'))
+np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], dtype=np.dtype('f4'))
 
 clock = time.perf_counter 
 
@@ -69,7 +69,9 @@ while running:
 	
 	vp = verticesPos.flatten()
 	vp += 0.0001
-	rasterPipeline.setPosBuffer(vp)
+	rasterPipeline.setBuffer("vertex", "POSITION", vp)
+	vp = verticesColor.flatten()
+	rasterPipeline.setBuffer("vertex", "COLOR", vp)
 	# draw the frame!
 	rasterPipeline.draw_frame()
 

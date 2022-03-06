@@ -266,5 +266,5 @@ class RasterPipeline(Pipeline):
 		# wrap it all up into a command buffer
 		self.commandBuffer = CommandBuffer(self)
 
-	def setPosBuffer(self, vdata):
-		self.shaderDict["vertex"].buffers["POSITION"].pmap[:len(vdata)*4] = vdata
+	def setBuffer(self, stage, buffname, data):
+		self.shaderDict[stage].buffers[buffname].pmap[:len(data)*4] = data
