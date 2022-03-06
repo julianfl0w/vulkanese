@@ -63,14 +63,17 @@ np.array([[0.0, -0.5, 0.0], [0.5, 0.5, 0.0], [-0.5, 0.5, 0.0]], dtype=np.dtype('
 #np.array([[-0.5, -0.0], [0.0, 0.5], [0.5, 0.0]], dtype=np.dtype('f4'))	
 
 #mesh objects can be created from existing faces and vertex data
-mesh = trimesh.Trimesh(vertices=verticesPos, faces=[[0, 1, 2]])
+#mesh = trimesh.Trimesh(vertices=verticesPos, faces=[[0, 1, 2]])
+mesh = o3d.geometry.TriangleMesh()
 
 verticesColor = \
 np.array([[[1.0, 0.0, 0.0], [0.5, 0.5, 0.0], [0.0, 0.0, 1.0]]], dtype=np.dtype('f4'))
 verticesColorHSV = cv.cvtColor(verticesColor, cv.COLOR_BGR2HSV)
 print(verticesColorHSV)
-clock = time.perf_counter 
+mesh.vertices = o3d.utility.Vector3dVector(verticesPos)
+mesh.triangles = o3d.utility.Vector3iVector([[0,1,2]])
 
+clock = time.perf_counter 
 # Main loop
 last_time = clock() * 1000
 fps = 0
@@ -92,11 +95,12 @@ while running:
 	
 	#print(mesh.vertices)
 	#print(mesh.vertices.dtype)
-	
-	meshVert = mesh.vertices.flatten().astype(np.dtype('f4'))
-	print(meshVert)
-	print(mesh.faces)
-	rasterPipeline.setBuffer("vertex", "POSITION", verticesPos.flatten())
+	R = mesh.get_rotation_matrix_from_xyz((0, 0, np.pi/20000))
+	mesh.rotate(R, center=(0,0,0))
+	meshVert = np.asarray(mesh.vertices, dtype = 'f4')
+	#print(np.asarray(mesh.triangles))
+
+	rasterPipeline.setBuffer("vertex", "POSITION", meshVert.flatten())
 	verticesColorHSV[:,:,0] = np.fmod(verticesColorHSV[:,:,0] + 0.01, 360)
 	verticesColor =  cv.cvtColor(verticesColorHSV, cv.COLOR_HSV2RGB)
 	vp = verticesColor.flatten()
