@@ -7,13 +7,15 @@
       "outputClass": "surface",
       "outputWidthPixels": 400,
       "outputHeightPixels": 400,
-      "shaders": [
+      "shaders": {
+		"vertex":
         {
           "path": "shaders/hello_triangle.vert.template",
           "stage": "VK_SHADER_STAGE_VERTEX_BIT",
           "outputWidthPixels": 400,
           "outputHeightPixels": 400,
-          "inBuffers": [
+          "inBuffers": {
+            "POSITION" :
             {
               "name"     : "POSITION",
               "usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT",
@@ -23,6 +25,7 @@
               "stride"   : 12,
               "binding"  : 0
             },
+            "COLOR":
             {
               "name"     : "COLOR",
               "usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT",
@@ -32,8 +35,9 @@
               "stride"   : 12,
               "binding"  : 1
             }
-          ],
-          "outBuffers": [
+          },
+          "outBuffers": {
+            "FRAGCOLOR":
             {
               "name"     : "FRAGCOLOR",
               "usage"    : "VK_BUFFER_USAGE_STORAGE_BUFFER_BIT",
@@ -43,31 +47,33 @@
               "stride"   : 12,
               "binding"  : 2
             }
-          ]
+          }
         },
+		"fragment":
         {
           "path": "shaders/hello_triangle.frag.template",
           "stage": "VK_SHADER_STAGE_FRAGMENT_BIT",
           "outputWidthPixels": 400,
           "outputHeightPixels": 400,
-          "inBuffers": [
+          "inBuffers": {
+            "FRAGCOLOR":
             {
               "name"     : "FRAGCOLOR"
             }
-          ],
-          "outBuffers": [
+          },
+          "outBuffers": {
+            "OUTCOLOR":
             {
               "name"     : "OUTCOLOR",
               "usage"    : "VK_BUFFER_USAGE_STORAGE_BUFFER_BIT",
               "sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
               "SIZEBYTES": 65536,
               "format"   : "VK_FORMAT_R32G32B32_SFLOAT",
-              "stride"   : 12,
-              "binding"  : 3
+              "stride"   : 12
             }
-          ]
+          }
         }
-      ]
+      }
     }
   ]
 }

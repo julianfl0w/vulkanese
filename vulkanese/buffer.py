@@ -3,6 +3,7 @@ from vutil import *
 import os
 here = os.path.dirname(os.path.abspath(__file__))
 from vulkan import *
+import numpy as np 
 
 class Buffer(PrintClass):
 
@@ -65,7 +66,7 @@ class Buffer(PrintClass):
 		
 		# Map the buffer memory, so that we can read from it on the CPU.
 		self.pmap = vkMapMemory(self.vkDevice, self.vkBufferMemory, 0, self.setupDict["SIZEBYTES"], 0)
-
+		
 
 	def saveAsImage(self, height, width, path = 'mandelbrot.png'):
 

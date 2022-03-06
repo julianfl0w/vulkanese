@@ -50,7 +50,7 @@ class Pipeline(PrintClass):
 			self.surface = newSurface
 			self.children += [self.surface]
 			
-		self.pipelineClass = setupDict["class"]
+		self.pipelineClass      = setupDict["class"]
 		self.outputWidthPixels  = setupDict["outputWidthPixels"]
 		self.outputHeightPixels = setupDict["outputHeightPixels"]
 		
@@ -58,11 +58,11 @@ class Pipeline(PrintClass):
 		self.vkQueuePresentKHR     = vkGetInstanceProcAddr(self.instance.vkInstance, "vkQueuePresentKHR")
 
 		# Add Shaders
-		self.shaders = []
-		for shaderDict in setupDict["shaders"]:
-			self.shaders += [Shader(self, shaderDict)]
+		self.shaderDict = {}
+		for shaderName, shaderDict in setupDict["shaders"].items():
+			self.shaderDict[shaderName] = Shader(self, shaderDict)
 			
-		self.children += self.shaders
+		self.children += self.shaderDict.values()
 		
 		
 	def draw_frame(self):
@@ -71,8 +71,8 @@ class Pipeline(PrintClass):
 
 	def getAllBuffers(self):
 		allBuffers = []
-		for shader in self.shaders:
-			for buffer in shader.buffers:
+		for name, shader in self.shaderDict.items():
+			for buffer in shader.buffers.values():
 				allBuffers += [buffer]
 		
 		print("ALL BUFFERS " + str(allBuffers))
@@ -83,7 +83,7 @@ class Pipeline(PrintClass):
 		vkDestroySemaphore(self.vkDevice, self.semaphore_image_available, None)
 		vkDestroySemaphore(self.vkDevice, self.semaphore_render_finished, None)
 		
-		for shader in self.shaders:
+		for shader in self.shaderDict.values():
 			shader.release()
 			
 		vkDestroyPipeline(self.vkDevice, self.vkPipeline, None)
@@ -140,8 +140,9 @@ class RasterPipeline(Pipeline):
 		
 		# get global lists 
 		allVertexBuffers = []
-		for s in self.shaders:
-			allVertexBuffers += [b for b in s.buffers]
+		for s in self.shaderDict.values():
+			allVertexBuffers += s.getVertexBuffers()
+					
 		allBindingDescriptors   = [b.bindingDescription for b in allVertexBuffers]
 		allAttributeDescriptors = [b.attributeDescription for b in allVertexBuffers]
 		print("allAttributeDescriptors " + str(allAttributeDescriptors))
@@ -240,8 +241,8 @@ class RasterPipeline(Pipeline):
 		self.pipelinecreate = VkGraphicsPipelineCreateInfo(
 			sType=VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 			flags=0,
-			stageCount=len(self.shaders),
-			pStages=[s.shader_stage_create for s in self.shaders],
+			stageCount=len(self.shaderDict.values()),
+			pStages=[s.shader_stage_create for s in self.shaderDict.values()],
 			pVertexInputState=vertex_input_create,
 			pInputAssemblyState=input_assembly_create,
 			pTessellationState=None,
@@ -264,3 +265,6 @@ class RasterPipeline(Pipeline):
 		
 		# wrap it all up into a command buffer
 		self.commandBuffer = CommandBuffer(self)
+
+	def setPosBuffer(self, vdata):
+		self.shaderDict["vertex"].buffers["POSITION"].pmap[:len(vdata)*4] = vdata
