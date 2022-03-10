@@ -104,11 +104,11 @@ class VertexBuffer(Buffer):
 			offset   = 0
 		)
 		# ^^ Consider VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^ 
-		
 		self.bindingDescription = VkVertexInputBindingDescription(
 			binding   = setupDict["binding"],
 			stride    = setupDict["stride"], #4 bytes/element
-			inputRate = VK_VERTEX_INPUT_RATE_VERTEX)
+			inputRate = eval(setupDict["rate"]))
+		
 			
 		#VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
 		#VK_VERTEX_INPUT_RATE_INSTANCE: Move to the next data entry after each instance

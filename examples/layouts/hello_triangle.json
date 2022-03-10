@@ -23,7 +23,8 @@
               "SIZEBYTES": 65536,
               "format"   : "VK_FORMAT_R32G32B32_SFLOAT",
               "stride"   : 12,
-              "binding"  : 0
+              "binding"  : 0,
+              "rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
             },
             "COLOR":
             {
@@ -33,17 +34,19 @@
               "SIZEBYTES": 65536,
               "format"   : "VK_FORMAT_R32G32B32_SFLOAT",
               "stride"   : 12,
-              "binding"  : 1
+              "binding"  : 1,
+              "rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
             },
             "INDEX":
             {
               "name"     : "INDEX",
-              "usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT",
+              "usage"    : "VK_BUFFER_USAGE_INDEX_BUFFER_BIT",
               "sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
               "SIZEBYTES": 65536,
               "format"   : "VK_FORMAT_R16_UNORM",
-              "stride"   : 4,
-              "binding"  : 10
+              "stride"   : 2,
+              "binding"  : 10,
+              "rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
             }
           },
           "outBuffers": {
@@ -55,7 +58,8 @@
               "SIZEBYTES": 65536,
               "format"   : "VK_FORMAT_R32G32B32_SFLOAT",
               "stride"   : 12,
-              "binding"  : 2
+              "binding"  : 2,
+              "rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
             }
           }
         },
@@ -79,7 +83,8 @@
               "sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
               "SIZEBYTES": 65536,
               "format"   : "VK_FORMAT_R32G32B32_SFLOAT",
-              "stride"   : 12
+              "stride"   : 12,
+              "rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
             }
           }
         }

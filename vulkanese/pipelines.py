@@ -267,4 +267,4 @@ class RasterPipeline(Pipeline):
 		self.commandBuffer = CommandBuffer(self)
 
 	def setBuffer(self, stage, buffname, data):
-		self.shaderDict[stage].buffers[buffname].pmap[:len(data)*4] = data
+		self.shaderDict[stage].buffers[buffname].pmap[:data.size * data.itemsize] = data

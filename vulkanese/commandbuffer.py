@@ -93,7 +93,17 @@ class CommandBuffer(PrintClass):
 			#	uint32_t        instanceCount,
 			#	uint32_t        firstVertex,
 			#	uint32_t        firstInstance);
-			vkCmdDraw(vkCommandBuffer, 3, 1, 0, 1)
+			#vkCmdDraw(vkCommandBuffer, 6400, 1, 0, 1)
+			
+			#void vkCmdDrawIndexed(
+			#	VkCommandBuffer                             commandBuffer,
+			#	uint32_t                                    indexCount,
+			#	uint32_t                                    instanceCount,
+			#	uint32_t                                    firstIndex,
+			#	int32_t                                     vertexOffset,
+			#	uint32_t                                    firstInstance);
+			vkCmdDrawIndexed(vkCommandBuffer, 6400, 1, 0, 0, 0)
+			
 			# End
 			vkCmdEndRenderPass(vkCommandBuffer)
 			vkEndCommandBuffer(vkCommandBuffer)
