@@ -70,7 +70,8 @@ class CommandBuffer(PrintClass):
 			# Provided by VK_VERSION_1_0
 			allBuffers = self.pipeline.getAllBuffers()
 			print("allBuffers " + str(allBuffers))
-			allVertexBuffers = [b.vkBuffer for b in allBuffers if b.setupDict["usage"] == "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT"]
+			allVertexBuffers = [b.vkBuffer for b in allBuffers if (\
+			eval(b.setupDict["usage"]) & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)]
 			print("allVertexBuffers " + str(allVertexBuffers))
 			
 			vkCmdBindVertexBuffers(

@@ -16,7 +16,7 @@ class RenderPass(PrintClass):
 		color_attachement = VkAttachmentDescription(
 			flags=0,
 			format=self.surface.surface_format.format,
-			samples=VK_SAMPLE_COUNT_1_BIT,
+			samples=eval(setupDict["oversample"]),
 			loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR,
 			storeOp=VK_ATTACHMENT_STORE_OP_STORE,
 			stencilLoadOp=VK_ATTACHMENT_LOAD_OP_DONT_CARE,
