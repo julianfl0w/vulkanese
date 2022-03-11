@@ -35,7 +35,7 @@ print("naively choosing device 0")
 device = instance_inst.getDevice(0)
 
 # read the setup dictionary
-setupDictPath = os.path.join("layouts", "hello_triangle.json")
+setupDictPath = os.path.join("layouts", "standard_raster.json")
 pipelines = device.applyLayoutFile(setupDictPath)
 
 # print the object hierarchy
