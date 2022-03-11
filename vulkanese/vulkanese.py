@@ -115,6 +115,18 @@ class Device(PrintClass):
 		
 		self.children += self.pipelines
 		return self.pipelines
+		
+	def applyLayoutFile(self, filename):
+		
+		with open(filename, 'r') as f:
+			setupDict = json.loads(f.read())
+
+		# apply setup to device
+		print("Applying the following layout:")
+		print(json.dumps(setupDict, indent = 4))
+		print("")
+		return self.applyLayout(setupDict)
+
 	
 	def __init__(self, instance, deviceIndex):
 		PrintClass.__init__(self)

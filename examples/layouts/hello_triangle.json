@@ -63,7 +63,18 @@
               "binding"  : 2,
               "rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
             }
-          }
+          },
+          "code": [
+            "#version 450                                             ",
+            "layout(location = LOCATION_POSITION ) in vec3 position;  ",
+            "layout(location = LOCATION_COLOR    ) in vec3 color;     ",
+            "layout(location = LOCATION_FRAGCOLOR) out vec3 fragColor;",
+            "                                                         ",
+            "void main() {                                            ",
+            "    gl_Position = vec4(position, 1.0);                   ",
+            "    fragColor = color;                                   ",
+            "}                                                        "
+          ]
         },
         "fragment":
         {
@@ -88,7 +99,20 @@
               "stride"   : 12,
               "rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
             }
-          }
+          },
+          "code": [
+            "#version 450                                             ",
+            "#extension GL_ARB_separate_shader_objects : enable       ",
+            "                                                         ",
+            "layout(location = LOCATION_FRAGCOLOR) in vec3 fragColor; ",
+            "                                                         ",
+            "//output always location 0                               ",
+            "layout(location = 0) out vec4 outColor;                  ",
+            "                                                         ",
+            "void main() {                                            ",
+            "    outColor = vec4(fragColor, 1.0);                     ",
+            "}                                                        "
+          ]
         }
       }
     }

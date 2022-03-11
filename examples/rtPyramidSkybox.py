@@ -36,14 +36,7 @@ device = instance_inst.getDevice(0)
 
 # read the setup dictionary
 setupDictPath = os.path.join("layouts", "hello_triangle.json")
-with open(setupDictPath, 'r') as f:
-	setupDict = json.loads(f.read())
-
-# apply setup to device
-print("Applying the following layout:")
-print(json.dumps(setupDict, indent = 4))
-pipelines = device.applyLayout(setupDict)
-print("")
+pipelines = device.applyLayoutFile(setupDictPath)
 
 # print the object hierarchy
 print("Object tree:")
