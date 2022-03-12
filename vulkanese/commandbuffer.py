@@ -8,14 +8,17 @@ class CommandBuffer(PrintClass):
 	def __init__(self, pipeline):
 		PrintClass.__init__(self)
 		self.pipeline = pipeline
-		self.pipelineDict = pipeline.setupDict
-		self.vkCommandPool  = pipeline.device.vkCommandPool
-		self.device       = pipeline.device
-		self.vkDevice     = pipeline.device.vkDevice
+		self.pipelineDict  = pipeline.setupDict
+		self.vkCommandPool = pipeline.device.vkCommandPool
+		self.device        = pipeline.device
+		self.vkDevice      = pipeline.device.vkDevice
 		self.outputWidthPixels  = self.pipelineDict["outputWidthPixels"]
 		self.outputHeightPixels = self.pipelineDict["outputHeightPixels"]
 		self.commandBufferCount = 0
 		
+class RasterCommandBuffer(CommandBuffer):
+	def __init__(self, pipeline):
+		CommandBuffer.__init__(self, pipeline)
 		# assume triple-buffering for surfaces
 		if self.pipelineDict["outputClass"] == "surface":
 			print("allocating 3 command buffers, one for each image")
@@ -121,3 +124,27 @@ class CommandBuffer(PrintClass):
 		# Fix #55 but downgrade performance -1000FPS)
 		vkQueueWaitIdle(self.device.presentation_queue)
 		
+class RaytraceCommandBuffer(CommandBuffer):
+	def __init__(self, pipeline):
+		CommandBuffer.__init__(self, pipeline)
+		
+	self.debug.beginLabel(cmdBuf, "Ray trace");
+	# Initializing push constant values
+	self.pcRay.clearColor     = clearColor;
+	self.pcRay.lightPosition  = self.pcRaster.lightPosition;
+	self.pcRay.lightIntensity = self.pcRaster.lightIntensity;
+	self.pcRay.lightType      = self.pcRaster.lightType;
+
+	std::vector<VkDescriptorSet> descSets{self.rtDescSet, self.descSet};
+	vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, self.rtPipeline);
+	vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, self.rtPipelineLayout, 0,
+						  (uint32_t)descSets.size(), descSets.data(), 0, nullptr);
+	vkCmdPushConstants(cmdBuf, self.rtPipelineLayout,
+					 VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR,
+					 0, sizeof(PushConstantRay), &self.pcRay);
+
+
+	vkCmdTraceRaysKHR(cmdBuf, &self.rgenRegion, &self.missRegion, &self.hitRegion, &self.callRegion, self.size.width, self.size.height, 1);
+
+
+	self.debug.endLabel(cmdBuf);
