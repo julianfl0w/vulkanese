@@ -125,26 +125,25 @@ class RasterCommandBuffer(CommandBuffer):
 		vkQueueWaitIdle(self.device.presentation_queue)
 		
 class RaytraceCommandBuffer(CommandBuffer):
-	def __init__(self, pipeline):
+	def __init__(self, pipeline, rgenCode, missCode, hitCode, callCode):
 		CommandBuffer.__init__(self, pipeline)
 		
-	self.debug.beginLabel(cmdBuf, "Ray trace");
-	# Initializing push constant values
-	self.pcRay.clearColor     = clearColor;
-	self.pcRay.lightPosition  = self.pcRaster.lightPosition;
-	self.pcRay.lightIntensity = self.pcRaster.lightIntensity;
-	self.pcRay.lightType      = self.pcRaster.lightType;
+		vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, self.rtPipeline);
+		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, self.rtPipelineLayout, 0, size(descSets), descSets, 0, nullptr);
 
-	std::vector<VkDescriptorSet> descSets{self.rtDescSet, self.descSet};
-	vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, self.rtPipeline);
-	vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, self.rtPipelineLayout, 0,
-						  (uint32_t)descSets.size(), descSets.data(), 0, nullptr);
-	vkCmdPushConstants(cmdBuf, self.rtPipelineLayout,
-					 VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR,
-					 0, sizeof(PushConstantRay), &self.pcRay);
+		vkCmdTraceRaysKHR(cmdBuf, &self.rgenRegion, &self.missRegion, &self.hitRegion, &self.callRegion, self.outputWidthPixels, self.outputHeightPixels, 1);
 
-
-	vkCmdTraceRaysKHR(cmdBuf, &self.rgenRegion, &self.missRegion, &self.hitRegion, &self.callRegion, self.size.width, self.size.height, 1);
-
-
-	self.debug.endLabel(cmdBuf);
+ 
+		vkEndCommandBuffer(vkCommandBuffer)
+		self.debug.endLabel(cmdBuf);
+		
+	#def drawPost(VkCommandBuffer cmdBuf):
+	#	m_debug.beginLabel(cmdBuf, "Post");
+	#
+	#	setViewport(cmdBuf);
+	#
+	#	auto aspectRatio = static_cast<float>(m_size.width) / static_cast<float>(m_size.height);
+	#	vkCmdPushConstants(cmdBuf, m_postPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(float), &aspectRatio);
+	#	vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_postPipeline);
+	#	vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_postPipelineLayout, 0, 1, &m_postDescSet, 0, nullptr);
+	#	vkCmdDraw(cmdBuf, 3, 1, 0, 0);

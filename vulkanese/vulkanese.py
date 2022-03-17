@@ -102,8 +102,20 @@ class Instance(PrintClass):
 		vkDestroyInstance(self.vkInstance, None)
 		
 class Device(PrintClass):
-			
+	def nameSubdicts(self, setupDict):
+		for key, value in setupDict.items():
+			if type(value) is dict:
+				value["name"] = key
+				self.nameSubdicts(value)
+			elif type(value) is list:
+				for v in value:
+					self.nameSubdicts(value)
+					
+				
 	def applyLayout(self, setupDict):
+		setupDict = self.nameSubdicts(setupDict)
+		print(setupDict)
+		die
 		self.pipelines = []
 		for pipelineDict in setupDict["pipelines"]:
 			if pipelineDict["class"] == "raster":
@@ -266,72 +278,3 @@ class Device(PrintClass):
 		print("destroying device")
 		vkDestroyDevice(self.vkDevice, None)
 		
-
-	
-class DescriptorSet(PrintClass):
-	def __init__(self, descriptorPool):
-		PrintClass.__init__(self)
-		self.descriptorPool = descriptorPool
-		# Here we specify a descriptor set layout. This allows us to bind our descriptors to
-		# resources in the shader.
-
-		# Here we specify a binding of type VK_DESCRIPTOR_TYPE_STORAGE_BUFFER to the binding point
-		# 0. This binds to
-		#   layout(std140, binding = 0) buffer buf
-		# in the compute shader.
-
-		self.descriptorSetLayoutBinding = VkDescriptorSetLayoutBinding(
-			binding=0,
-			descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-			descriptorCount=1,
-			stageFlags=VK_SHADER_STAGE_COMPUTE_BIT
-		)
-
-		descriptorSetLayoutCreateInfo = VkDescriptorSetLayoutCreateInfo(
-			sType=VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-			bindingCount=1,  # only a single binding in this descriptor set layout.
-			pBindings=self.descriptorSetLayoutBinding
-		)
-
-		# Create the descriptor set layout.
-		self.vkCreateDescriptorSetLayout = vkCreateDescriptorSetLayout(self.vkDevice, descriptorSetLayoutCreateInfo, None)
-		self.children += [self.vkCreateDescriptorSetLayout]
-
-		# So we will allocate a descriptor set here.
-		descriptorSetAllocateInfo = VkDescriptorSetAllocateInfo(
-			sType=VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-			descriptorPool=self.vkDescriptorPool,
-			descriptorSetCount=1,
-			pSetLayouts=[self.vkCreateDescriptorSetLayout]
-		)
-
-		# allocate descriptor set.
-		self.vkDescriptorSet = vkAllocateDescriptorSets(self.vkDevice, descriptorSetAllocateInfo)[0]
-		self.children += [self.vkDescriptorSet]
-
-		# Next, we need to connect our actual storage buffer with the descrptor.
-		# We use vkUpdateDescriptorSets() to update the descriptor set.
-
-		# Specify the buffer to bind to the descriptor.
-		descriptorBufferInfo = VkDescriptorBufferInfo(
-			buffer=self.vkBuffer,
-			offset=0,
-			range=self.vkBufferSize
-		)
-
-		writeDescriptorSet = VkWriteDescriptorSet(
-			sType=VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-			dstSet=self.vkDescriptorSet,
-			dstBinding=0,  # write to the first, and only binding.
-			descriptorCount=1,
-			descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-			pBufferInfo=descriptorBufferInfo
-		)
-
-		# perform the update of the descriptor set.
-		vkUpdateDescriptorSets(self.vkDevice, 1, [writeDescriptorSet], 0, None)
-
-	def release():
-		
-		vkDestroyDescriptorSetLayout(self.device, self.descriptorSetLayout, None)
-		vkDestroyDescriptorSet(self.device, self.descriptorSet, None)
