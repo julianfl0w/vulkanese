@@ -17,64 +17,57 @@
           "outputWidthPixels": 700,
           "outputHeightPixels": 700,
           "inBuffers": {
-            "POSITION" :
+            "position" :
             {
-              "name"     : "POSITION",
+              "type"     : "vec3",
               "usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT",
               "sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
               "SIZEBYTES": 65536,
               "format"   : "VK_FORMAT_R32G32B32_SFLOAT",
               "stride"   : 12,
-              "binding"  : 0,
               "rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
             },
-            "COLOR":
+            "color":
             {
-              "name"     : "COLOR",
+              "type"     : "vec3",
               "usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT",
               "sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
               "SIZEBYTES": 65536,
               "format"   : "VK_FORMAT_R32G32B32_SFLOAT",
               "stride"   : 12,
-              "binding"  : 1,
               "rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
             },
-            "INDEX":
+            "index":
             {
-              "name"     : "INDEX",
               "usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT",
               "sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
               "SIZEBYTES": 65536,
               "format"   : "VK_FORMAT_R16_UNORM",
               "stride"   : 2,
-              "binding"  : 2,
               "rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
             }
           },
           "outBuffers": {
-            "FRAGCOLOR":
+            "fragColor":
             {
-              "name"     : "FRAGCOLOR",
+              "type"     : "vec3",
               "usage"    : "VK_BUFFER_USAGE_STORAGE_BUFFER_BIT",
               "sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
               "SIZEBYTES": 65536,
               "format"   : "VK_FORMAT_R32G32B32_SFLOAT",
               "stride"   : 12,
-              "binding"  : 2,
               "rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
             }
           },
-          "code": [
-            "#version 450                                             ",
-            "layout(location = LOCATION_POSITION ) in vec3 position;  ",
-            "layout(location = LOCATION_COLOR    ) in vec3 color;     ",
-            "layout(location = LOCATION_FRAGCOLOR) out vec3 fragColor;",
-            "                                                         ",
-            "void main() {                                            ",
-            "    gl_Position = vec4(position, 1.0);                   ",
-            "    fragColor = color;                                   ",
-            "}                                                        "
-          ]
+          "header": [
+            "#version 450                                             "
+          ],
+          "note": [
+            "layout(location = LOCATION_POSITION ) in vec3 ;  ",
+            "layout(location = LOCATION_COLOR    ) in vec3 ;     ",
+            "layout(location = LOCATION_FRAGCOLOR) out vec3 ;"
+          ],
+          "main": "passthrough.vert.main"
         },
         "fragment":
         {

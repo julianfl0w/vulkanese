@@ -21,13 +21,10 @@ class Shader(Sinode):
 		# attributes are ex. location, normal, color
 		self.buffers    = {}
 		
-		if setupDict.get("code") is not None:
-			shader_spirv = "\n".join(setupDict["code"])
+		with open(setupDict["header"]) as f:
+			shader_spirv = f.read()
 				
-		elif setupDict["path"].endswith("template"):
-			with open(setupDict["path"], 'r') as f:
-				shader_spirv = f.read()
-				
+		location = 0
 		# novel INPUT buffers belong to THIS shader (others are linked)
 		for bufferName, bufferDict in setupDict["inBuffers"].items():
 			existsAlready = False
@@ -39,8 +36,8 @@ class Shader(Sinode):
 					existsAlready = True
 			
 			if not existsAlready:
-				bufferDict["location"] = pipeline.location
-				pipeline.location += 1
+				bufferDict["location"] = location
+				location += self.getSize(b.setupDict["type"])
 				if "VERTEX" in setupDict["stage"]:
 					newBuffer     = VertexBuffer(pipeline.device, bufferDict)
 				else:
@@ -52,19 +49,23 @@ class Shader(Sinode):
 				if bufferDict["name"] == "INDEX":
 					self.pipeline.indexBuffer = newBuffer
 			
-			shader_spirv  = shader_spirv.replace("LOCATION_" + bufferDict["name"], str(bufferDict["location"]))
+			shader_spirv += "location = (" + str(bufferDict["location"]) + " in " + bufferDict["type"] + " " + bufferDict["name"] + "\n"
 					
-				
+		location = 0
 		# ALL the OUTPUT buffers are owned by THIS shader
 		for bufferName, bufferDict in setupDict["outBuffers"].items():
 			print("adding outbuff " + bufferDict["name"])
-			bufferDict["location"] = pipeline.location
-			pipeline.location += 1
+			bufferDict["location"] = location
+			location += self.getSize(b.setupDict["type"])
 			shader_spirv  = shader_spirv.replace("LOCATION_" + bufferDict["name"], str(bufferDict["location"]))
 			newBuffer     = Buffer(pipeline.device, bufferDict)
 			self.buffers [bufferName] = newBuffer
 			self.children += [newBuffer]
+			shader_spirv += "location = (" + str(bufferDict["location"]) + " out " + bufferDict["type"] + " " + bufferDict["name"] + "\n"
 				
+		with open(setupDict["main"]) as f:
+			shader_spirv += f.read()
+			
 		print("---final shader code---")
 		print(shader_spirv)
 		print("--- end shader code ---")
@@ -101,7 +102,20 @@ class Shader(Sinode):
 			flags=0,
 			pSpecializationInfo=None,
 			pName='main')
-		
+	
+	def getSize(self, bufftype):
+		with open(os.path.join(here, "derivedtypes.json"), 'r') as f:
+			derivedDict = json.loads(f.read)
+		with open(os.path.join(here, "ctypes.json"), 'r') as f:
+			cDict = json.loads(f.read)
+		size = 0
+		if bufftype in derivedDict.keys():
+			for subtype in derivedDict[bufftype]:
+				size += self.getSize(subtype)
+		else:
+			size += 1
+		return size
+	
 	def getVertexBuffers(self):
 		allVertexBuffers = []
 		for b in self.buffers.values():
