@@ -6,9 +6,9 @@ from vulkan import *
 from buffer import *
 from pathlib import Path
 
-class Shader(PrintClass):
+class Shader(Sinode):
 	def __init__(self, pipeline, setupDict):
-		PrintClass.__init__(self)
+		Sinode.__init__(self, pipeline)
 		self.vkDevice = pipeline.device.vkDevice
 		self.setupDict = setupDict
 		self.pipeline  = pipeline
@@ -111,6 +111,6 @@ class Shader(PrintClass):
 		
 	def release(self):
 		print("destroying shader")
-		PrintClass.release(self)
+		Sinode.release(self)
 		vkDestroyShaderModule(self.vkDevice, self.vkShader, None)
 		

@@ -4,9 +4,9 @@ import os
 here = os.path.dirname(os.path.abspath(__file__))
 from vulkan import *
 
-class RenderPass(PrintClass):
+class RenderPass(Sinode):
 	def __init__(self, pipeline, setupDict, surface):
-		PrintClass.__init__(self)
+		Sinode.__init__(self, pipeline)
 		self.pipeline = pipeline
 		self.surface  = surface
 		self.vkDevice = self.surface.device.vkDevice

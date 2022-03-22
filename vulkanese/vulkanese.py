@@ -14,9 +14,9 @@ here = os.path.dirname(os.path.abspath(__file__))
 def getVulkanesePath():
 	return here
 
-class Instance(PrintClass):
+class Instance(Sinode):
 	def __init__(self):
-		PrintClass.__init__(self)
+		Sinode.__init__(self, None)
 		
 		# ----------
 		# Create instance
@@ -101,7 +101,7 @@ class Instance(PrintClass):
 		print("destroying instance")
 		vkDestroyInstance(self.vkInstance, None)
 		
-class Device(PrintClass):
+class Device(Sinode):
 	def nameSubdicts(self, setupDict):
 		for key, value in setupDict.items():
 			if type(value) is dict:
@@ -141,7 +141,7 @@ class Device(PrintClass):
 
 	
 	def __init__(self, instance, deviceIndex):
-		PrintClass.__init__(self)
+		Sinode.__init__(self, instance)
 		self.instance = instance
 		self.deviceIndex = deviceIndex
 		

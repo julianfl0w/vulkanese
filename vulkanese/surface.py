@@ -4,7 +4,7 @@ import sdl2
 import sdl2.ext
 import ctypes
 
-class Surface(PrintClass):
+class Surface(Sinode):
 	def getEvents(self):
 		return sdl2.ext.get_events()
 	
@@ -72,7 +72,7 @@ class Surface(PrintClass):
 		return vkCreateWin32SurfaceKHR(self.vkInstance, surface_create, None)
 
 	def __init__(self, instance, device, pipeline):
-		PrintClass.__init__(self)
+		Sinode.__init__(self, device)
 		self.running = True
 		self.pipeline = pipeline
 		

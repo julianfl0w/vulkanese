@@ -4,9 +4,9 @@ import os
 here = os.path.dirname(os.path.abspath(__file__))
 from vulkan import *
 
-class CommandBuffer(PrintClass):
+class CommandBuffer(Sinode):
 	def __init__(self, pipeline):
-		PrintClass.__init__(self)
+		Sinode.__init__(self, pipeline)
 		self.pipeline = pipeline
 		self.pipelineDict  = pipeline.setupDict
 		self.vkCommandPool = pipeline.device.vkCommandPool

@@ -20,11 +20,11 @@ def getVulkanesePath():
 # references to instance, device, etc
 # at least 1 shader
 # an output size
-class Pipeline(PrintClass):
+class Pipeline(Sinode):
 
 	def __init__(self, device, setupDict):
 	
-		PrintClass.__init__(self)
+		Sinode.__init__(self, device)
 		self.location = 0
 		
 		self.setupDict = setupDict
@@ -104,7 +104,6 @@ class Pipeline(PrintClass):
 class ComputePipeline(Pipeline):
 	
 	def __init__(self, device, setupDict):
-		PrintClass.__init__(self)
 		Pipeline.__init__(self, device, setupDict)
 		
 		self.descriptorSet = DescriptorSet(device.descriptorPool)

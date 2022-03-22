@@ -1,0 +1,125 @@
+{
+	"singleLocation":
+	{
+		"getPython":
+		{
+			"note" : "this dict converts c types to python types of same size",
+			"byte" : "x",
+			"char" : "c",
+			"bool" : "?",
+			"signed char": "b",
+			"unsigned char": "B",
+			"short": "h",
+			"unsigned short": "H",
+			"int": "i",
+			"unsigned int": "I",
+			"long": "l",
+			"unsigned long": "L",
+			"long long": "q",
+			"unsigned long long": "Q",
+			"uint64_t": "Q",
+			"float": "f",
+			"double": "d"
+			}
+		"glDerived":
+		{
+			"vec2":
+			{
+				"float": 3
+			},
+			"vec3":
+			{
+				"float": 3
+			},
+			"vec4":
+			{
+				"float": 4
+			},
+			"ivec2":
+			{
+				"int": 3
+			},
+			"ivec3":
+			{
+				"int": 3
+			},
+			"ivec4":
+			{
+				"int": 4
+			},
+			"mat4":
+			{
+				"vec4": 4
+			}
+		}
+	},
+	
+	"derived":
+	{
+		"ObjDesc":
+		{
+			"txtOffset"           : "int",
+			"vertexAddress"       : "uint64_t",
+			"indexAddress"        : "uint64_t",
+			"materialAddress"     : "uint64_t",
+			"materialIndexAddress": "uint64_t"
+		},
+
+		"GlobalUniforms":
+		{
+			"viewProj"   : "mat4",
+			"viewInverse": "mat4",
+			"projInverse": "mat4"
+		},
+
+		"PushConstantRaster":
+		{
+			"modelMatrix   " : "mat4",
+			"lightPosition " : "vec3",
+			"objIndex      " : "uint",
+			"lightIntensity" : "float",
+			"lightType     " : "int"
+		},
+
+		"PushConstantRay":
+		{
+			"clearColor"     : "vec4",
+			"lightPosition"  : "vec3",
+			"lightIntensity" : "float",
+			"lightType"      : "int",
+			"maxDepth"       : "int"
+		},
+
+		"Vertex":
+		{
+			"pos"      : "vec3", 
+			"nrm"      : "vec3", 
+			"color"    : "vec3", 
+			"texCoord" : "vec2"
+		},
+
+		"WaveFrontMaterial":
+		{
+			"ambient"       : "vec3",
+			"diffuse"       : "vec3",
+			"specular"      : "vec3",
+			"transmittance" : "vec3",
+			"emission"      : "vec3",
+			"shininess"     : "float",
+			"ior"           : "float",
+			"dissolve"      : "float",
+			"illum"         : "int",
+			"textureId"     : "int"
+		},
+		
+		"hitPayload":
+		{
+			"hitValue"    : "vec3",
+			"depth"       : "int" ,
+			"attenuation" : "vec3",
+			"done"        : "int" ,
+			"rayOrigin"   : "vec3",
+			"rayDir"      : "vec3"
+		}
+	}
+}

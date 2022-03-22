@@ -4,9 +4,9 @@ import os
 here = os.path.dirname(os.path.abspath(__file__))
 from vulkan import *
 
-class DescriptorPool(PrintClass):
+class DescriptorPool(Sinode):
 	def __init__(self, pipeline, MAX_FRAMES_IN_FLIGHT = 3):
-		PrintClass.__init__(self)
+		Sinode.__init__(self, pipeline)
 		self.pipeline = pipeline
 		self.pipelineDict  = pipeline.setupDict
 		self.vkCommandPool = pipeline.device.vkCommandPool
@@ -31,23 +31,24 @@ class DescriptorPool(PrintClass):
 		#The structure has an optional flag similar to command pools that determines if individual descriptor sets can be freed or not: VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT. We're not going to touch the descriptor set after creating it, so we don't need this flag. You can leave flags to its default value of 0.
 
 		self.vkDescriptorPool = VkCreateDescriptorPool(self.device, [poolInfo], 0)
-
-class DescriptorSet(PrintClass):
-	def __init__(self, pipeline, MAX_FRAMES_IN_FLIGHT = 3):
-		PrintClass.__init__(self)
-		self.pipeline = pipeline
-		self.pipelineDict = pipeline.setupDict
-		self.vkCommandPool= pipeline.device.vkCommandPool
-		self.device       = pipeline.device
-		self.vkDevice     = pipeline.device.vkDevice
-		self.outputWidthPixels  = self.pipelineDict["outputWidthPixels"]
-		self.outputHeightPixels = self.pipelineDict["outputHeightPixels"]
 		
+		#The descriptor set number 0 will be used for engine-global resources, and bound once per frame.
+		self.engineGlobalDS = DescriptorSet(self, binding = 0)
+		#The descriptor set number 1 will be used for per-pass resources, and bound once per pass. 
+		self.PerPassDS   = DescriptorSet(self, binding = 1)
+		
+		#The descriptor set number 2 will be used for material resources, 
+		self.materialDS  = DescriptorSet(self, binding = 2)
+		
+		#and the number 3 will be used for per-object resources. 
+		self.perObjectDS = DescriptorSet(self, binding = 3)
+		
+		#This way, the inner render loops will only be binding descriptor sets 2 and 3, and performance will be high.
 
-		self.descSetLayout = self.descSetLayoutBind.createLayout(self.device);
-		self.descPool      = self.descSetLayoutBind.createPool(self.device, 1);
-		self.descSet       = nvvk::allocateDescriptorSet(self.device, self.descPool, self.descSetLayout);
-  
+class DescriptorSet(Sinode):
+	def __init__(self, descriptorPool, binding, MAX_FRAMES_IN_FLIGHT = 3):
+		Sinode.__init__(self, descriptorPool)
+
 		self.descriptorPool = descriptorPool
 		# Here we specify a descriptor set layout. This allows us to bind our descriptors to
 		# resources in the shader.
@@ -58,7 +59,7 @@ class DescriptorSet(PrintClass):
 		# in the compute shader.
 
 		self.descriptorSetLayoutBinding = VkDescriptorSetLayoutBinding(
-			binding=0,
+			binding=binding,
 			descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 			descriptorCount=1,
 			stageFlags=VK_SHADER_STAGE_COMPUTE_BIT
@@ -72,7 +73,6 @@ class DescriptorSet(PrintClass):
 
 		# Create the descriptor set layout.
 		self.vkCreateDescriptorSetLayout = vkCreateDescriptorSetLayout(self.vkDevice, descriptorSetLayoutCreateInfo, None)
-		self.children += [self.vkCreateDescriptorSetLayout]
 
 		# So we will allocate a descriptor set here.
 		descriptorSetAllocateInfo = VkDescriptorSetAllocateInfo(
@@ -88,15 +88,13 @@ class DescriptorSet(PrintClass):
 
 		# Next, we need to connect our actual storage buffer with the descrptor.
 		# We use vkUpdateDescriptorSets() to update the descriptor set.
-
-		# Specify the buffer to bind to the descriptor.
-		descriptorBufferInfo = VkDescriptorBufferInfo(
+		self.descriptorBufferInfo = VkDescriptorBufferInfo(
 			buffer=self.vkBuffer,
 			offset=0,
-			range=self.vkBufferSize
+			range=setupDict["SIZEBYTES"]
 		)
-
-		writeDescriptorSet = VkWriteDescriptorSet(
+		
+		self.writeDescriptorSet = VkWriteDescriptorSet(
 			sType=VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 			dstSet=self.vkDescriptorSet,
 			dstBinding=0,  # write to the first, and only binding.

@@ -5,7 +5,7 @@ here = os.path.dirname(os.path.abspath(__file__))
 from vulkan import *
 import numpy as np 
 
-class Buffer(PrintClass):
+class Buffer(Sinode):
 
 	# find memory type with desired properties.
 	def findMemoryType(self, memoryTypeBits, properties):
@@ -20,7 +20,7 @@ class Buffer(PrintClass):
 		return -1
 
 	def __init__(self, device, setupDict):
-		PrintClass.__init__(self)
+		Sinode.__init__(self, device)
 		self.setupDict= setupDict
 		self.device   = device
 		self.vkDevice = device.vkDevice
@@ -113,4 +113,35 @@ class VertexBuffer(Buffer):
 		#VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
 		#VK_VERTEX_INPUT_RATE_INSTANCE: Move to the next data entry after each instance
 
+class DescriptorSetBuffer(Buffer):
+	def __init__(self, device, setupDict):
+		Buffer.__init__(self, device, setupDict)
+		
+class PushConstantsBuffer(DescriptorSetBuffer):
+	def __init__(self, device, setupDict):
+		DescriptorSetBuffer.__init__(self, device, setupDict)
+		
+class UniformBuffer(DescriptorSetBuffer):
+	def __init__(self, device, setupDict):
+		DescriptorSetBuffer.__init__(self, device, setupDict)
+		
+class UniformTexelBuffer(DescriptorSetBuffer):
+	def __init__(self, device, setupDict):
+		DescriptorSetBuffer.__init__(self, device, setupDict)
+		
+class SampledImageBuffer(DescriptorSetBuffer):
+	def __init__(self, device, setupDict):
+		DescriptorSetBuffer.__init__(self, device, setupDict)
+		
+class StorageBuffer(DescriptorSetBuffer):
+	def __init__(self, device, setupDict):
+		DescriptorSetBuffer.__init__(self, device, setupDict)
+
+class StorageTexelBuffer(DescriptorSetBuffer):
+	def __init__(self, device, setupDict):
+		DescriptorSetBuffer.__init__(self, device, setupDict)
+		
+class StorageImageBuffer(DescriptorSetBuffer):
+	def __init__(self, device, setupDict):
+		DescriptorSetBuffer.__init__(self, device, setupDict)
 		

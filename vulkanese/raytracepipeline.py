@@ -232,9 +232,9 @@ class RaytracePipeline(Pipeline):
 		vkUpdateDescriptorSets(self.device, 1, &wds, 0, nullptr);
 		
 		
-class ShaderBindingTable(PrintClass):
+class ShaderBindingTable(Sinode):
 	def __init__(self, pipeline):
-		PrintClass.__init__(self)
+		Sinode.__init__(self, pipeline)
 		self.pipeline = pipeline
 		self.pipelineDict = pipeline.setupDict
 		self.vkCommandPool  = pipeline.device.vkCommandPool
