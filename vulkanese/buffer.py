@@ -206,12 +206,10 @@ class TLASNV(AccelerationStructureNV):
 class Geometry(Sinode):
 	def __init__(self, setupDict, blas, initialMesh):
 		Sinode.__init__(self, setupDict, blas)
-		buffSetupDict = 
-		{
-			"vertex" = [[0,1,0], [1,1,1], [1,1,0]], 
-			"index"  = [[0,1,2]],
-			"aabb"   = [[0,1,2]]
-		}
+		buffSetupDict = {}                         
+		buffSetupDict["vertex"] = [[0,1,0], [1,1,1], [1,1,0]] 
+		buffSetupDict["index" ] = [[0,1,2]]                   
+		buffSetupDict["aabb"  ] = [[0,1,2]]                    
 		self.vertexBuffer = Buffer(self.lookUp("device"), buffSetupDict["vertex"].flatten())
 		self.indexBuffer = Buffer(self.lookUp("device"), buffSetupDict["index"].flatten())
 		self.aabb        = Buffer(self.lookUp("device"), buffSetupDict["aabb"].flatten())
@@ -240,26 +238,38 @@ class Geometry(Sinode):
 			transformOffset = 0
 		)
 		
-		self.aabbs = VkGeometryAABBNV {
+		self.aabbs = VkGeometryAABBNV(
 			sType = VK_STRUCTURE_TYPE_GEOMETRY_AABB_NV, 
 			pNext = None,
 			aabbData = self.aabb.vkBuffer,
 			numAABBs = 1, 
 			stride   = 4,
 			offset   = 0
-		}
+		)
 
 		self.geometryData = VkGeometryDataNV(
 			triangles = self.geometryTriangles, 
-			VkGeometryAABBNV         aabbs;
+			aabbs     = self.aabbs
 		)
 		
+		# possible flags: 
+		
+		#VK_GEOMETRY_OPAQUE_BIT_KHR = 0x00000001,
+		#VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR = 0x00000002,
+		#// Provided by VK_NV_ray_tracing
+		#VK_GEOMETRY_OPAQUE_BIT_NV = VK_GEOMETRY_OPAQUE_BIT_KHR,
+		#// Provided by VK_NV_ray_tracing
+		#VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_NV 
+		
+		#VK_GEOMETRY_OPAQUE_BIT_KHR indicates that this geometry does 
+		# not invoke the any-hit shaders even if present in a hit group.
+
 		self.vkGeometry = VkGeometryNV(
 			sType = VK_STRUCTURE_TYPE_GEOMETRY_NV, 
 			pNext = None, 
 			geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR, 
 			geometry = self.geometryData, 
-			VkGeometryFlagsKHR    flags;
+			flags = VK_GEOMETRY_OPAQUE_BIT_KHR
 		)
 		
 
@@ -291,7 +301,7 @@ class AccelerationStructureKHR(AccelerationStructure):
 			VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
 			geometryType       = VK_GEOMETRY_TYPE_TRIANGLES_KHR,
 			flags              = VK_GEOMETRY_OPAQUE_BIT_KHR,
-			geometry.triangles = triangles)
+			triangles          = geometry.triangles)
 
 		# The entire array will be used to build the BLAS.
 		offset = VkAccelerationStructureBuildRangeInfoKHR(

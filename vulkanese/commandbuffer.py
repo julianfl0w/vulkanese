@@ -131,7 +131,7 @@ class RaytraceCommandBuffer(CommandBuffer):
 		vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, self.rtPipeline);
 		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, self.rtPipelineLayout, 0, size(descSets), descSets, 0, nullptr);
 
-		vkCmdTraceRaysKHR(cmdBuf, &self.rgenRegion, &self.missRegion, &self.hitRegion, &self.callRegion, self.outputWidthPixels, self.outputHeightPixels, 1);
+		vkCmdTraceRaysKHR(cmdBuf, self.rgenRegion, self.missRegion, self.hitRegion, self.callRegion, self.outputWidthPixels, self.outputHeightPixels, 1);
 
  
 		vkEndCommandBuffer(vkCommandBuffer)
