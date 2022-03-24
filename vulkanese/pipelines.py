@@ -60,7 +60,8 @@ class Pipeline(Sinode):
 		# Add Shaders
 		self.shaderDict = {}
 		for shaderName, shaderDict in setupDict["shaders"].items():
-			self.shaderDict[shaderName] = Shader(self, shaderDict)
+			if shaderName is not "name": 
+				self.shaderDict[shaderName] = Shader(self, shaderDict)
 			
 		self.children += self.shaderDict.values()
 		

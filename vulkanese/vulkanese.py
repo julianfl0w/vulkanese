@@ -102,22 +102,23 @@ class Instance(Sinode):
 		vkDestroyInstance(self.vkInstance, None)
 		
 class Device(Sinode):
-	def nameSubdicts(self, setupDict):
-		for key, value in setupDict.items():
+	def nameSubdicts(self, key, value):
 			if type(value) is dict:
-				value["name"] = key
-				self.nameSubdicts(value)
-			elif type(value) is list:
-				for v in value:
-					self.nameSubdicts(value)
-					
+				retdict = {}
+				retdict["name"] = key
+				for k, v in value.items():
+					retdict[k] = self.nameSubdicts(k, v)
+				return retdict
+			else:
+				return value
 				
 	def applyLayout(self, setupDict):
-		setupDict = self.nameSubdicts(setupDict)
-		print(setupDict)
-		die
+		setupDict = self.nameSubdicts("root", setupDict)
+		print(json.dumps(setupDict, indent=2))
 		self.pipelines = []
-		for pipelineDict in setupDict["pipelines"]:
+		for pipelineName, pipelineDict in setupDict.items():
+			if pipelineDict == "root":
+				continue
 			if pipelineDict["class"] == "raster":
 				self.pipelines += [RasterPipeline(self, pipelineDict)]
 			elif pipelineDict["class"] == "compute":
@@ -147,7 +148,6 @@ class Device(Sinode):
 		
 		print("initializing device " + str(deviceIndex))
 		self.physical_device = vkEnumeratePhysicalDevices(self.instance.vkInstance)[deviceIndex]
-		
 		
 		print("Select queue family")
 		# ----------

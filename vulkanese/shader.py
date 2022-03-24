@@ -27,6 +27,9 @@ class Shader(Sinode):
 		location = 0
 		# novel INPUT buffers belong to THIS shader (others are linked)
 		for bufferName, bufferDict in setupDict["inBuffers"].items():
+			if type(bufferDict) is not dict:
+				continue
+				
 			existsAlready = False
 			for b in pipeline.getAllBuffers():
 				print(bufferDict["name"] + " : " + b.setupDict["name"])
@@ -34,20 +37,20 @@ class Shader(Sinode):
 					print(bufferDict["name"] + " exists already. linking")
 					bufferDict["location"] = b.setupDict["location"]
 					existsAlready = True
-			
-			if not existsAlready:
-				bufferDict["location"] = location
-				location += self.getSize(b.setupDict["type"])
-				if "VERTEX" in setupDict["stage"]:
-					newBuffer     = VertexBuffer(pipeline.device, bufferDict)
-				else:
-					newBuffer     = Buffer(pipeline.device, bufferDict)
-					
-				self.buffers [bufferName] = newBuffer
-				self.children += [newBuffer]
-			
-				if bufferDict["name"] == "INDEX":
-					self.pipeline.indexBuffer = newBuffer
+				
+				if not existsAlready:
+					bufferDict["location"] = location
+					location += self.getSize(b.setupDict["type"])
+					if "VERTEX" in setupDict["stage"]:
+						newBuffer     = VertexBuffer(pipeline.device, bufferDict)
+					else:
+						newBuffer     = Buffer(pipeline.device, bufferDict)
+						
+					self.buffers [bufferName] = newBuffer
+					self.children += [newBuffer]
+				
+					if bufferDict["name"] == "INDEX":
+						self.pipeline.indexBuffer = newBuffer
 			
 			shader_spirv += "location = (" + str(bufferDict["location"]) + " in " + bufferDict["type"] + " " + bufferDict["name"] + "\n"
 					
