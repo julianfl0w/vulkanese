@@ -31,40 +31,45 @@ class Shader(Sinode):
 				continue
 				
 			existsAlready = False
-			for b in pipeline.getAllBuffers():
-				print(bufferDict["name"] + " : " + b.setupDict["name"])
-				if bufferDict["name"] == b.setupDict["name"]:
+			for existingBuffer in pipeline.getAllBuffers():
+				print(bufferDict["name"] + " : " + existingBuffer.setupDict["name"])
+				if bufferDict["name"] == existingBuffer.setupDict["name"]:
 					print(bufferDict["name"] + " exists already. linking")
-					bufferDict["location"] = b.setupDict["location"]
+					bufferDict["location"] = existingBuffer.setupDict["location"]
+					bufferDict["type"] = existingBuffer.setupDict["type"]
 					existsAlready = True
 				
-				if not existsAlready:
-					bufferDict["location"] = location
-					location += self.getSize(b.setupDict["type"])
-					if "VERTEX" in setupDict["stage"]:
-						newBuffer     = VertexBuffer(pipeline.device, bufferDict)
-					else:
-						newBuffer     = Buffer(pipeline.device, bufferDict)
-						
-					self.buffers [bufferName] = newBuffer
-					self.children += [newBuffer]
-				
-					if bufferDict["name"] == "INDEX":
-						self.pipeline.indexBuffer = newBuffer
+			if not existsAlready:
+				bufferDict["location"] = location
+				location += self.getSize(bufferDict["type"])
+				location += self.getSize(bufferDict["type"])
+				if "VERTEX" in setupDict["stage"]:
+					newBuffer     = VertexBuffer(pipeline.device, bufferDict)
+				else:
+					newBuffer     = Buffer(pipeline.device, bufferDict)
+					
+				self.buffers [bufferName] = newBuffer
+				self.children += [newBuffer]
 			
-			shader_spirv += "location = (" + str(bufferDict["location"]) + " in " + bufferDict["type"] + " " + bufferDict["name"] + "\n"
+				if bufferDict["name"] == "INDEX":
+					self.pipeline.indexBuffer = newBuffer
+			
+			shader_spirv += "layout (location = " + str(bufferDict["location"]) + ") in " + bufferDict["type"] + " " + bufferDict["name"] + ";\n"
 					
 		location = 0
 		# ALL the OUTPUT buffers are owned by THIS shader
 		for bufferName, bufferDict in setupDict["outBuffers"].items():
+			if type(bufferDict) is not dict:
+				continue
+			print(bufferDict)
 			print("adding outbuff " + bufferDict["name"])
 			bufferDict["location"] = location
-			location += self.getSize(b.setupDict["type"])
+			location += self.getSize(bufferDict["type"])
 			shader_spirv  = shader_spirv.replace("LOCATION_" + bufferDict["name"], str(bufferDict["location"]))
 			newBuffer     = Buffer(pipeline.device, bufferDict)
 			self.buffers [bufferName] = newBuffer
 			self.children += [newBuffer]
-			shader_spirv += "location = (" + str(bufferDict["location"]) + " out " + bufferDict["type"] + " " + bufferDict["name"] + "\n"
+			shader_spirv += "layout (location = " + str(bufferDict["location"]) + ") out " + bufferDict["type"] + " " + bufferDict["name"] + ";\n"
 				
 		with open(setupDict["main"]) as f:
 			shader_spirv += f.read()
@@ -108,9 +113,9 @@ class Shader(Sinode):
 	
 	def getSize(self, bufftype):
 		with open(os.path.join(here, "derivedtypes.json"), 'r') as f:
-			derivedDict = json.loads(f.read)
+			derivedDict = json.loads(f.read())
 		with open(os.path.join(here, "ctypes.json"), 'r') as f:
-			cDict = json.loads(f.read)
+			cDict = json.loads(f.read())
 		size = 0
 		if bufftype in derivedDict.keys():
 			for subtype in derivedDict[bufftype]:

@@ -83,10 +83,10 @@ class RasterCommandBuffer(CommandBuffer):
 				bindingCount        = len(allVertexBuffers),
 				pBuffers            = allVertexBuffers,
 				pOffsets            = [0]*len(allVertexBuffers))
-				
+			
 			vkCmdBindIndexBuffer(
 				commandBuffer  = vkCommandBuffer,
-				buffer         = pipeline.indexBuffer.vkBuffer, 
+				buffer         = pipeline.getBuffDict()["index"].vkBuffer, 
 				offset         = 0 ,  
 				indexType      = VK_INDEX_TYPE_UINT16 )
 				

@@ -70,6 +70,14 @@ class Pipeline(Sinode):
 		image_index = self.vkAcquireNextImageKHR(self.vkDevice, self.surface.swapchain, UINT64_MAX, self.semaphore_image_available, None)
 		self.commandBuffer.draw_frame(image_index)
 
+	def getBuffDict(self):
+		allBuffers = {}
+		for name, shader in self.shaderDict.items():
+			for buffer in shader.buffers.values():
+				allBuffers[buffer.setupDict["name"]] = buffer
+		
+		print("ALL BUFFERS " + str(allBuffers))
+		return allBuffers
 	def getAllBuffers(self):
 		allBuffers = []
 		for name, shader in self.shaderDict.items():
@@ -264,7 +272,7 @@ class RasterPipeline(Pipeline):
 		self.vkPipeline = pipelines[0]
 		
 		# wrap it all up into a command buffer
-		self.commandBuffer = CommandBuffer(self)
+		self.commandBuffer = RasterCommandBuffer(self)
 
 	def setBuffer(self, stage, buffname, data):
 		self.shaderDict[stage].buffers[buffname].pmap[:data.size * data.itemsize] = data

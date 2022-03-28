@@ -40,7 +40,7 @@ class Node(object):
 			child.release()
 
 
-class Sinode(object):
+class Sinode(Node):
 	def __init__(self, parent):
 		Node.__init__(self)
 		self.parent   = parent # enforce single inheritance
@@ -53,7 +53,7 @@ class Sinode(object):
 		return self.parent.getAncestor(ancestorType)
 		
 
-class Minode(object):
+class Minode(Node):
 	def __init__(self, parents):
 		self.parents  = parents # allow multi inheritance through a set
 		self.children = []

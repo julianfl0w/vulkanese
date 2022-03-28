@@ -19,6 +19,18 @@
 					"position" :
 					{
 						"type"     : "vec3",
+						"binding"  : "global",
+						"usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT",
+						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
+						"SIZEBYTES": 65536,
+						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
+						"stride"   : 12,
+						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
+					},
+					"normal":
+					{
+						"type"     : "vec3",
+						"binding"  : "global",
 						"usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
 						"SIZEBYTES": 65536,
@@ -29,6 +41,7 @@
 					"color":
 					{
 						"type"     : "vec3",
+						"binding"  : "global",
 						"usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
 						"SIZEBYTES": 65536,
@@ -38,6 +51,8 @@
 					},
 					"index":
 					{
+						"type"     : "uint",
+						"binding"  : "global",
 						"usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
 						"SIZEBYTES": 65536,
@@ -50,6 +65,7 @@
 					"fragColor":
 					{
 						"type"     : "vec3",
+						"binding"  : "global",
 						"usage"    : "VK_BUFFER_USAGE_STORAGE_BUFFER_BIT",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
 						"SIZEBYTES": 65536,
@@ -73,15 +89,15 @@
 				"outputWidthPixels": 700,
 				"outputHeightPixels": 700,
 				"inBuffers": {
-					"FRAGCOLOR":
+					"fragColor":
 					{
-						"name"     : "FRAGCOLOR"
 					}
 				},
 				"outBuffers": {
-					"OUTCOLOR":
+					"outColor":
 					{
-						"name"     : "OUTCOLOR",
+						"type"     : "vec4",
+						"binding"  : "global",
 						"usage"    : "VK_BUFFER_USAGE_STORAGE_BUFFER_BIT",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
 						"SIZEBYTES": 65536,
@@ -90,8 +106,8 @@
 						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
 					}
 				},
-				"header": "resources/shader.frag.header",
-				"main"  : "resources/shader.frag.main",
+				"header": "resources/passthrough.frag.header",
+				"main"  : "resources/passthrough.frag.main",
 				"code": [
 					"#version 450                                             ",
 					"#extension GL_ARB_separate_shader_objects : enable       ",

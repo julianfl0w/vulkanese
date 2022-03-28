@@ -96,16 +96,20 @@ class VertexBuffer(Buffer):
 	def __init__(self, device, setupDict):
 		Buffer.__init__(self, device, setupDict)
 		
+		outfilename = os.path.join("resources", "standard_bindings.json")
+		with open(outfilename, 'r') as f:
+			bindDict = json.loads(f.read())
+			
 		# we will standardize its bindings with a attribute description
 		self.attributeDescription = VkVertexInputAttributeDescription(
-			binding  = setupDict["binding"],
+			binding  = bindDict[setupDict["binding"]],
 			location = setupDict["location"],
 			format   = eval(setupDict["format"]), # single, 4 bytes
 			offset   = 0
 		)
 		# ^^ Consider VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^ 
 		self.bindingDescription = VkVertexInputBindingDescription(
-			binding   = setupDict["binding"],
+			binding   = bindDict[setupDict["binding"]],
 			stride    = setupDict["stride"], #4 bytes/element
 			inputRate = eval(setupDict["rate"]))
 		
