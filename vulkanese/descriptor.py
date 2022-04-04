@@ -123,11 +123,11 @@ class DescriptorSet(Sinode):
 			dstBinding=0,  # write to the first, and only binding.
 			descriptorCount=1,
 			descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-			pBufferInfo=[descriptorBufferInfo]
+			pBufferInfo=[buffer.descriptorBufferInfo for buffer in self.buffers.values()]
 		)
 
 		# perform the update of the descriptor set.
-		vkUpdateDescriptorSets(self.vkDevice, 1, [writeDescriptorSet], 0, None)
+		vkUpdateDescriptorSets(self.vkDevice, 1, [self.writeDescriptorSet], 0, None)
 
 	def release():
 		
