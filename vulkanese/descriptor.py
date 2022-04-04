@@ -56,12 +56,13 @@ class DescriptorPool(Sinode):
 			sType=VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 			descriptorPool=self.vkDescriptorPool,
 			descriptorSetCount=len(self.descSetDict.values()),
-			pSetLayouts=[d.vkCreateDescriptorSetLayout for d in self.descSetDict.values()]
+			pSetLayouts=[d.vkDescriptorSetLayout for d in self.descSetDict.values()]
 		)
 		
 		# create the allocate descriptor set.
 		self.vkDescriptorSets = vkAllocateDescriptorSets(self.vkDevice, descriptorSetAllocateInfo)
 		
+		print(self.vkDescriptorSets)
 		for i, d in enumerate(self.descSetDict.values()):
 			d.vkDescriptorSet = self.vkDescriptorSets[i]
 			
@@ -73,6 +74,13 @@ class DescriptorPool(Sinode):
 		#	descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 		#	pBufferInfo=[buffer.descriptorBufferInfo for buffer in self.buffers.values()]
 		#)
+		
+	def release(self):
+		for k, v in self.descSetDict.items():
+			print("destroying descriptor set " + str(k))
+			v.release()
+		print("destroying descriptor pool")
+		vkDestroyDescriptorPool(self.vkDevice, self.vkDescriptorPool, None)
 
 class DescriptorSet(Sinode):
 	def __init__(self, descriptorPool, binding, MAX_FRAMES_IN_FLIGHT = 3):
@@ -119,16 +127,16 @@ class DescriptorSet(Sinode):
 		)
 
 		# Create the descriptor set layout.
-		self.vkCreateDescriptorSetLayout = vkCreateDescriptorSetLayout(self.vkDevice, descriptorSetLayoutCreateInfo, None)
+		self.vkDescriptorSetLayout = vkCreateDescriptorSetLayout(self.vkDevice, descriptorSetLayoutCreateInfo, None)
 
 
 		# perform the update of the descriptor set.
 		#vkUpdateDescriptorSets(self.vkDevice, 1, [self.writeDescriptorSet], 0, None)
 
-	def release():
+	def release(self):
 		
-		vkDestroyDescriptorSetLayout(self.device, self.descriptorSetLayout, None)
-		vkDestroyDescriptorSet(self.device, self.descriptorSet, None)
+		print("destroying descriptor set")
+		vkDestroyDescriptorSetLayout(self.vkDevice, self.vkDescriptorSetLayout, None)
 
 #	def updateDescriptorSet():
 #		std::vector<VkWriteDescriptorSet> writes;

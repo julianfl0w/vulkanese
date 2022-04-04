@@ -241,6 +241,7 @@ class Device(Sinode):
 		self.vkCommandPool = vkCreateCommandPool(self.vkDevice, command_pool_create, None)
 
 		self.descriptorPool = DescriptorPool(self)
+		self.children += [self.descriptorPool]
 
 	def getBinding(self, buffer, bindName):
 		return self.descriptorPool.getBinding(buffer, bindName)
@@ -256,15 +257,16 @@ class Device(Sinode):
 		return Shader(self.vkDevice, path, stage)
 		
 	def release(self):
-		print("destroying command pool")
-		vkDestroyCommandPool(self.vkDevice, self.vkCommandPool, None)
-		
-		print("destroying descriptor pool")
-		vkDestroyDescriptorPool(self.vkDevice, self.vkDescriptorPool, None)
-		
+		print("destroying dev9c")
 		print("destroying pipelines")
 		for pipeline in self.pipelines: 
 			pipeline.release()
+		
+		print("destroying command pool")
+		vkDestroyCommandPool(self.vkDevice, self.vkCommandPool, None)
+		
+		self.descriptorPool.release()
+		
 		
 		print("destroying device")
 		vkDestroyDevice(self.vkDevice, None)
