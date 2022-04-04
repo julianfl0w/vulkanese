@@ -9,10 +9,11 @@
 		"outputHeightPixels": 700,
 		"shaders": {
 			"rgen" : {
-				"header": "raytrace.rchit.header",
-				"main"  : "raytrace.rchit.main",
+				"header": "raytrace.rgen.header",
+				"main"  : "raytrace.rgen.main",
 				"outputWidthPixels": 700,
 				"outputHeightPixels": 700,
+				"stage": "VK_SHADER_STAGE_RAYGEN_BIT_KHR",
 				"inBuffers": {
 					
 					"note": 
@@ -101,7 +102,22 @@
 					}
 				}
 			},
+			"rmiss" : {
+				"header": "raytrace.rmiss.header",
+				"main"  : "raytrace.rmiss.main",
+				"stage": "VK_SHADER_STAGE_MISS_BIT_KHR",
+				"outputWidthPixels": 700,
+				"outputHeightPixels": 700
+			},
+			"rmiss2" : {
+				"header": "raytrace.rmiss2.header",
+				"main"  : "raytrace.rmiss2.main",
+				"stage": "VK_SHADER_STAGE_MISS_BIT_KHR",
+				"outputWidthPixels": 700,
+				"outputHeightPixels": 700
+			},
 			"rchit" : {
+				"stage": "VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR",
 				"header": "raytrace.rchit.header",
 				"main"  : "raytrace.rchit.main",
 				"outputWidthPixels": 700,
