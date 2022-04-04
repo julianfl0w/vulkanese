@@ -42,7 +42,6 @@ class Shader(Sinode):
 			if not existsAlready:
 				bufferDict["location"] = location
 				location += self.getSize(bufferDict["type"])
-				location += self.getSize(bufferDict["type"])
 				if "VERTEX" in setupDict["stage"]:
 					newBuffer     = VertexBuffer(pipeline.device, bufferDict)
 				else:

@@ -27,7 +27,7 @@ class Node(object):
 	def getAncestor(self, ancestorType):
 		if not hasattr(self, "parent"):
 			return false
-		if str(type(self.parent)) == ancestorType:
+		if ancestorType in str(type(self.parent)).lower():
 			return self
 		return self.parent.getAncestor(ancestorType)
 		
@@ -46,9 +46,11 @@ class Sinode(Node):
 		self.parent   = parent # enforce single inheritance
 		
 	def getAncestor(self, ancestorType):
+		print("checking " + str(self))
+		print("type " + str(type(self)))
 		if not hasattr(self, "parent"):
 			return false
-		if str(type(self.parent)) == ancestorType:
+		if ancestorType in str(type(self)).lower():
 			return self
 		return self.parent.getAncestor(ancestorType)
 		

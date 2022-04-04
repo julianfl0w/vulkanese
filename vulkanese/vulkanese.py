@@ -8,6 +8,7 @@ import json
 from vutil import *
 from vulkan import *
 from pipelines import *
+from descriptor import *
 from PIL import Image as pilImage
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -103,20 +104,20 @@ class Instance(Sinode):
 		
 class Device(Sinode):
 	def nameSubdicts(self, key, value):
-			if type(value) is dict:
-				retdict = {}
-				retdict["name"] = key
-				for k, v in value.items():
-					retdict[k] = self.nameSubdicts(k, v)
-				return retdict
-			else:
-				return value
+		if type(value) is dict:
+			retdict = {}
+			retdict["name"] = key
+			for k, v in value.items():
+				retdict[k] = self.nameSubdicts(k, v)
+			return retdict
+		else:
+			return value
 				
 	def applyLayout(self, setupDict):
-		setupDict = self.nameSubdicts("root", setupDict)
-		print(json.dumps(setupDict, indent=2))
+		self.setupDict = self.nameSubdicts("root", setupDict)
+		print(json.dumps(self.setupDict, indent=2))
 		self.pipelines = []
-		for pipelineName, pipelineDict in setupDict.items():
+		for pipelineName, pipelineDict in self.setupDict.items():
 			if pipelineDict == "root":
 				continue
 			if pipelineDict["class"] == "raster":
@@ -125,7 +126,7 @@ class Device(Sinode):
 				self.pipelines += [ComputePipeline(self, pipelineDict)]
 			else:
 				self.pipelines += [RaytracePipeline(self, pipelineDict)]
-		
+		self.descriptorPool.finalize()
 		self.children += self.pipelines
 		return self.pipelines
 		
@@ -239,21 +240,11 @@ class Device(Sinode):
 
 		self.vkCommandPool = vkCreateCommandPool(self.vkDevice, command_pool_create, None)
 
-		# create descriptor pool.
-		# Our descriptor pool can only allocate a single storage buffer.
-		descriptorPoolSize = VkDescriptorPoolSize(
-			type=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, # Do we need different types of pool?
-			descriptorCount=1
-		)
-		descriptorPoolCreateInfo = VkDescriptorPoolCreateInfo(
-			sType=VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			maxSets=1,  # we only need to allocate one descriptor set from the pool.
-			poolSizeCount=1,
-			pPoolSizes=descriptorPoolSize
-		)
-		self.vkDescriptorPool = vkCreateDescriptorPool(self.vkDevice, descriptorPoolCreateInfo, None)
+		self.descriptorPool = DescriptorPool(self)
 
-	
+	def getBinding(self, buffer, bindName):
+		return self.descriptorPool.getBinding(buffer, bindName)
+		
 	def getFeatures(self):
 	
 		self.features   = vkGetPhysicalDeviceFeatures(self.physical_device)  

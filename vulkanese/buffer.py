@@ -100,20 +100,31 @@ class VertexBuffer(Buffer):
 		with open(outfilename, 'r') as f:
 			bindDict = json.loads(f.read())
 			
+			
+		self.binding = self.getAncestor("device").getBinding(self, setupDict["binding"])
+		
 		# we will standardize its bindings with a attribute description
 		self.attributeDescription = VkVertexInputAttributeDescription(
-			binding  = bindDict[setupDict["binding"]],
+			binding  = self.binding,
 			location = setupDict["location"],
 			format   = eval(setupDict["format"]), # single, 4 bytes
 			offset   = 0
 		)
 		# ^^ Consider VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^ 
 		self.bindingDescription = VkVertexInputBindingDescription(
-			binding   = bindDict[setupDict["binding"]],
+			binding   = self.binding,
 			stride    = setupDict["stride"], #4 bytes/element
 			inputRate = eval(setupDict["rate"]))
 		
-			
+		# Every buffer contains its own info for descriptor set
+		# Next, we need to connect our actual storage buffer with the descrptor.
+		# We use vkUpdateDescriptorSets() to update the descriptor set.
+		self.descriptorBufferInfo = VkDescriptorBufferInfo(
+			buffer=self.vkBuffer,
+			offset=0,
+			range=setupDict["SIZEBYTES"]
+		)
+		
 		#VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
 		#VK_VERTEX_INPUT_RATE_INSTANCE: Move to the next data entry after each instance
 

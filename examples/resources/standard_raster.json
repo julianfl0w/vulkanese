@@ -56,7 +56,7 @@
 						"usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
 						"SIZEBYTES": 65536,
-						"format"   : "VK_FORMAT_R16_UNORM",
+						"format"   : "VK_FORMAT_R32_UINT",
 						"stride"   : 2,
 						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
 					}

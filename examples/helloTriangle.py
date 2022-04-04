@@ -81,7 +81,7 @@ while running:
 	pyramidMesh.rotate(R, center=(0,0,TRANSLATION[2]))
 	meshVert = np.asarray(pyramidMesh.vertices, dtype = 'f4')
 	#print(np.asarray(pyramidMesh.vertices).flatten())
-	rasterPipeline.setBuffer("vertex", "index", np.asarray(pyramidMesh.triangles, dtype='u2').flatten())
+	rasterPipeline.setBuffer("vertex", "index", np.asarray(pyramidMesh.triangles, dtype='u4').flatten())
 
 	rasterPipeline.setBuffer("vertex", "position", meshVert)
 	pyramidVerticesColorHSV[:,:,0] = np.fmod(pyramidVerticesColorHSV[:,:,0] + 0.01, 360)
