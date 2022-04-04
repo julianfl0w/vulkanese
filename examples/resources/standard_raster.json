@@ -19,59 +19,64 @@
 					"position" :
 					{
 						"type"     : "vec3",
-						"binding"  : "global",
+						"descriptorSet"  : "global",
 						"usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
 						"SIZEBYTES": 65536,
 						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
 						"stride"   : 12,
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
+						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
 					},
 					"normal":
 					{
 						"type"     : "vec3",
-						"binding"  : "global",
+						"descriptorSet"  : "global",
 						"usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
 						"SIZEBYTES": 65536,
 						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
 						"stride"   : 12,
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
+						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
 					},
 					"color":
 					{
 						"type"     : "vec3",
-						"binding"  : "global",
+						"descriptorSet"  : "global",
 						"usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
 						"SIZEBYTES": 65536,
 						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
 						"stride"   : 12,
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
+						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
 					},
 					"index":
 					{
 						"type"     : "uint",
-						"binding"  : "global",
-						"usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT",
+						"descriptorSet"  : "global",
+						"usage"    : "VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
 						"SIZEBYTES": 65536,
 						"format"   : "VK_FORMAT_R32_UINT",
-						"stride"   : 2,
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
+						"stride"   : 4,
+						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
 					}
 				},
 				"outBuffers": {
 					"fragColor":
 					{
 						"type"     : "vec3",
-						"binding"  : "global",
+						"descriptorSet"  : "global",
 						"usage"    : "VK_BUFFER_USAGE_STORAGE_BUFFER_BIT",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
 						"SIZEBYTES": 65536,
 						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
 						"stride"   : 12,
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
+						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
 					}
 				},
 				"header": "resources/passthrough.vert.header",
@@ -97,13 +102,14 @@
 					"outColor":
 					{
 						"type"     : "vec4",
-						"binding"  : "global",
+						"descriptorSet"  : "global",
 						"usage"    : "VK_BUFFER_USAGE_STORAGE_BUFFER_BIT",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
 						"SIZEBYTES": 65536,
 						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
 						"stride"   : 12,
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
+						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
 					}
 				},
 				"header": "resources/passthrough.frag.header",

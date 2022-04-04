@@ -41,22 +41,38 @@ class DescriptorPool(Sinode):
 			sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
 			poolSizeCount = 1,
 			pPoolSizes = [self.poolSize],
-			maxSets = self.MAX_FRAMES_IN_FLIGHT)
-			
-		descriptorPoolCreateInfo = VkDescriptorPoolCreateInfo(
-			sType=VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			maxSets=1,  # we only need to allocate one descriptor set from the pool.
-			poolSizeCount=1,
-			pPoolSizes=[self.poolSize]
-		)
+			maxSets = 4) # imposed by some gpus 
 		
 		#The structure has an optional flag similar to command pools that determines if individual descriptor sets can be freed or not: VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT. We're not going to touch the descriptor set after creating it, so we don't need this flag. You can leave flags to its default value of 0.
-		self.vkDescriptorPool = vkCreateDescriptorPool(self.vkDevice, descriptorPoolCreateInfo, None)
 		self.vkDescriptorPool = vkCreateDescriptorPool(self.vkDevice, [self.poolInfo], 0)
 		
 		#This way, the inner render loops will only be binding descriptor sets 2 and 3, and performance will be high.
 		for descriptor in self.descSetDict.values():
 			descriptor.finalize()
+			
+			
+		# Establish the create info
+		descriptorSetAllocateInfo = VkDescriptorSetAllocateInfo(
+			sType=VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+			descriptorPool=self.vkDescriptorPool,
+			descriptorSetCount=len(self.descSetDict.values()),
+			pSetLayouts=[d.vkCreateDescriptorSetLayout for d in self.descSetDict.values()]
+		)
+		
+		# create the allocate descriptor set.
+		self.vkDescriptorSets = vkAllocateDescriptorSets(self.vkDevice, descriptorSetAllocateInfo)
+		
+		for i, d in enumerate(self.descSetDict.values()):
+			d.vkDescriptorSet = self.vkDescriptorSets[i]
+			
+		#self.writeDescriptorSet = VkWriteDescriptorSet(
+		#	sType=VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		#	dstSet=self.vkDescriptorSet,
+		#	dstBinding=0,  # write to the first, and only binding.
+		#	descriptorCount=1,
+		#	descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+		#	pBufferInfo=[buffer.descriptorBufferInfo for buffer in self.buffers.values()]
+		#)
 
 class DescriptorSet(Sinode):
 	def __init__(self, descriptorPool, binding, MAX_FRAMES_IN_FLIGHT = 3):
@@ -68,8 +84,9 @@ class DescriptorSet(Sinode):
 	def attachBuffer(self, buffer):
 		# this gets set in buffer
 		#buffer.binding = len(self.buffers.values())
+		thisIndex = len(self.buffers.values())
 		self.buffers[buffer.setupDict["name"]] = buffer
-		return len(self.buffers.values())
+		return thisIndex
 		
 	def finalize(self):
 		# Here we specify a descriptor set layout. This allows us to bind our descriptors to
@@ -104,30 +121,9 @@ class DescriptorSet(Sinode):
 		# Create the descriptor set layout.
 		self.vkCreateDescriptorSetLayout = vkCreateDescriptorSetLayout(self.vkDevice, descriptorSetLayoutCreateInfo, None)
 
-		# Establish the create info
-		descriptorSetAllocateInfo = VkDescriptorSetAllocateInfo(
-			sType=VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-			descriptorPool=self.descriptorPool.vkDescriptorPool,
-			descriptorSetCount=1,
-			pSetLayouts=[self.vkCreateDescriptorSetLayout]
-		)
-		
-		# create the allocate descriptor set.
-		self.vkDescriptorSet = vkAllocateDescriptorSets(self.vkDevice, descriptorSetAllocateInfo)[0]
-		self.children += [self.vkDescriptorSet]
-
-		
-		self.writeDescriptorSet = VkWriteDescriptorSet(
-			sType=VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-			dstSet=self.vkDescriptorSet,
-			dstBinding=0,  # write to the first, and only binding.
-			descriptorCount=1,
-			descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-			pBufferInfo=[buffer.descriptorBufferInfo for buffer in self.buffers.values()]
-		)
 
 		# perform the update of the descriptor set.
-		vkUpdateDescriptorSets(self.vkDevice, 1, [self.writeDescriptorSet], 0, None)
+		#vkUpdateDescriptorSets(self.vkDevice, 1, [self.writeDescriptorSet], 0, None)
 
 	def release():
 		

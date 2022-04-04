@@ -72,23 +72,39 @@ class RasterCommandBuffer(CommandBuffer):
 			
 			# Provided by VK_VERSION_1_0
 			allBuffers = self.pipeline.getAllBuffers()
-			print("allBuffers " + str(allBuffers))
-			allVertexBuffers = [b.vkBuffer for b in allBuffers if (\
-			eval(b.setupDict["usage"]) & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)]
-			print("allVertexBuffers " + str(allVertexBuffers))
 			
+			print("--- ALL BUFFERS ---")
+			for i, buffer in enumerate(allBuffers):
+				print("-------------------------")
+				print(i)
+				print(json.dumps(buffer.setupDict, indent=4))
+			allVertexBuffers = [b for b in allBuffers if (\
+			eval(b.setupDict["usage"]) & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT \
+			 or b.setupDict["name"] == "index")]
+			print("--- ALL VERTEX BUFFERS ---")
+			for i, buffer in enumerate(allVertexBuffers):
+				print("-------------------------")
+				print(i)
+				print(json.dumps(buffer.setupDict, indent=4))
+				
+			allVertexBuffersVk = [b.vkBuffer for b in allVertexBuffers]
+			
+			pOffsets = [0]*len(allVertexBuffersVk)
+			print("pOffsets")
+			print(pOffsets)
 			vkCmdBindVertexBuffers(
 				commandBuffer       = vkCommandBuffer,
 				firstBinding        = 0,
-				bindingCount        = len(allVertexBuffers),
-				pBuffers            = allVertexBuffers,
-				pOffsets            = [0]*len(allVertexBuffers))
+				bindingCount        = len(allVertexBuffersVk),
+				pBuffers            = allVertexBuffersVk,
+				pOffsets            = pOffsets
+				)
 			
 			vkCmdBindIndexBuffer(
 				commandBuffer  = vkCommandBuffer,
 				buffer         = pipeline.getBuffDict()["index"].vkBuffer, 
 				offset         = 0 ,  
-				indexType      = VK_INDEX_TYPE_UINT16 )
+				indexType      = VK_INDEX_TYPE_UINT32 )
 				
 			# Draw
 			#void vkCmdDraw(

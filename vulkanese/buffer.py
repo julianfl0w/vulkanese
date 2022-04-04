@@ -48,8 +48,7 @@ class Buffer(Sinode):
 		# Also, by setting VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, memory written by the device(GPU) will be easily
 		# visible to the host(CPU), without having to call any extra flushing commands. So mainly for convenience, we set
 		# this flag.
-		index = self.findMemoryType(memoryRequirements.memoryTypeBits,
-									VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+		index = self.findMemoryType(memoryRequirements.memoryTypeBits, eval(setupDict["memProperties"]))
 		# Now use obtained memory requirements info to allocate the memory for the buffer.
 		allocateInfo = VkMemoryAllocateInfo(
 			sType=VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -100,8 +99,8 @@ class VertexBuffer(Buffer):
 		with open(outfilename, 'r') as f:
 			bindDict = json.loads(f.read())
 			
-			
-		self.binding = self.getAncestor("device").getBinding(self, setupDict["binding"])
+		self.binding = self.getAncestor("device").getBinding(self, setupDict["descriptorSet"])
+		self.setupDict["binding"] = self.binding 
 		
 		# we will standardize its bindings with a attribute description
 		self.attributeDescription = VkVertexInputAttributeDescription(

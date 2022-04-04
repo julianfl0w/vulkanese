@@ -76,7 +76,6 @@ class Pipeline(Sinode):
 			for buffer in shader.buffers.values():
 				allBuffers[buffer.setupDict["name"]] = buffer
 		
-		print("ALL BUFFERS " + str(allBuffers))
 		return allBuffers
 	def getAllBuffers(self):
 		allBuffers = []
@@ -84,7 +83,6 @@ class Pipeline(Sinode):
 			for buffer in shader.buffers.values():
 				allBuffers += [buffer]
 		
-		print("ALL BUFFERS " + str(allBuffers))
 		return allBuffers
 	
 	def release(self):
