@@ -8,6 +8,7 @@ import json
 from vutil import *
 from vulkan import *
 from pipelines import *
+from raytracepipeline import *
 from descriptor import *
 from PIL import Image as pilImage
 
