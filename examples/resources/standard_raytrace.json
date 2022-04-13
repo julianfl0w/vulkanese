@@ -9,11 +9,11 @@
 		"outputHeightPixels": 700,
 		"shaders": {
 			"rgen" : {
-				"header": "raytrace.rgen.header",
-				"main"  : "raytrace.rgen.main",
+				"header": "resources/raytrace.rgen.header",
+				"main"  : "resources/raytrace.rgen.main",
 				"outputWidthPixels": 700,
 				"outputHeightPixels": 700,
-				"stage": "VK_SHADER_STAGE_RAYGEN_BIT_KHR",
+				"stage": "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
 				"inBuffers": {
 					
 					"note": 
@@ -22,13 +22,16 @@
 
 					"geometry":
 					{
-						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
+						"stage"    : "VK_SHADER_STAGE_RAYGEN_BIT_KHR",
 						"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
 						"SIZEBYTES": 65536,
 						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
 						"stride"   : 12,
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
+						"type"     : "vec3",
+						"descriptorSet"  : "global",
+						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
 						
 					},
 					"tlas":
@@ -39,7 +42,10 @@
 						"SIZEBYTES": 65536,
 						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
 						"stride"   : 12,
+						"type"     : "vec3",
+						"descriptorSet"  : "global",
 						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT",
 						"blas"     :
 						{
 							"geo":
@@ -50,6 +56,8 @@
 								"SIZEBYTES": 65536,
 								"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
 								"stride"   : 12,
+								"type"     : "vec3",
+								"descriptorSet"  : "global",
 								"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
 								
 							}
@@ -63,7 +71,10 @@
 						"SIZEBYTES": 65536,
 						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
 						"stride"   : 12,
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
+						"type"     : "vec3",
+						"descriptorSet"  : "global",
+						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
 						
 					},
 
@@ -75,7 +86,10 @@
 						"SIZEBYTES": 65536,
 						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
 						"stride"   : 12,
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
+						"type"     : "vec3",
+						"descriptorSet"  : "global",
+						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
 					},
 
 					"Textures":
@@ -87,7 +101,10 @@
 						"SIZEBYTES": 65536,
 						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
 						"stride"   : 12,
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
+						"type"     : "vec3",
+						"descriptorSet"  : "global",
+						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
 					}
 				},
 				"outBuffers": {
@@ -98,28 +115,31 @@
 						"SIZEBYTES": 65536,
 						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
 						"stride"   : 12,
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
+						"type"     : "vec3",
+						"descriptorSet"  : "global",
+						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
 					}
 				}
 			},
 			"rmiss" : {
-				"header": "raytrace.rmiss.header",
-				"main"  : "raytrace.rmiss.main",
+				"header": "resources/raytrace.rmiss.header",
+				"main"  : "resources/raytrace.rmiss.main",
 				"stage": "VK_SHADER_STAGE_MISS_BIT_KHR",
 				"outputWidthPixels": 700,
 				"outputHeightPixels": 700
 			},
 			"rmiss2" : {
-				"header": "raytrace.rmiss2.header",
-				"main"  : "raytrace.rmiss2.main",
+				"header": "resources/raytrace.rmiss2.header",
+				"main"  : "resources/raytrace.rmiss2.main",
 				"stage": "VK_SHADER_STAGE_MISS_BIT_KHR",
 				"outputWidthPixels": 700,
 				"outputHeightPixels": 700
 			},
 			"rchit" : {
 				"stage": "VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR",
-				"header": "raytrace.rchit.header",
-				"main"  : "raytrace.rchit.main",
+				"header": "resources/raytrace.rchit.header",
+				"main"  : "resources/raytrace.rchit.main",
 				"outputWidthPixels": 700,
 				"outputHeightPixels": 700,
 				"inBuffers": {
@@ -146,7 +166,10 @@
 						"SIZEBYTES": 65536,
 						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
 						"stride"   : 12,
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
+						"type"     : "vec3",
+						"descriptorSet"  : "global",
+						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
 						
 					},
 					"tlas":
@@ -157,7 +180,10 @@
 						"SIZEBYTES": 65536,
 						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
 						"stride"   : 12,
+						"type"     : "vec3",
+						"descriptorSet"  : "global",
 						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT",
 						"blas"     :
 						{
 							"geo":
@@ -181,7 +207,10 @@
 						"SIZEBYTES": 65536,
 						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
 						"stride"   : 12,
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
+						"type"     : "vec3",
+						"descriptorSet"  : "global",
+						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
 						
 					},
 
@@ -193,7 +222,10 @@
 						"SIZEBYTES": 65536,
 						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
 						"stride"   : 12,
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
+						"type"     : "vec3",
+						"descriptorSet"  : "global",
+						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
 					},
 
 					"Textures":
@@ -205,7 +237,10 @@
 						"SIZEBYTES": 65536,
 						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
 						"stride"   : 12,
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
+						"type"     : "vec3",
+						"descriptorSet"  : "global",
+						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
 					}
 				},
 				"outBuffers": {
@@ -216,7 +251,10 @@
 						"SIZEBYTES": 65536,
 						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
 						"stride"   : 12,
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
+						"type"     : "vec3",
+						"descriptorSet"  : "global",
+						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
 					}
 				}
 			}

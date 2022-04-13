@@ -16,9 +16,6 @@ class CommandBuffer(Sinode):
 		self.outputHeightPixels = self.pipelineDict["outputHeightPixels"]
 		self.commandBufferCount = 0
 		
-class RasterCommandBuffer(CommandBuffer):
-	def __init__(self, pipeline):
-		CommandBuffer.__init__(self, pipeline)
 		# assume triple-buffering for surfaces
 		if self.pipelineDict["outputClass"] == "surface":
 			print("allocating 3 command buffers, one for each image")
@@ -52,9 +49,12 @@ class RasterCommandBuffer(CommandBuffer):
 			signalSemaphoreCount=len(self.pipeline.signal_semaphores),
 			pSignalSemaphores=self.pipeline.signal_semaphores)
 
+		
+class RasterCommandBuffer(CommandBuffer):
+	def __init__(self, pipeline):
+		CommandBuffer.__init__(self, pipeline)
 		# optimization to avoid creating a new array each time
 		self.submit_list = ffi.new('VkSubmitInfo[1]', [self.submit_create])
-
 		
 		# Record command buffer
 		for i, vkCommandBuffer in enumerate(self.vkCommandBuffers):
@@ -147,7 +147,15 @@ class RaytraceCommandBuffer(CommandBuffer):
 		vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, self.rtPipeline);
 		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, self.rtPipelineLayout, 0, size(descSets), descSets, 0, nullptr);
 
-		vkCmdTraceRaysKHR(cmdBuf, self.rgenRegion, self.missRegion, self.hitRegion, self.callRegion, self.outputWidthPixels, self.outputHeightPixels, 1);
+		vkCmdTraceRaysKHR(
+			cmdBuf, 
+			self.shaderDict["rgen"].vkStridedDeviceAddressRegion, 
+			self.shaderDict["miss"].vkStridedDeviceAddressRegion,
+			self.shaderDict["hit"].vkStridedDeviceAddressRegion,
+			self.shaderDict["call"], 
+			self.outputWidthPixels, 
+			self.outputHeightPixels, 
+			1);
 
  
 		vkEndCommandBuffer(vkCommandBuffer)

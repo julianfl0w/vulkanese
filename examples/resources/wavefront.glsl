@@ -17,8 +17,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "host_device.h"
-
 vec3 computeDiffuse(WaveFrontMaterial mat, vec3 lightDir, vec3 normal)
 {
   // Lambertian

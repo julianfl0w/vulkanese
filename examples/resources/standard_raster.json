@@ -11,13 +11,13 @@
 		"shaders": {
 			"vertex":
 			{
-				"path": "shader.vert",
 				"stage": "VK_SHADER_STAGE_VERTEX_BIT",
 				"outputWidthPixels": 700,
 				"outputHeightPixels": 700,
-				"inBuffers": {
+				"buffers": {
 					"position" :
 					{
+						"qualifier": "in",
 						"type"     : "vec3",
 						"descriptorSet"  : "global",
 						"usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT",
@@ -30,6 +30,7 @@
 					},
 					"normal":
 					{
+						"qualifier": "in",
 						"type"     : "vec3",
 						"descriptorSet"  : "global",
 						"usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT",
@@ -42,6 +43,7 @@
 					},
 					"color":
 					{
+						"qualifier": "in",
 						"type"     : "vec3",
 						"descriptorSet"  : "global",
 						"usage"    : "VK_BUFFER_USAGE_VERTEX_BUFFER_BIT",
@@ -54,6 +56,7 @@
 					},
 					"index":
 					{
+						"qualifier": "in",
 						"type"     : "uint",
 						"descriptorSet"  : "global",
 						"usage"    : "VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT",
@@ -63,13 +66,12 @@
 						"stride"   : 4,
 						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
 						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
-					}
-				},
-				"outBuffers": {
+					},
 					"fragColor":
 					{
 						"type"     : "vec3",
 						"descriptorSet"  : "global",
+						"qualifier"     : "out", 
 						"usage"    : "VK_BUFFER_USAGE_STORAGE_BUFFER_BIT",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
 						"SIZEBYTES": 65536,
@@ -80,27 +82,22 @@
 					}
 				},
 				"header": "resources/passthrough.vert.header",
-				"note": [
-					"layout(location = LOCATION_POSITION ) in vec3 ;  ",
-					"layout(location = LOCATION_COLOR    ) in vec3 ;     ",
-					"layout(location = LOCATION_FRAGCOLOR) out vec3 ;"
-				],
 				"main": "resources/passthrough.vert.main"
 			},
 			"fragment":
 			{
-				"path": "shader.frag",
 				"stage": "VK_SHADER_STAGE_FRAGMENT_BIT",
 				"outputWidthPixels": 700,
 				"outputHeightPixels": 700,
-				"inBuffers": {
+				"buffers": {
 					"fragColor":
 					{
-					}
-				},
-				"outBuffers": {
+						"type"     : "vec3",
+						"qualifier"     : "in"
+					},
 					"outColor":
 					{
+						"qualifier": "out",
 						"type"     : "vec4",
 						"descriptorSet"  : "global",
 						"usage"    : "VK_BUFFER_USAGE_STORAGE_BUFFER_BIT",
@@ -113,20 +110,7 @@
 					}
 				},
 				"header": "resources/passthrough.frag.header",
-				"main"  : "resources/passthrough.frag.main",
-				"code": [
-					"#version 450                                             ",
-					"#extension GL_ARB_separate_shader_objects : enable       ",
-					"                                                         ",
-					"layout(location = LOCATION_FRAGCOLOR) in vec3 fragColor; ",
-					"                                                         ",
-					"//output always location 0                               ",
-					"layout(location = 0) out vec4 outColor;                  ",
-					"                                                         ",
-					"void main() {                                            ",
-					"    outColor = vec4(fragColor, 1.0);                     ",
-					"}                                                        "
-				]
+				"main"  : "resources/passthrough.frag.main"
 			}
 		}
 	}

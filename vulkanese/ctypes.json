@@ -13,6 +13,7 @@
 		"sint32_t": "i",
 		"unsigned int": "I",
 		"uint32_t": "I",
+		"uint": "I",
 		"long": "l",
 		"unsigned long": "L",
 		"long long": "q",

@@ -24,7 +24,7 @@ class Buffer(Sinode):
 		self.setupDict= setupDict
 		self.device   = device
 		self.vkDevice = device.vkDevice
-		self.setupDict["SIZEBYTES"]= setupDict["SIZEBYTES"]
+		self.size = setupDict["SIZEBYTES"]
 		
 		# We will now create a buffer with these options
 		bufferCreateInfo = VkBufferCreateInfo(
@@ -90,6 +90,11 @@ class Buffer(Sinode):
 		print("destroying buffer " + self.setupDict["name"])
 		vkFreeMemory(self.vkDevice, self.vkBufferMemory, None)
 		vkDestroyBuffer(self.vkDevice, self.vkBuffer, None)
+		
+		
+	def getDeclaration(self):
+		bufferDict = self.setupDict
+		return "layout (location = " + str(bufferDict["location"]) + ") " + bufferDict["qualifier"] + " " + bufferDict["type"] + " " + bufferDict["name"] + ";\n"
 	
 class VertexBuffer(Buffer):
 	def __init__(self, device, setupDict):
@@ -126,6 +131,14 @@ class VertexBuffer(Buffer):
 		
 		#VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
 		#VK_VERTEX_INPUT_RATE_INSTANCE: Move to the next data entry after each instance
+		
+	def getDeclaration(self):
+		bufferDict = self.setupDict
+		if "uniform" in bufferDict["qualifier"]:
+			return "layout (location = " + str(bufferDict["location"]) + ", binding = " + str(bufferDict["binding"]) + ") " + bufferDict["qualifier"] + " " + bufferDict["type"] + " " + bufferDict["name"] + ";\n"
+		else:
+			return "layout (location = " + str(bufferDict["location"]) + ") " + bufferDict["qualifier"] + " " + bufferDict["type"] + " " + bufferDict["name"] + ";\n"
+			
 
 class DescriptorSetBuffer(Buffer):
 	def __init__(self, device, setupDict):
@@ -339,3 +352,42 @@ class AccelerationStructureKHR(AccelerationStructure):
 				pCreateInfo = self.asCreateInfo,
 				pAllocator  = None );
 				
+#If type is VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_ then instanceCount must be 0
+class BLAS(AccelerationStructure):
+	def __init__(self, setupDict, shader, initialMesh):
+		AccelerationStructure.__init__(self, setupDict, shader)
+		
+		self.geometry = Geometry(initialMesh, self)
+	
+		# Provided by VK__ray_tracing
+		self.asInfo = VkAccelerationStructureInfo (
+				sType          = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_,
+				pNext          = None,   # const void*                            
+				type           = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR , 
+				flags          = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR,
+				instanceCount  = 0,   # uint32_t                               
+				geometryCount  = 1,   # uint32_t                               
+				pGeometries    = [self.geometry.vkGeometry],   # const VkGeometry*                    
+		)
+
+
+#If type is VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_ then geometryCount must be 0
+class TLAS(AccelerationStructure):
+	def __init__(self, setupDict, shader):
+		AccelerationStructure.__init__(self, setupDict, shader)
+		
+		for blasName, blasDict in setupDict["blas"].items():
+			newBlas = BLAS(blasDict, shader)
+			self.children += [newBlas]
+			
+		# Provided by VK__ray_tracing
+		self.asInfo = VkAccelerationStructureInfo (
+				sType          = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_, 
+				pNext          = None,   # const void*                            
+				type           = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR , 
+				flags          = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR,
+				instanceCount  = len(self.children),   # uint32_t                               
+				geometryCount  = 0,   # uint32_t                               
+				pGeometries    = None,   # const VkGeometry*                    
+		)
+		

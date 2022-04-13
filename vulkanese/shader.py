@@ -23,29 +23,58 @@ class Shader(Sinode):
 		
 		with open(setupDict["header"]) as f:
 			shader_spirv = f.read()
+		
+		shader_spirv += "\n"
+		with open(os.path.join(here, "derivedtypes.json"), 'r') as f:
+			derivedDict = json.loads(f.read())
+			for structName, composeDict in derivedDict.items():
+				shader_spirv += "struct " + structName + "\n"
+				shader_spirv += "{\n"
+				for name, ctype in composeDict.items():
+					shader_spirv += "    " + ctype + " " + name + ";\n"
+					
+				shader_spirv += "};\n\n" 
 				
-		location = 0
+		inlocation = 0
+		outlocation = 0
+		
 		# novel INPUT buffers belong to THIS shader (others are linked)
-		for bufferName, bufferDict in setupDict["inBuffers"].items():
+		for bufferName, bufferDict in setupDict["buffers"].items():
 			if type(bufferDict) is not dict:
 				continue
+			if bufferDict.get("qualifier") is None:
+				bufferDict["qualifier"] = "" 
 				
-			existsAlready = False
+			bufferMatch = False
 			for existingBuffer in pipeline.getAllBuffers():
 				print(bufferDict["name"] + " : " + existingBuffer.setupDict["name"])
 				if bufferDict["name"] == existingBuffer.setupDict["name"]:
 					print(bufferDict["name"] + " exists already. linking")
 					bufferDict["location"] = existingBuffer.setupDict["location"]
 					bufferDict["type"] = existingBuffer.setupDict["type"]
-					existsAlready = True
+					bufferMatch = existingBuffer
+			
+			if bufferMatch:
+				for k, v in bufferDict.items():
+					bufferMatch.setupDict[k] = v
+				shader_spirv += bufferMatch.getDeclaration()
 				
-			if not existsAlready:
-				bufferDict["location"] = location
-				location += self.getSize(bufferDict["type"])
+			else:
+				if bufferDict["name"] == "pixelIn":
+					bufferDict["location"] = 1
+				#elif "out" in bufferDict["qualifier"]:
+				#	bufferDict["location"] = outlocation
+				#	outlocation += self.getSize(bufferDict["type"])
+				else:
+					bufferDict["location"] = inlocation
+					inlocation += self.getSize(bufferDict["type"])
+					
 				if "VERTEX" in setupDict["stage"]:
 					newBuffer     = VertexBuffer(pipeline.device, bufferDict)
 				else:
 					newBuffer     = Buffer(pipeline.device, bufferDict)
+
+				shader_spirv  += newBuffer.getDeclaration()
 					
 				self.buffers [bufferName] = newBuffer
 				self.children += [newBuffer]
@@ -53,22 +82,6 @@ class Shader(Sinode):
 				if bufferDict["name"] == "INDEX":
 					self.pipeline.indexBuffer = newBuffer
 			
-			shader_spirv += "layout (location = " + str(bufferDict["location"]) + ") in " + bufferDict["type"] + " " + bufferDict["name"] + ";\n"
-					
-		location = 0
-		# ALL the OUTPUT buffers are owned by THIS shader
-		for bufferName, bufferDict in setupDict["outBuffers"].items():
-			if type(bufferDict) is not dict:
-				continue
-			print(bufferDict)
-			print("adding outbuff " + bufferDict["name"])
-			bufferDict["location"] = location
-			location += self.getSize(bufferDict["type"])
-			shader_spirv  = shader_spirv.replace("LOCATION_" + bufferDict["name"], str(bufferDict["location"]))
-			newBuffer     = Buffer(pipeline.device, bufferDict)
-			self.buffers [bufferName] = newBuffer
-			self.children += [newBuffer]
-			shader_spirv += "layout (location = " + str(bufferDict["location"]) + ") out " + bufferDict["type"] + " " + bufferDict["name"] + ";\n"
 				
 		with open(setupDict["main"]) as f:
 			shader_spirv += f.read()
@@ -81,8 +94,8 @@ class Shader(Sinode):
 		compShadersPath = os.path.join(here, "compiledShaders")
 		compShadersPath = "compiledShaders"
 		Path(compShadersPath).mkdir(parents=True, exist_ok=True)
-		basename = os.path.basename(setupDict["path"])
-		outfilename = os.path.join(compShadersPath, basename.replace(".template", ""))
+		basename = os.path.basename(setupDict["header"])
+		outfilename = os.path.join(compShadersPath, basename.replace(".header", ""))
 		with open(outfilename, 'w+') as f:
 			f.write(shader_spirv)
 		
