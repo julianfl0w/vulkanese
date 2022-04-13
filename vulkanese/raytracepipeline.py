@@ -27,8 +27,9 @@ class StageIndices(Enum):
 class RaytracePipeline(Pipeline):
 	def __init__(self, device, setupDict):
 		Pipeline.__init__(self, device, setupDict)
-		for shaderName, shader in self.shaderDict.items():
-			shader.createStridedRegion()
+		self.stages = [s.shaderStageCreateInfo for s in self.stageDict.values()]
+		for stageName, stage in self.stageDict.items():
+			stage.createStridedRegion()
 			
 		# Shader groups
 		self.shaderGroupCreateInfo = VkRayTracingShaderGroupCreateInfoKHR(
@@ -41,7 +42,7 @@ class RaytracePipeline(Pipeline):
 			intersectionShader = VK_SHADER_UNUSED_KHR,
 			pShaderGroupCaptureReplayHandle = None
 			)
-			
+		rtShaderGroups = [self.shaderGroupCreateInfo]
 		# Push constant: we want to be able to update constants used by the shaders
 		#pushConstant = vkPushConstantRange(
 		#	VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR,
@@ -62,10 +63,10 @@ class RaytracePipeline(Pipeline):
 			sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR,
 			pNext      = None, 
 			flags      = 0,
-			stageCount = len(stages),  # Stages are shaders
-			pStages    = [stages],
+			stageCount = len(self.stages),  # Stages are shaders
+			pStages    = [self.stages],
 			groupCount = len(rtShaderGroups),
-			pGroups    = [rtShaderGroups],
+			pGroups    = rtShaderGroups,
 			maxPipelineRayRecursionDepth = 2, # Ray depth
 			layout                       = self.pipelineLayout,
 			basePipelineHandle   = self.vkPipeline,
@@ -89,30 +90,30 @@ class ShaderBindingTable(Sinode):
 		missCount = 2
 		hitCount  = 1
 		handleCount = 1 + missCount + hitCount;
-		self.allShaders = self.pipeline.shaderDict.values()
+		self.allStagesallStages = self.pipeline.stageDict.values()
 		
-		self.raygenShaderBindingTableSize = sum([(b.size if b.stage == VK_SHADER_STAGE_RAYGEN_BIT_KHR else 0) for b in self.allShaders])
-		self.raygenShaderBindingTableStride = max([(b.stride if b.stage == VK_SHADER_STAGE_RAYGEN_BIT_KHR else 0) for b in self.allShaders])
+		self.raygenShaderBindingTableSize = sum([(b.size if b.stage == VK_SHADER_STAGE_RAYGEN_BIT_KHR else 0) for b in self.allStages])
+		self.raygenShaderBindingTableStride = max([(b.stride if b.stage == VK_SHADER_STAGE_RAYGEN_BIT_KHR else 0) for b in self.allStages])
 		self.raygenShaderBindingTable = VkStridedDeviceAddressRegionKHR(
 			stride = self.raygenShaderBindingTableSize,
 			size   = self.raygenShaderBindingTableStride
 		)
 		
-		self.callableShaderBindingTableSize = sum([(b.size if b.stage == VK_SHADER_STAGE_CALLABLE_BIT_KHR else 0) for b in self.allShaders])
-		self.callableShaderBindingTableStride = max([(b.stride if b.stage == VK_SHADER_STAGE_CALLABLE_BIT_KHR else 0) for b in self.allShaders])
+		self.callableShaderBindingTableSize = sum([(b.size if b.stage == VK_SHADER_STAGE_CALLABLE_BIT_KHR else 0) for b in self.allStages])
+		self.callableShaderBindingTableStride = max([(b.stride if b.stage == VK_SHADER_STAGE_CALLABLE_BIT_KHR else 0) for b in self.allStages])
 		self.raygenShaderBindingTable = VkStridedDeviceAddressRegionKHR(
 			stride = self.callableShaderBindingTableSize,
 			size   = self.callableShaderBindingTableStride
 		)
 		
-		self.missShaderBindingTableSize = sum([(b.size if b.stage == VK_SHADER_STAGE_MISS_BIT_KHR else 0) for b in self.allShaders])
-		self.missShaderBindingTableStride = max([(b.stride if b.stage == VK_SHADER_STAGE_MISS_BIT_KHR else 0) for b in self.allShaders])
+		self.missShaderBindingTableSize = sum([(b.size if b.stage == VK_SHADER_STAGE_MISS_BIT_KHR else 0) for b in self.allStages])
+		self.missShaderBindingTableStride = max([(b.stride if b.stage == VK_SHADER_STAGE_MISS_BIT_KHR else 0) for b in self.allStages])
 		self.missShaderBindingTable = VkStridedDeviceAddressRegionKHR(
 			stride = self.raygenShaderBindingTableSize,
 			size   = self.raygenShaderBindingTableStride
 		)
 		
-		self.hitShaders = [b for b in self.allShaders if b.stage == VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR]
+		self.hitShaders = [b for b in self.allStages if b.stage == VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR]
 		self.hitShaderBindingTableSize = sum([b.size for b in self.hitShaders])
 		self.hitShaderBindingTableStride = max([b.stride for b in self.hitShaders])
 		self.raygenShaderBindingTable = VkStridedDeviceAddressRegionKHR(
