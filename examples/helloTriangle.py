@@ -61,7 +61,8 @@ print(np.asarray(pyramidMesh.vertices))
 # Main loop
 clock = time.perf_counter 
 last_time = clock() * 1000
-fps = 0
+fps = 60
+fps_last = 60
 running = True
 while running:
 	# timing
@@ -69,6 +70,7 @@ while running:
 	if clock() * 1000 - last_time >= 1000:
 		last_time = clock() * 1000
 		print("FPS: %s" % fps)
+		fps_last = fps
 		fps = 0
 
 	# get quit, mouse, keypress etc
@@ -78,7 +80,7 @@ while running:
 			vkDeviceWaitIdle(device.vkDevice)
 			break
 	
-	R = pyramidMesh.get_rotation_matrix_from_xyz((0, -np.pi/20000, 0))
+	R = pyramidMesh.get_rotation_matrix_from_xyz((0, -np.pi/max(6*fps_last, 1), 0))
 	pyramidMesh.rotate(R, center=(0,0,TRANSLATION[2]))
 	meshVert = np.asarray(pyramidMesh.vertices, dtype = 'f4')
 	#print(np.asarray(pyramidMesh.vertices).flatten())
