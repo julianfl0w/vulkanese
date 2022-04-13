@@ -26,6 +26,9 @@ class Buffer(Sinode):
 		self.vkDevice = device.vkDevice
 		self.size = setupDict["SIZEBYTES"]
 		
+		print("creating buffer with description")
+		print(json.dumps(setupDict, indent=2))
+		
 		# We will now create a buffer with these options
 		bufferCreateInfo = VkBufferCreateInfo(
 			sType=VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,

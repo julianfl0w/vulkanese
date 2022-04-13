@@ -61,7 +61,7 @@ class Stage(Sinode):
 				bufferDict["location"] = location
 				location += self.getSize(bufferDict["type"])
 					
-				if "VERTEX" in setupDict["name"]:
+				if "vertex" in setupDict["name"]:
 					newBuffer     = VertexBuffer(pipeline.device, bufferDict)
 				else:
 					newBuffer     = Buffer(pipeline.device, bufferDict)

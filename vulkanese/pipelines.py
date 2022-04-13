@@ -4,7 +4,7 @@ import time
 import json
 from vulkan import *
 from surface import *
-from shader import *
+from stage import *
 from renderpass import *
 from commandbuffer import *
 from vutil import *
@@ -18,7 +18,7 @@ def getVulkanesePath():
 
 # all pipelines contain:
 # references to instance, device, etc
-# at least 1 shader
+# at least 1 stage
 # an output size
 class Pipeline(Sinode):
 
@@ -57,13 +57,13 @@ class Pipeline(Sinode):
 		self.vkAcquireNextImageKHR = vkGetInstanceProcAddr(self.instance.vkInstance, "vkAcquireNextImageKHR")
 		self.vkQueuePresentKHR     = vkGetInstanceProcAddr(self.instance.vkInstance, "vkQueuePresentKHR")
 
-		# Add Shaders
-		self.shaderDict = {}
-		for shaderName, shaderDict in setupDict["shaders"].items():
-			if shaderName is not "name": 
-				self.shaderDict[shaderName] = Shader(self, shaderDict)
+		# Add Stages
+		self.stageDict = {}
+		for key, value in setupDict.items():
+			if key.startswith("stage_"): 
+				self.stageDict[key] = Stage(self, value)
 			
-		self.children += self.shaderDict.values()
+		self.children += self.stageDict.values()
 		
 		
 	def draw_frame(self):
@@ -72,15 +72,15 @@ class Pipeline(Sinode):
 
 	def getBuffDict(self):
 		allBuffers = {}
-		for name, shader in self.shaderDict.items():
-			for buffer in shader.buffers.values():
+		for name, stage in self.stageDict.items():
+			for buffer in stage.buffers.values():
 				allBuffers[buffer.setupDict["name"]] = buffer
 		
 		return allBuffers
 	def getAllBuffers(self):
 		allBuffers = []
-		for name, shader in self.shaderDict.items():
-			for buffer in shader.buffers.values():
+		for name, stage in self.stageDict.items():
+			for buffer in stage.buffers.values():
 				allBuffers += [buffer]
 		
 		return allBuffers
@@ -90,8 +90,8 @@ class Pipeline(Sinode):
 		vkDestroySemaphore(self.vkDevice, self.semaphore_image_available, None)
 		vkDestroySemaphore(self.vkDevice, self.semaphore_render_finished, None)
 		
-		for shader in self.shaderDict.values():
-			shader.release()
+		for stage in self.stageDict.values():
+			stage.release()
 			
 		vkDestroyPipeline(self.vkDevice, self.vkPipeline, None)
 		vkDestroyPipelineLayout(self.vkDevice, self.pipelineLayout, None)
@@ -146,7 +146,7 @@ class RasterPipeline(Pipeline):
 				
 		# get global lists 
 		allVertexBuffers = []
-		for s in self.shaderDict.values():
+		for s in self.stageDict.values():
 			allVertexBuffers += s.getVertexBuffers()
 					
 		allBindingDescriptors   = [b.bindingDescription for b in allVertexBuffers]
@@ -247,8 +247,8 @@ class RasterPipeline(Pipeline):
 		self.pipelinecreate = VkGraphicsPipelineCreateInfo(
 			sType=VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 			flags=0,
-			stageCount=len(self.shaderDict.values()),
-			pStages=[s.shader_stage_create for s in self.shaderDict.values()],
+			stageCount=len(self.stageDict.values()),
+			pStages=[s.shader_stage_create for s in self.stageDict.values()],
 			pVertexInputState=vertex_input_create,
 			pInputAssemblyState=input_assembly_create,
 			pTessellationState=None,
@@ -273,4 +273,4 @@ class RasterPipeline(Pipeline):
 		self.commandBuffer = RasterCommandBuffer(self)
 
 	def setBuffer(self, stage, buffname, data):
-		self.shaderDict[stage].buffers[buffname].pmap[:data.size * data.itemsize] = data
+		self.stageDict[stage].buffers[buffname].pmap[:data.size * data.itemsize] = data

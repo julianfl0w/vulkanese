@@ -14,7 +14,7 @@
 				"outputWidthPixels": 700,
 				"outputHeightPixels": 700,
 				"stage": "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
-				"inBuffers": {
+				"buffers": {
 					
 					"note": 
 					["layout(location = 0) rayPayloadInEXT hitPayload prd;",
@@ -22,6 +22,7 @@
 
 					"geometry":
 					{
+						"qualifier": "in",
 						"stage"    : "VK_SHADER_STAGE_RAYGEN_BIT_KHR",
 						"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
@@ -36,6 +37,7 @@
 					},
 					"tlas":
 					{
+						"qualifier": "in",
 						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
 						"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
@@ -65,6 +67,7 @@
 					},
 					"CameraMatrices":
 					{
+						"qualifier": "in",
 						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
 						"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
@@ -80,6 +83,7 @@
 
 					"ObjDescriptions":
 					{
+						"qualifier": "in",
 						"stage": "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR",
 						"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
@@ -94,6 +98,7 @@
 
 					"Textures":
 					{
+						"qualifier": "in",
 						"vkdesctype": "VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER",
 						"stage": "VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR",
 						"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
@@ -105,11 +110,10 @@
 						"descriptorSet"  : "global",
 						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
 						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
-					}
-				},
-				"outBuffers": {
+					},
 					"OUTCOLOR":
 					{
+						"qualifier": "out",
 						"usage"    : "VK_BUFFER_USAGE_STORAGE_BUFFER_BIT",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
 						"SIZEBYTES": 65536,
@@ -142,7 +146,7 @@
 				"main"  : "resources/raytrace.rchit.main",
 				"outputWidthPixels": 700,
 				"outputHeightPixels": 700,
-				"inBuffers": {
+				"buffers": {
 					"note": [
 						"layout(location = 0) rayPayloadInEXT hitPayload prd;      ",
 						"layout(location = 1) rayPayloadEXT bool isShadowed;       ",
@@ -160,6 +164,7 @@
      
 					"geometry":
 					{
+						"qualifier": "in",
 						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
 						"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
@@ -174,6 +179,7 @@
 					},
 					"tlas":
 					{
+						"qualifier": "in",
 						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
 						"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
@@ -241,9 +247,7 @@
 						"descriptorSet"  : "global",
 						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
 						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
-					}
-				},
-				"outBuffers": {
+					},
 					"OUTCOLOR":
 					{
 						"usage"    : "VK_BUFFER_USAGE_STORAGE_BUFFER_BIT",

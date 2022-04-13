@@ -4,7 +4,7 @@ import time
 import json
 from vulkan import *
 from surface import *
-from shader import *
+from stage import *
 from renderpass import *
 from pipelines import *
 from commandbuffer import *
