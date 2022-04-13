@@ -71,7 +71,7 @@ class RaytracePipeline(Pipeline):
 			layout               = self.pipelineLayout
 			)
 
-		self.vkPipeline = _wrap_vkCreateRayTracingPipelinesKHR(
+		self.vkPipeline = vkCreateRayTracingPipelinesKHR(
 			device = self.vkDevice,
 			deferredOperation = None, 
 			pipelineCache = None, 

@@ -1,2 +1,6 @@
 pysdl2
 vulkan
+numpy
+trimesh
+opencv-python
+open3d

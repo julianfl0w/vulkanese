@@ -11,16 +11,17 @@ import open3d as o3d
 import copy
 from exutils import *
 
+here = os.path.dirname(os.path.abspath(__file__))
+print(sys.path)
+
 localtest = True
 if localtest == True:
-	vkpath = "C:\\Users\\jcloi\\Documents\\vulkanese\\vulkanese"
+	vkpath = os.path.join(here, "..", "vulkanese")
 	sys.path.append(vkpath)
 	from vulkanese import *
 else:
 	from vulkanese.vulkanese import *
 
-here = os.path.dirname(os.path.abspath(__file__))
-print(sys.path)
 #from vulkanese.vulkanese import *
 
 # device selection and instantiation
