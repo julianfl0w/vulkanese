@@ -65,6 +65,22 @@ class Pipeline(Sinode):
 			
 		self.children += self.stageDict.values()
 		
+		push_constant_ranges = VkPushConstantRange(
+			stageFlags=0,
+			offset=0,
+			size=0)
+			
+		self.pipelineCreateInfo = VkPipelineLayoutCreateInfo(
+			sType=VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+			flags=0,
+			setLayoutCount=0,
+			pSetLayouts=None,
+			pushConstantRangeCount=0,
+			pPushConstantRanges=[push_constant_ranges])
+
+		self.pipelineLayout = vkCreatePipelineLayout(self.vkDevice, self.pipelineCreateInfo, None)
+		self.children += [self.pipelineLayout]
+
 		
 	def draw_frame(self):
 		image_index = self.vkAcquireNextImageKHR(self.vkDevice, self.surface.swapchain, UINT64_MAX, self.semaphore_image_available, None)
@@ -226,23 +242,6 @@ class RasterPipeline(Pipeline):
 			pAttachments=[color_blend_attachement],
 			blendConstants=[0, 0, 0, 0])
 
-		push_constant_ranges = VkPushConstantRange(
-			stageFlags=0,
-			offset=0,
-			size=0)
-
-		self.pipelineCreateInfo = VkPipelineLayoutCreateInfo(
-			sType=VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-			flags=0,
-			setLayoutCount=0,
-			pSetLayouts=None,
-			pushConstantRangeCount=0,
-			pPushConstantRanges=[push_constant_ranges])
-
-		self.pipelineLayout = vkCreatePipelineLayout(self.vkDevice, self.pipelineCreateInfo, None)
-		self.children += [self.pipelineLayout]
-
-		
 		# Finally create graphicsPipeline
 		self.pipelinecreate = VkGraphicsPipelineCreateInfo(
 			sType=VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,

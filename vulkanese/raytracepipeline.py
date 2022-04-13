@@ -68,12 +68,17 @@ class RaytracePipeline(Pipeline):
 			groupCount = len(rtShaderGroups),
 			pGroups    = rtShaderGroups,
 			maxPipelineRayRecursionDepth = 2, # Ray depth
-			layout                       = self.pipelineLayout,
-			basePipelineHandle   = self.vkPipeline,
-			basePipelineIndex    = 0 
+			layout               = self.pipelineLayout
 			)
 
-		self.vkPipeline = vkCreateRayTracingPipelinesKHR(self.device, {}, {}, 1, [self.rayPipelineInfo], None, [self.vkPipeline]);
+		self.vkPipeline = _wrap_vkCreateRayTracingPipelinesKHR(
+			device = self.vkDevice,
+			deferredOperation = None, 
+			pipelineCache = None, 
+			createInfoCount = 1,
+			pCreateInfos = [self.rayPipelineInfo],
+			pAllocator = None
+		)
 		
 class ShaderBindingTable(Sinode):
 	def __init__(self, pipeline):
