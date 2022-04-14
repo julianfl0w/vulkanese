@@ -58,7 +58,6 @@ class Instance(Sinode):
 			ppEnabledLayerNames=self.layers)
 
 		self.vkInstance = vkCreateInstance(createInfo, None)
-		self.children += [self.vkInstance]
 		
 		# ----------
 		# Debug instance
@@ -94,10 +93,7 @@ class Instance(Sinode):
 	def release(self):
 		print("destroying child devices")
 		for d in self.children:
-			try:
-				d.release()
-			except:
-				pass
+			d.release()
 		print("destroying debug etc")
 		self.vkDestroyDebugReportCallbackEXT(self.vkInstance, self.callback, None)
 		print("destroying instance")
@@ -258,16 +254,13 @@ class Device(Sinode):
 		return Shader(self.vkDevice, path, stage)
 		
 	def release(self):
-		print("destroying dev9c")
-		print("destroying pipelines")
-		for pipeline in self.pipelines: 
-			pipeline.release()
+		
+		print("destroying children")
+		for child in self.children: 
+			child.release()
 		
 		print("destroying command pool")
 		vkDestroyCommandPool(self.vkDevice, self.vkCommandPool, None)
-		
-		self.descriptorPool.release()
-		
 		
 		print("destroying device")
 		vkDestroyDevice(self.vkDevice, None)

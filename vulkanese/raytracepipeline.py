@@ -50,7 +50,8 @@ class RaytracePipeline(Pipeline):
 		#VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
 		#pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
 		#.pPushConstantRanges    = &pushConstant;
-
+	
+		self.sbt = ShaderBindingTable(self)
 
 		# Assemble the shader stages and recursion depth info into the ray tracing pipeline
 		# In this case, self.rtShaderGroups.size() == 4: we have one raygen group,
@@ -94,37 +95,35 @@ class ShaderBindingTable(Sinode):
 		
 		missCount = 2
 		hitCount  = 1
-		handleCount = 1 + missCount + hitCount;
-		self.allStagesallStages = self.pipeline.stageDict.values()
+		handleCount = 1 + missCount + hitCount
+		self.allStages = self.pipeline.stageDict.values()
 		
-		self.raygenShaderBindingTableSize = sum([(b.size if b.stage == VK_SHADER_STAGE_RAYGEN_BIT_KHR else 0) for b in self.allStages])
-		self.raygenShaderBindingTableStride = max([(b.stride if b.stage == VK_SHADER_STAGE_RAYGEN_BIT_KHR else 0) for b in self.allStages])
-		self.raygenShaderBindingTable = VkStridedDeviceAddressRegionKHR(
-			stride = self.raygenShaderBindingTableSize,
-			size   = self.raygenShaderBindingTableStride
-		)
+		self.raygenShaderBindingTableStride   = 0
+		self.raygenShaderBindingTableSize     = 0
+		self.callableShaderBindingTableSize   = 0
+		self.callableShaderBindingTableStride = 0
+		self.missShaderBindingTableSize       = 0
+		self.missShaderBindingTableStride     = 0
+		self.hitShaderBindingTableSize        = 0
+		self.hitShaderBindingTableStride      = 0
 		
-		self.callableShaderBindingTableSize = sum([(b.size if b.stage == VK_SHADER_STAGE_CALLABLE_BIT_KHR else 0) for b in self.allStages])
-		self.callableShaderBindingTableStride = max([(b.stride if b.stage == VK_SHADER_STAGE_CALLABLE_BIT_KHR else 0) for b in self.allStages])
-		self.raygenShaderBindingTable = VkStridedDeviceAddressRegionKHR(
-			stride = self.callableShaderBindingTableSize,
-			size   = self.callableShaderBindingTableStride
-		)
+		for stage in self.allStages:
+			print(stage)
+			if stage.stage == VK_SHADER_STAGE_RAYGEN_BIT_KHR:
+				self.raygenShaderBindingTableSize   += stage.size
+				self.raygenShaderBindingTableStride  = max(self.raygenShaderBindingTableStride, stage.stride)
 		
-		self.missShaderBindingTableSize = sum([(b.size if b.stage == VK_SHADER_STAGE_MISS_BIT_KHR else 0) for b in self.allStages])
-		self.missShaderBindingTableStride = max([(b.stride if b.stage == VK_SHADER_STAGE_MISS_BIT_KHR else 0) for b in self.allStages])
-		self.missShaderBindingTable = VkStridedDeviceAddressRegionKHR(
-			stride = self.raygenShaderBindingTableSize,
-			size   = self.raygenShaderBindingTableStride
-		)
+			if stage.stage == VK_SHADER_STAGE_CALLABLE_BIT_KHR:
+				self.callableShaderBindingTableSize   += stage.size
+				self.callableShaderBindingTableStride  = max(self.callableShaderBindingTableStride, stage.stride)
 		
-		self.hitShaders = [b for b in self.allStages if b.stage == VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR]
-		self.hitShaderBindingTableSize = sum([b.size for b in self.hitShaders])
-		self.hitShaderBindingTableStride = max([b.stride for b in self.hitShaders])
-		self.raygenShaderBindingTable = VkStridedDeviceAddressRegionKHR(
-			stride = self.raygenShaderBindingTableSize,
-			size   = self.raygenShaderBindingTableStride
-		)
+			if stage.stage == VK_SHADER_STAGE_MISS_BIT_KHR:
+				self.missShaderBindingTableSize   += stage.size
+				self.missShaderBindingTableStride  = max(self.missShaderBindingTableStride, stage.stride)
+		
+			if stage.stage == VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
+				self.hitShaderBindingTableSize   += stage.size
+				self.hitShaderBindingTableStride  = max(self.callableShaderBindingTableStride, stage.stride)
 		
 		# Get the shader group handles
 		result = vkGetRayTracingShaderGroupHandlesKHR(self.vkDevice, self.rtPipeline, 0, handleCount, dataSize, handles.data());

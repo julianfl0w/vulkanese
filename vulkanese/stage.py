@@ -138,5 +138,5 @@ class Stage(Sinode):
 	def release(self):
 		print("destroying Stage")
 		Sinode.release(self)
-		vkDestroyStageModule(self.vkDevice, self.vkStage, None)
+		vkDestroyShaderModule(self.vkDevice, self.vkStage, None)
 		
