@@ -141,7 +141,7 @@ class RasterCommandBuffer(CommandBuffer):
 		vkQueueWaitIdle(self.device.presentation_queue)
 		
 class RaytraceCommandBuffer(CommandBuffer):
-	def __init__(self, pipeline, rgenCode, missCode, hitCode, callCode):
+	def __init__(self, pipeline):
 		CommandBuffer.__init__(self, pipeline)
 		
 		vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, self.rtPipeline);

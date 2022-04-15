@@ -27,6 +27,7 @@ class StageIndices(Enum):
 class RaytracePipeline(Pipeline):
 	def __init__(self, device, setupDict):
 		Pipeline.__init__(self, device, setupDict)
+		
 		self.stages = [s.shaderStageCreateInfo for s in self.stageDict.values()]
 		for stageName, stage in self.stageDict.items():
 			stage.createStridedRegion()
@@ -51,8 +52,6 @@ class RaytracePipeline(Pipeline):
 		#pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
 		#.pPushConstantRanges    = &pushConstant;
 	
-		self.sbt = ShaderBindingTable(self)
-
 		# Assemble the shader stages and recursion depth info into the ray tracing pipeline
 		# In this case, self.rtShaderGroups.size() == 4: we have one raygen group,
 		# two miss shader groups, and one hit group.
@@ -72,6 +71,7 @@ class RaytracePipeline(Pipeline):
 			layout               = self.pipelineLayout
 			)
 
+		vkCreateRayTracingPipelinesKHR = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkCreateRayTracingPipelinesKHR')
 		self.vkPipeline = vkCreateRayTracingPipelinesKHR(
 			device = self.vkDevice,
 			deferredOperation = None, 
@@ -81,10 +81,19 @@ class RaytracePipeline(Pipeline):
 			pAllocator = None
 		)
 		
+		# create the sbt after creating the pipeline
+		self.sbt = ShaderBindingTable(self)
+		
+		# wrap it all up into a command buffer
+		print("Creating commandBuffer")
+		self.commandBuffer = RaytraceCommandBuffer(self)
+		
 class ShaderBindingTable(Sinode):
 	def __init__(self, pipeline):
+		print("Creating SBT")
 		Sinode.__init__(self, pipeline)
 		self.pipeline = pipeline
+		self.instance = pipeline.instance
 		self.pipelineDict = pipeline.setupDict
 		self.vkCommandPool  = pipeline.device.vkCommandPool
 		self.device       = pipeline.device
@@ -126,7 +135,8 @@ class ShaderBindingTable(Sinode):
 				self.hitShaderBindingTableStride  = max(self.callableShaderBindingTableStride, stage.stride)
 		
 		# Get the shader group handles
-		result = vkGetRayTracingShaderGroupHandlesKHR(self.vkDevice, self.rtPipeline, 0, handleCount, dataSize, handles.data());
+		vkGetRayTracingShaderGroupHandlesKHR = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkGetRayTracingShaderGroupHandlesKHR')
+		result = vkGetRayTracingShaderGroupHandlesKHR(self.vkDevice, self.pipeline.vkPipeline, 0, handleCount, dataSize, handles.data());
 		assert(result == VK_SUCCESS)
 
 		# Allocate a buffer for storing the SBT.
