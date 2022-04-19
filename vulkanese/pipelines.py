@@ -59,9 +59,10 @@ class Pipeline(Sinode):
 
 		# Add Stages
 		self.stageDict = {}
-		for key, value in setupDict.items():
-			if key.startswith("stage_"): 
-				self.stageDict[key] = Stage(self, value)
+		for key, value in setupDict["stage"].items():
+			if key == "name":
+				continue
+			self.stageDict[key] = Stage(self, value)
 			
 		self.children += self.stageDict.values()
 		

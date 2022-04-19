@@ -7,7 +7,7 @@
 		"outputClass": "surface",
 		"outputWidthPixels": 700,
 		"outputHeightPixels": 700,
-		"shaders": {
+		"stage": {
 			"rgen" : {
 				"header": "resources/raytrace.rgen.header",
 				"main"  : "resources/raytrace.rgen.main",

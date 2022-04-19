@@ -28,11 +28,15 @@ class RaytracePipeline(Pipeline):
 	def __init__(self, device, setupDict):
 		Pipeline.__init__(self, device, setupDict)
 		
+		print(self.stageDict)
+		die
 		self.stages = [s.shaderStageCreateInfo for s in self.stageDict.values()]
 		for stageName, stage in self.stageDict.items():
 			stage.createStridedRegion()
 			
 		# Shader groups
+		# Intersection shaders allow arbitrary intersection geometry
+		# For now they are unused. therefore VK_SHADER_UNUSED_KHR is appropriate
 		self.shaderGroupCreateInfo = VkRayTracingShaderGroupCreateInfoKHR(
 			sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR,
 			pNext = None,
@@ -44,6 +48,7 @@ class RaytracePipeline(Pipeline):
 			pShaderGroupCaptureReplayHandle = None
 			)
 		rtShaderGroups = [self.shaderGroupCreateInfo]
+		
 		# Push constant: we want to be able to update constants used by the shaders
 		#pushConstant = vkPushConstantRange(
 		#	VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR,
@@ -64,7 +69,7 @@ class RaytracePipeline(Pipeline):
 			pNext      = None, 
 			flags      = 0,
 			stageCount = len(self.stages),  # Stages are shaders
-			pStages    = [self.stages],
+			pStages    = self.stages,
 			groupCount = len(rtShaderGroups),
 			pGroups    = rtShaderGroups,
 			maxPipelineRayRecursionDepth = 2, # Ray depth
@@ -72,6 +77,7 @@ class RaytracePipeline(Pipeline):
 			)
 
 		vkCreateRayTracingPipelinesKHR = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkCreateRayTracingPipelinesKHR')
+		
 		self.vkPipeline = vkCreateRayTracingPipelinesKHR(
 			device = self.vkDevice,
 			deferredOperation = None, 
@@ -80,6 +86,7 @@ class RaytracePipeline(Pipeline):
 			pCreateInfos = [self.rayPipelineInfo],
 			pAllocator = None
 		)
+		
 		
 		# create the sbt after creating the pipeline
 		self.sbt = ShaderBindingTable(self)
