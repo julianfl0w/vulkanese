@@ -14,115 +14,68 @@
 				"outputWidthPixels": 700,
 				"outputHeightPixels": 700,
 				"stage": "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
+				"defaultbuffer": 
+				{
+					"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
+					"descriptorSet"  : "global",
+					"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+					"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT",
+					"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
+					"SIZEBYTES": 65536,
+					"qualifier": "in",
+					"type"     : "vec3",
+					"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
+					"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
+					"stride"   : 12
+				},
 				"buffers": {
 					
 					"note": 
 					["layout(location = 0) rayPayloadInEXT hitPayload prd;",
 										"layout(location = 1) rayPayloadEXT bool isShadowed;"],
 
-					"geometry":
-					{
-						"qualifier": "in",
-						"stage"    : "VK_SHADER_STAGE_RAYGEN_BIT_KHR",
-						"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
-						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
-						"SIZEBYTES": 65536,
-						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
-						"stride"   : 12,
-						"type"     : "vec3",
-						"descriptorSet"  : "global",
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
-						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
-						
-					},
+					"geometry": {},
 					"tlas":
 					{
-						"qualifier": "in",
-						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
-						"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
+						"set"      : 0,
+						"qualifier": "uniform accelerationStructureEXT",
+						"stage"    : "VK_SHADER_STAGE_RAYGEN_BIT_KHR",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
-						"SIZEBYTES": 65536,
-						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
-						"stride"   : 12,
-						"type"     : "vec3",
-						"descriptorSet"  : "global",
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
-						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT",
 						"blas"     :
 						{
-							"geo":
-							{
-								"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
-								"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
-								"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
-								"SIZEBYTES": 65536,
-								"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
-								"stride"   : 12,
-								"type"     : "vec3",
-								"descriptorSet"  : "global",
-								"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
-								
-							}
+							"geo":{}
 						}
+					},
+					"image":
+					{
+						"set"      : 0,
+						"descriptorSet"  : "global",
+						"qualifier": "uniform image2D",
+						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR"						
+					},
+					"GlobalUniforms":
+					{
+						"set"      : 1,
+						"qualifier": "uniform _GlobalUniforms",
+						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR"						
 					},
 					"CameraMatrices":
 					{
 						"qualifier": "in",
-						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
-						"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
-						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
-						"SIZEBYTES": 65536,
-						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
-						"stride"   : 12,
-						"type"     : "vec3",
-						"descriptorSet"  : "global",
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
-						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
-						
+						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR"						
+					},
+					"prd":
+					{
+						"qualifier": "rayPayloadEXT hitPayload",
+						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR"						
 					},
 
-					"ObjDescriptions":
-					{
-						"qualifier": "in",
-						"stage": "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR",
-						"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
-						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
-						"SIZEBYTES": 65536,
-						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
-						"stride"   : 12,
-						"type"     : "vec3",
-						"descriptorSet"  : "global",
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
-						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
-					},
+					"ObjDescriptions": {},
 
-					"Textures":
-					{
-						"qualifier": "in",
-						"vkdesctype": "VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER",
-						"stage": "VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR",
-						"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
-						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
-						"SIZEBYTES": 65536,
-						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
-						"stride"   : 12,
-						"type"     : "vec3",
-						"descriptorSet"  : "global",
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
-						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
-					},
+					"Textures": {},
 					"OUTCOLOR":
 					{
-						"qualifier": "out",
-						"usage"    : "VK_BUFFER_USAGE_STORAGE_BUFFER_BIT",
-						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
-						"SIZEBYTES": 65536,
-						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
-						"stride"   : 12,
-						"type"     : "vec3",
-						"descriptorSet"  : "global",
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
-						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
+						"qualifier": "out"
 					}
 				}
 			},
@@ -131,14 +84,24 @@
 				"main"  : "resources/raytrace.rmiss.main",
 				"stage": "VK_SHADER_STAGE_MISS_BIT_KHR",
 				"outputWidthPixels": 700,
-				"outputHeightPixels": 700
-			},
-			"rmiss2" : {
-				"header": "resources/raytrace.rmiss2.header",
-				"main"  : "resources/raytrace.rmiss2.main",
-				"stage": "VK_SHADER_STAGE_MISS_BIT_KHR",
-				"outputWidthPixels": 700,
-				"outputHeightPixels": 700
+				"outputHeightPixels": 700,
+				"defaultbuffer": 
+				{
+					"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
+					"descriptorSet"  : "global",
+					"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+					"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT",
+					"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
+					"SIZEBYTES": 65536,
+					"qualifier": "in",
+					"type"     : "vec3",
+					"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
+					"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
+					"stride"   : 12
+				},
+				"buffers": 
+				{
+				}
 			},
 			"rchit" : {
 				"stage": "VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR",
@@ -146,6 +109,20 @@
 				"main"  : "resources/raytrace.rchit.main",
 				"outputWidthPixels": 700,
 				"outputHeightPixels": 700,
+				"defaultbuffer": 
+				{
+					"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
+					"descriptorSet"  : "global",
+					"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
+					"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT",
+					"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
+					"SIZEBYTES": 65536,
+					"qualifier": "in",
+					"type"     : "vec3",
+					"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
+					"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
+					"stride"   : 12
+				},
 				"buffers": {
 					"note": [
 						"layout(location = 0) rayPayloadInEXT hitPayload prd;      ",
@@ -161,104 +138,48 @@
 						"                                                                                                                    ",     
 						"layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };                                          "    
 						],
-     
-					"geometry":
-					{
-						"qualifier": "in",
-						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
-						"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
-						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
-						"SIZEBYTES": 65536,
-						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
-						"stride"   : 12,
-						"type"     : "vec3",
-						"descriptorSet"  : "global",
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
-						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
-						
-					},
+					"geometry": {},
 					"tlas":
 					{
-						"qualifier": "in",
-						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
-						"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
+						"set"      : 0,
+						"qualifier": "uniform accelerationStructureEXT",
+						"stage"    : "VK_SHADER_STAGE_RAYGEN_BIT_KHR",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
-						"SIZEBYTES": 65536,
-						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
-						"stride"   : 12,
-						"type"     : "vec3",
-						"descriptorSet"  : "global",
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
-						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT",
 						"blas"     :
 						{
-							"geo":
-							{
-								"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
-								"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
-								"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
-								"SIZEBYTES": 65536,
-								"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
-								"stride"   : 12,
-								"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX"
-								
-							}
+							"geo":{}
 						}
+					},
+					"image":
+					{
+						"set"      : 0,
+						"descriptorSet"  : "global",
+						"qualifier": "uniform image2D",
+						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR"						
+					},
+					"GlobalUniforms":
+					{
+						"set"      : 1,
+						"qualifier": "uniform _GlobalUniforms",
+						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR"						
 					},
 					"CameraMatrices":
 					{
-						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
-						"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
-						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
-						"SIZEBYTES": 65536,
-						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
-						"stride"   : 12,
-						"type"     : "vec3",
-						"descriptorSet"  : "global",
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
-						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
-						
+						"qualifier": "in",
+						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR"						
+					},
+					"prd":
+					{
+						"qualifier": "rayPayloadEXT hitPayload",
+						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR"						
 					},
 
-					"ObjDescriptions":
-					{
-						"stage": "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR",
-						"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
-						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
-						"SIZEBYTES": 65536,
-						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
-						"stride"   : 12,
-						"type"     : "vec3",
-						"descriptorSet"  : "global",
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
-						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
-					},
+					"ObjDescriptions": {},
 
-					"Textures":
-					{
-						"vkdesctype": "VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER",
-						"stage": "VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR",
-						"usage"    : "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
-						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
-						"SIZEBYTES": 65536,
-						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
-						"stride"   : 12,
-						"type"     : "vec3",
-						"descriptorSet"  : "global",
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
-						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
-					},
+					"Textures": {},
 					"OUTCOLOR":
 					{
-						"usage"    : "VK_BUFFER_USAGE_STORAGE_BUFFER_BIT",
-						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
-						"SIZEBYTES": 65536,
-						"format"   : "VK_FORMAT_R32G32B32_SFLOAT",
-						"stride"   : 12,
-						"type"     : "vec3",
-						"descriptorSet"  : "global",
-						"rate"     : "VK_VERTEX_INPUT_RATE_VERTEX",
-						"memProperties" : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT"
+						"qualifier": "out"
 					}
 				}
 			}

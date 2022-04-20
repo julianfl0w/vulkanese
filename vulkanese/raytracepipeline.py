@@ -28,8 +28,6 @@ class RaytracePipeline(Pipeline):
 	def __init__(self, device, setupDict):
 		Pipeline.__init__(self, device, setupDict)
 		
-		print(self.stageDict)
-		die
 		self.stages = [s.shaderStageCreateInfo for s in self.stageDict.values()]
 		for stageName, stage in self.stageDict.items():
 			stage.createStridedRegion()

@@ -1,15 +1,3 @@
-
-// clang-format off
-layout(location = 0) rayPayloadEXT hitPayload prd;
-
-layout(set = 0, binding = eTlas) uniform accelerationStructureEXT topLevelAS;
-layout(set = 0, binding = eOutImage, rgba32f) uniform image2D image;
-layout(set = 1, binding = eGlobals) uniform _GlobalUniforms { GlobalUniforms uni; };
-layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };
-
-// clang-format on
-
-
 void main()
 {
   const vec2 pixelCenter = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
@@ -34,7 +22,7 @@ void main()
   vec3 hitValue = vec3(0);
   for(;;)
   {
-    traceRayEXT(topLevelAS,     // acceleration structure
+    traceRayEXT(tlas,     // acceleration structure
                 rayFlags,       // rayFlags
                 0xFF,           // cullMask
                 0,              // sbtRecordOffset
