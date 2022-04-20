@@ -20,6 +20,21 @@ class Instance(Sinode):
 	def __init__(self):
 		Sinode.__init__(self, None)
 		
+		print("version number ")
+		packedVersion = vkEnumerateInstanceVersion()
+		#The variant is a 3-bit integer packed into bits 31-29.
+		variant = (packedVersion >> 29) & 0x07
+		#The major version is a 7-bit integer packed into bits 28-22.
+		major = (packedVersion >> 22) & 0x7F
+		#The minor version number is a 10-bit integer packed into bits 21-12.
+		minor = (packedVersion >> 12) & 0x3FF
+		#The patch version number is a 12-bit integer packed into bits 11-0.
+		patch = (packedVersion >>  0) & 0xFFF
+		print("Variant : " + str(variant))
+		print("Major   : " + str(major))
+		print("Minor   : " + str(minor))
+		print("Patch   : " + str(patch))
+		
 		# ----------
 		# Create instance
 		appInfo = VkApplicationInfo(
@@ -80,9 +95,7 @@ class Instance(Sinode):
 
 	def getDeviceList(self):
 		self.physical_devices            = vkEnumeratePhysicalDevices(self.vkInstance)
-		self.physical_devices_features   = [vkGetPhysicalDeviceFeatures(physical_device)   for physical_device in self.physical_devices]
-		self.physical_devices_properties = [vkGetPhysicalDeviceProperties(physical_device) for physical_device in self.physical_devices]
-		return self.physical_devices_properties
+		return self.physical_devices
 			
 		
 	def getDevice(self, deviceIndex):
@@ -142,10 +155,28 @@ class Device(Sinode):
 	def __init__(self, instance, deviceIndex):
 		Sinode.__init__(self, instance)
 		self.instance = instance
+		self.vkInstance = instance.vkInstance
 		self.deviceIndex = deviceIndex
 		
 		print("initializing device " + str(deviceIndex))
 		self.physical_device = vkEnumeratePhysicalDevices(self.instance.vkInstance)[deviceIndex]
+		
+		print("getting features list")
+		
+		vkGetPhysicalDeviceFeatures2   = vkGetInstanceProcAddr(self.vkInstance, 'vkGetPhysicalDeviceFeatures2KHR')
+		vkGetPhysicalDeviceProperties2 = vkGetInstanceProcAddr(self.vkInstance, 'vkGetPhysicalDeviceProperties2KHR')
+
+		self.pFeatures    = vkGetPhysicalDeviceFeatures (self.physical_device)
+		print("pFeatures")
+		print([self.pFeatures])
+		
+		self.pFeatures2   = vkGetPhysicalDeviceFeatures2(self.physical_device)
+		print("pFeatures2")
+		print(self.pFeatures2)
+		
+		self.pProperties  = vkGetPhysicalDeviceProperties (self.physical_device)
+		self.pProperties2 = vkGetPhysicalDeviceProperties2(self.physical_device)
+		
 		
 		print("Select queue family")
 		# ----------
@@ -206,17 +237,20 @@ class Device(Sinode):
 
 		self.device_create = VkDeviceCreateInfo(
 			sType=VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-			pQueueCreateInfos=queues_create,
-			queueCreateInfoCount=len(queues_create),
-			pEnabledFeatures=self.instance.physical_devices_features[self.deviceIndex],
-			flags=0,
-			enabledLayerCount=len(self.instance.layers),
-			ppEnabledLayerNames=self.instance.layers,
+			pQueueCreateInfos    =queues_create,
+			queueCreateInfoCount =len(queues_create),
+			pEnabledFeatures     =self.physical_devices_features,
+			flags                =0,
+			enabledLayerCount    =len(self.instance.layers),
+			ppEnabledLayerNames  =self.instance.layers,
 			enabledExtensionCount=len(extensions),
 			ppEnabledExtensionNames=extensions
 		)
 
-		self.vkDevice = vkCreateDevice(self.physical_device, self.device_create, None)
+		self.vkDevice = vkCreateDevice(
+			physicalDevice = self.physical_device, 
+			pCreateInfo    = self.device_create, 
+			pAllocator     = None)
 		
 		self.graphic_queue = vkGetDeviceQueue(
 			device=self.vkDevice,

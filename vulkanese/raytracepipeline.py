@@ -63,29 +63,32 @@ class RaytracePipeline(Pipeline):
 					
 			# Allocate a buffer for storing the SBT.
 			bufferDict = {
-					"usage"          : "VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR",
-					"descriptorSet"  : "global",
-					"rate"           : "VK_VERTEX_INPUT_RATE_VERTEX",
-					"memProperties"  : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT",
-					"sharingMode"    : "VK_SHARING_MODE_EXCLUSIVE",
-					"SIZEBYTES"      : stageDict["size"  ],
-					"qualifier"      : "in",
-					"type"           : "vec3",
-					"format"         : "VK_FORMAT_R32G32B32_SFLOAT",
-					"stage"          : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
-					"stride"         : 65536
-				}
+				#"usage"          : "VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR",
+				"usage"          : "VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR",
+				"descriptorSet"  : "global",
+				"rate"           : "VK_VERTEX_INPUT_RATE_VERTEX",
+				#"memProperties"  : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT",
+				"memProperties"  : "0",
+				#"sharingMode"    : "VK_SHARING_MODE_EXCLUSIVE",
+				"sharingMode"    : "0",
+				"SIZEBYTES"      : stageDict["size"  ],
+				"qualifier"      : "in",
+				"type"           : "vec3",
+				"format"         : "VK_FORMAT_R32G32B32_SFLOAT",
+				#"stage"          : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
+				"stage"          : "VK_SHADER_STAGE_RAYGEN_BIT_KHR",
+				"stride"         : 65536
+			}
 			
 			stageDict["buffer"] = Buffer(self.device, bufferDict)
 
-			vkGetBufferDeviceAddress = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkGetBufferDeviceAddressKHR')
-
 			print("getting device address")
-			print(stageDict["buffer"].vkBufferDeviceAddressInfo)
-			print(self.vkDevice)
+			
+			vkGetBufferDeviceAddress = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkGetBufferDeviceAddressEXT')
+			print(stageDict["buffer"].bufferDeviceAddressInfo)
 			deviceAddress = vkGetBufferDeviceAddress(
 				self.vkDevice, 
-				[stageDict["buffer"].vkBufferDeviceAddressInfo]
+				stageDict["buffer"].bufferDeviceAddressInfo
 			)
 
 			print("creating strided region")

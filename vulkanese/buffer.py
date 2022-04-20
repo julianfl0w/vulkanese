@@ -56,25 +56,25 @@ class Buffer(Sinode):
 		# this flag.
 		index = self.findMemoryType(memoryRequirements.memoryTypeBits, eval(setupDict["memProperties"]))
 		# Now use obtained memory requirements info to allocate the memory for the buffer.
-		allocateInfo = VkMemoryAllocateInfo(
+		self.allocateInfo = VkMemoryAllocateInfo(
 			sType=VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 			allocationSize=memoryRequirements.size,  # specify required memory.
 			memoryTypeIndex=index
 		)
 
 		# allocate memory on device.
-		self.vkBufferMemory = vkAllocateMemory(self.vkDevice, allocateInfo, None)
-		self.children += [self.vkBufferMemory]
+		self.vkDeviceMemory = vkAllocateMemory(self.vkDevice, self.allocateInfo, None)
+		self.children += [self.vkDeviceMemory]
 
 		# Now associate that allocated memory with the buffer. With that, the buffer is backed by actual memory.
-		vkBindBufferMemory(self.vkDevice, self.vkBuffer, self.vkBufferMemory, 0)
+		vkBindBufferMemory(self.vkDevice, self.vkBuffer, self.vkDeviceMemory, 0)
 		
 		# Map the buffer memory, so that we can read from it on the CPU.
 		if not VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT & eval(setupDict["usage"]):
-			self.pmap = vkMapMemory(self.vkDevice, self.vkBufferMemory, 0, self.setupDict["SIZEBYTES"], 0)
+			self.pmap = vkMapMemory(self.vkDevice, self.vkDeviceMemory, 0, self.setupDict["SIZEBYTES"], 0)
 		
 		
-		self.vkBufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
+		self.bufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
 			sType  = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
 			pNext  = None,
 			buffer = self.vkBuffer
@@ -102,7 +102,7 @@ class Buffer(Sinode):
 
 	def release(self):
 		print("destroying buffer " + self.setupDict["name"])
-		vkFreeMemory(self.vkDevice, self.vkBufferMemory, None)
+		vkFreeMemory(self.vkDevice, self.vkDeviceMemory, None)
 		vkDestroyBuffer(self.vkDevice, self.vkBuffer, None)
 		
 		
