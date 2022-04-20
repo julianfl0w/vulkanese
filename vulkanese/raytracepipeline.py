@@ -53,42 +53,54 @@ class RaytracePipeline(Pipeline):
 		self.SBTDict["miss"    ]["stage"] = VK_SHADER_STAGE_MISS_BIT_KHR
 		self.SBTDict["hit"     ]["stage"] = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR
 		
-		for shader in self.stageDict.values():
-			print(shader.stage)
-			for stage, stageDict in self.SBTDict.items():
-				if shader.stage == stageDict["stage"]:
-					stageDict["Size  "] += shader.size
-					stageDict["Stride"]  = max(stageDict["Stride"], shader.stride)
-		
-		
-		vkGetBufferDeviceAddress = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkGetBufferDeviceAddress')
-		
-		deviceAddress = vkGetBufferDeviceAddress(
-			self.vkDevice, 
-			buffer.vkBufferDeviceAddressInfo
-		)
-		
-		self.vkStridedDeviceAddressRegion = \
-		VkStridedDeviceAddressRegionKHR(
-			deviceAddress = deviceAddress,
-			stride        = self.setupDict["stride"],
-			size          = self.setupDict["SIZEBYTES"]
-		)
+		for stage, stageDict in self.SBTDict.items():
+			print("processing RayTrace stage " + stage)
+			for shader in self.stageDict.values():
+				if eval(shader.stage) & stageDict["stage"]:
+					#stageDict["size"  ] += shader.setupDict["SIZEBYTES"]
+					stageDict["size"  ] += 65536
+					stageDict["stride"]  = max(stageDict["stride"], 65536)
+					
+			# Allocate a buffer for storing the SBT.
+			bufferDict = {
+					"usage"          : "VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR",
+					"descriptorSet"  : "global",
+					"rate"           : "VK_VERTEX_INPUT_RATE_VERTEX",
+					"memProperties"  : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT",
+					"sharingMode"    : "VK_SHARING_MODE_EXCLUSIVE",
+					"SIZEBYTES"      : stageDict["size"  ],
+					"qualifier"      : "in",
+					"type"           : "vec3",
+					"format"         : "VK_FORMAT_R32G32B32_SFLOAT",
+					"stage"          : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
+					"stride"         : 65536
+				}
+			
+			stageDict["buffer"] = Buffer(self.device, bufferDict)
+
+			vkGetBufferDeviceAddress = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkGetBufferDeviceAddressKHR')
+
+			print("getting device address")
+			print(stageDict["buffer"].vkBufferDeviceAddressInfo)
+			print(self.vkDevice)
+			deviceAddress = vkGetBufferDeviceAddress(
+				self.vkDevice, 
+				[stageDict["buffer"].vkBufferDeviceAddressInfo]
+			)
+
+			print("creating strided region")
+			stageDict["vkStridedDeviceAddressRegion"] = \
+			VkStridedDeviceAddressRegionKHR(
+				deviceAddress = deviceAddress,
+				stride        = self.setupDict["stride"],
+				size          = self.setupDict["SIZEBYTES"]
+			)
 		
 		# Get the shader group handles
 		vkGetRayTracingShaderGroupHandlesKHR = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkGetRayTracingShaderGroupHandlesKHR')
 		result = vkGetRayTracingShaderGroupHandlesKHR(self.vkDevice, self.pipeline.vkPipeline, 0, handleCount, dataSize, handles.data());
 		assert(result == VK_SUCCESS)
 
-		# Allocate a buffer for storing the SBT.
-		sbtSize = self.rgenRegion.size + self.missRegion.size + self.hitRegion.size + self.callRegion.size;
-		self.rtSBTBuffer = \
-		Buffer(sbtSize,
-			VK_BUFFER_USAGE_TRANSFER_SRC_BIT | 
-			VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
-			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-		);
 			
 		# Shader groups
 		# Intersection shaders allow arbitrary intersection geometry

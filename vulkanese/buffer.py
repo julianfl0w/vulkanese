@@ -20,6 +20,9 @@ class Buffer(Sinode):
 		return -1
 
 	def __init__(self, device, setupDict):
+		# this should be fixed in vulkan wrapper
+		VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT = 0x00020000
+		
 		Sinode.__init__(self, device)
 		self.setupDict= setupDict
 		self.device   = device
@@ -30,13 +33,13 @@ class Buffer(Sinode):
 		print(json.dumps(setupDict, indent=2))
 		
 		# We will now create a buffer with these options
-		bufferCreateInfo = VkBufferCreateInfo(
+		self.bufferCreateInfo = VkBufferCreateInfo(
 			sType=VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 			size =setupDict["SIZEBYTES"],  # buffer size in bytes.
 			usage=eval(setupDict["usage"]),  # buffer is used as a storage buffer.
 			sharingMode=eval(setupDict["sharingMode"])  # buffer is exclusive to a single queue family at a time.
 		)
-		self.vkBuffer = vkCreateBuffer(self.vkDevice, bufferCreateInfo, None)
+		self.vkBuffer = vkCreateBuffer(self.vkDevice, self.bufferCreateInfo, None)
 		self.children += [self.vkBuffer]
 
 		# But the buffer doesn't allocate memory for itself, so we must do that manually.
@@ -67,8 +70,16 @@ class Buffer(Sinode):
 		vkBindBufferMemory(self.vkDevice, self.vkBuffer, self.vkBufferMemory, 0)
 		
 		# Map the buffer memory, so that we can read from it on the CPU.
-		self.pmap = vkMapMemory(self.vkDevice, self.vkBufferMemory, 0, self.setupDict["SIZEBYTES"], 0)
+		if not VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT & eval(setupDict["usage"]):
+			self.pmap = vkMapMemory(self.vkDevice, self.vkBufferMemory, 0, self.setupDict["SIZEBYTES"], 0)
 		
+		
+		self.vkBufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
+			sType  = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+			pNext  = None,
+			buffer = self.vkBuffer
+			)
+		print("finished creating buffer")
 
 	def saveAsImage(self, height, width, path = 'mandelbrot.png'):
 
