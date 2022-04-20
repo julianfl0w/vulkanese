@@ -110,14 +110,14 @@ struct hitPayload
 };
 
 layout (location = 0) in vec3 geometry;
-layout (location = 1) uniform accelerationStructureEXT vec3 tlas;
-layout (location = 2) uniform image2D vec3 image;
-layout (location = 3) uniform _GlobalUniforms vec3 GlobalUniforms;
+layout (location = 1) uniform accelerationStructureEXT tlas;
+layout (location = 2) uniform image2D image;
+layout (location = 3) uniform _GlobalUniforms GlobalUniforms;
 layout (location = 4) in vec3 CameraMatrices;
-layout (location = 5) rayPayloadEXT hitPayload vec3 prd;
-layout (location = 6) in vec3 ObjDescriptions;
-layout (location = 7) in vec3 Textures;
-layout (location = 8) out vec3 OUTCOLOR;
+layout (location = 5) rayPayloadEXT hitPayload prd;
+layout (location = 11) in vec3 ObjDescriptions;
+layout (location = 12) in vec3 Textures;
+layout (location = 13) out vec3 OUTCOLOR;
 
 void main()
 {

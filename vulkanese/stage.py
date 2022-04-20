@@ -9,12 +9,13 @@ from pathlib import Path
 class Stage(Sinode):
 	def __init__(self, pipeline, setupDict):
 		Sinode.__init__(self, pipeline)
+		self.vkInstance = pipeline.instance.vkInstance
 		self.vkDevice = pipeline.device.vkDevice
 		self.setupDict = setupDict
 		self.pipeline  = pipeline
 		self.outputWidthPixels  = setupDict["outputWidthPixels"]
 		self.outputHeightPixels = setupDict["outputHeightPixels"]
-		
+		self.stage = setupDict["stage"]
 		print("creating Stage with description")
 		print(json.dumps(setupDict, indent=4))
 
@@ -104,13 +105,13 @@ class Stage(Sinode):
 			pCode=shader_spirv
 		)
 
-		self.vkStage = vkCreateShaderModule(self.vkDevice, self.shader_create, None)
+		self.vkShaderModule = vkCreateShaderModule(self.vkDevice, self.shader_create, None)
 		
 		# Create Shader stage
 		self.shader_stage_create = VkPipelineShaderStageCreateInfo(
 			sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 			stage=eval(setupDict["stage"]),
-			module=self.vkStage,
+			module=self.vkShaderModule,
 			flags=0,
 			pSpecializationInfo=None,
 			pName='main')
@@ -138,5 +139,5 @@ class Stage(Sinode):
 	def release(self):
 		print("destroying Stage")
 		Sinode.release(self)
-		vkDestroyShaderModule(self.vkDevice, self.vkStage, None)
+		vkDestroyShaderModule(self.vkDevice, self.vkShaderModule, None)
 		

@@ -38,7 +38,8 @@
 					"tlas":
 					{
 						"set"      : 0,
-						"qualifier": "uniform accelerationStructureEXT",
+						"qualifier": "uniform",
+						"type"     : "accelerationStructureEXT",
 						"stage"    : "VK_SHADER_STAGE_RAYGEN_BIT_KHR",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
 						"blas"     :
@@ -50,13 +51,15 @@
 					{
 						"set"      : 0,
 						"descriptorSet"  : "global",
-						"qualifier": "uniform image2D",
+						"qualifier": "uniform",
+						"type"     : "image2D",
 						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR"						
 					},
 					"GlobalUniforms":
 					{
 						"set"      : 1,
-						"qualifier": "uniform _GlobalUniforms",
+						"qualifier": "uniform",
+						"type"     : "_GlobalUniforms",
 						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR"						
 					},
 					"CameraMatrices":
@@ -66,7 +69,8 @@
 					},
 					"prd":
 					{
-						"qualifier": "rayPayloadEXT hitPayload",
+						"qualifier": "rayPayloadEXT",
+						"type"     : "hitPayload",
 						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR"						
 					},
 
@@ -142,7 +146,8 @@
 					"tlas":
 					{
 						"set"      : 0,
-						"qualifier": "uniform accelerationStructureEXT",
+						"qualifier": "uniform",
+						"type"     : "accelerationStructureEXT",
 						"stage"    : "VK_SHADER_STAGE_RAYGEN_BIT_KHR",
 						"sharingMode" : "VK_SHARING_MODE_EXCLUSIVE",
 						"blas"     :
@@ -154,13 +159,15 @@
 					{
 						"set"      : 0,
 						"descriptorSet"  : "global",
-						"qualifier": "uniform image2D",
+						"qualifier": "uniform",
+						"type"     : "image2D",
 						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR"						
 					},
 					"GlobalUniforms":
 					{
 						"set"      : 1,
-						"qualifier": "uniform _GlobalUniforms",
+						"qualifier": "uniform",
+						"type"     : "_GlobalUniforms",
 						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR"						
 					},
 					"CameraMatrices":
@@ -170,12 +177,13 @@
 					},
 					"prd":
 					{
-						"qualifier": "rayPayloadEXT hitPayload",
+						"qualifier": "rayPayloadEXT",
+						"type"     : "hitPayload",
 						"stage"    : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR"						
 					},
 
 					"ObjDescriptions": {},
-
+					
 					"Textures": {},
 					"OUTCOLOR":
 					{

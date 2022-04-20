@@ -28,9 +28,67 @@ class RaytracePipeline(Pipeline):
 	def __init__(self, device, setupDict):
 		Pipeline.__init__(self, device, setupDict)
 		
-		self.stages = [s.shaderStageCreateInfo for s in self.stageDict.values()]
-		for stageName, stage in self.stageDict.items():
-			stage.createStridedRegion()
+		self.stages = [s.shader_stage_create for s in self.stageDict.values()]
+		
+		# in raytracing, there may be alternative shaders
+		# for example, an occlusion miss shader and a diffraction one
+		# there are always 4 stages:
+		#  Raygen
+		#  Miss
+		#  Hit
+		#  Callable
+		# Each of these has its own SBT, represented as a strided region
+		missCount = 1
+		hitCount  = 1
+		handleCount = 1 + missCount + hitCount
+		
+		self.SBTDict = {}
+		baseSBT = {"stride": 0, "size": 0}
+		self.SBTDict["gen"     ] = baseSBT.copy()
+		self.SBTDict["callable"] = baseSBT.copy()
+		self.SBTDict["miss"    ] = baseSBT.copy()
+		self.SBTDict["hit"     ] = baseSBT.copy()
+		self.SBTDict["gen"     ]["stage"] = VK_SHADER_STAGE_RAYGEN_BIT_KHR
+		self.SBTDict["callable"]["stage"] = VK_SHADER_STAGE_CALLABLE_BIT_KHR
+		self.SBTDict["miss"    ]["stage"] = VK_SHADER_STAGE_MISS_BIT_KHR
+		self.SBTDict["hit"     ]["stage"] = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR
+		
+		for shader in self.stageDict.values():
+			print(shader.stage)
+			for stage, stageDict in self.SBTDict.items():
+				if shader.stage == stageDict["stage"]:
+					stageDict["Size  "] += shader.size
+					stageDict["Stride"]  = max(stageDict["Stride"], shader.stride)
+		
+		
+		vkGetBufferDeviceAddress = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkGetBufferDeviceAddress')
+		
+		deviceAddress = vkGetBufferDeviceAddress(
+			self.vkDevice, 
+			buffer.vkBufferDeviceAddressInfo
+		)
+		
+		self.vkStridedDeviceAddressRegion = \
+		VkStridedDeviceAddressRegionKHR(
+			deviceAddress = deviceAddress,
+			stride        = self.setupDict["stride"],
+			size          = self.setupDict["SIZEBYTES"]
+		)
+		
+		# Get the shader group handles
+		vkGetRayTracingShaderGroupHandlesKHR = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkGetRayTracingShaderGroupHandlesKHR')
+		result = vkGetRayTracingShaderGroupHandlesKHR(self.vkDevice, self.pipeline.vkPipeline, 0, handleCount, dataSize, handles.data());
+		assert(result == VK_SUCCESS)
+
+		# Allocate a buffer for storing the SBT.
+		sbtSize = self.rgenRegion.size + self.missRegion.size + self.hitRegion.size + self.callRegion.size;
+		self.rtSBTBuffer = \
+		Buffer(sbtSize,
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT | 
+			VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
+			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+		);
 			
 		# Shader groups
 		# Intersection shaders allow arbitrary intersection geometry
@@ -93,76 +151,5 @@ class RaytracePipeline(Pipeline):
 		print("Creating commandBuffer")
 		self.commandBuffer = RaytraceCommandBuffer(self)
 		
-class ShaderBindingTable(Sinode):
-	def __init__(self, pipeline):
-		print("Creating SBT")
-		Sinode.__init__(self, pipeline)
-		self.pipeline = pipeline
-		self.instance = pipeline.instance
-		self.pipelineDict = pipeline.setupDict
-		self.vkCommandPool  = pipeline.device.vkCommandPool
-		self.device       = pipeline.device
-		self.vkDevice     = pipeline.device.vkDevice
-		self.outputWidthPixels  = self.pipelineDict["outputWidthPixels"]
-		self.outputHeightPixels = self.pipelineDict["outputHeightPixels"]
-		self.commandBufferCount = 0
-		
-		missCount = 2
-		hitCount  = 1
-		handleCount = 1 + missCount + hitCount
-		self.allStages = self.pipeline.stageDict.values()
-		
-		self.raygenShaderBindingTableStride   = 0
-		self.raygenShaderBindingTableSize     = 0
-		self.callableShaderBindingTableSize   = 0
-		self.callableShaderBindingTableStride = 0
-		self.missShaderBindingTableSize       = 0
-		self.missShaderBindingTableStride     = 0
-		self.hitShaderBindingTableSize        = 0
-		self.hitShaderBindingTableStride      = 0
-		
-		for stage in self.allStages:
-			print(stage)
-			if stage.stage == VK_SHADER_STAGE_RAYGEN_BIT_KHR:
-				self.raygenShaderBindingTableSize   += stage.size
-				self.raygenShaderBindingTableStride  = max(self.raygenShaderBindingTableStride, stage.stride)
-		
-			if stage.stage == VK_SHADER_STAGE_CALLABLE_BIT_KHR:
-				self.callableShaderBindingTableSize   += stage.size
-				self.callableShaderBindingTableStride  = max(self.callableShaderBindingTableStride, stage.stride)
-		
-			if stage.stage == VK_SHADER_STAGE_MISS_BIT_KHR:
-				self.missShaderBindingTableSize   += stage.size
-				self.missShaderBindingTableStride  = max(self.missShaderBindingTableStride, stage.stride)
-		
-			if stage.stage == VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
-				self.hitShaderBindingTableSize   += stage.size
-				self.hitShaderBindingTableStride  = max(self.callableShaderBindingTableStride, stage.stride)
-		
-		# Get the shader group handles
-		vkGetRayTracingShaderGroupHandlesKHR = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkGetRayTracingShaderGroupHandlesKHR')
-		result = vkGetRayTracingShaderGroupHandlesKHR(self.vkDevice, self.pipeline.vkPipeline, 0, handleCount, dataSize, handles.data());
-		assert(result == VK_SUCCESS)
 
-		# Allocate a buffer for storing the SBT.
-		sbtSize = self.rgenRegion.size + self.missRegion.size + self.hitRegion.size + self.callRegion.size;
-		self.rtSBTBuffer = \
-		Buffer(sbtSize,
-			VK_BUFFER_USAGE_TRANSFER_SRC_BIT | 
-			VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
-			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-		);
-	def createStridedRegion(self):
 
-		deviceAddress = vkGetBufferDeviceAddress(
-			self.vkDevice, 
-			buffer.vkBufferDeviceAddressInfo
-		)
-		
-		self.vkStridedDeviceAddressRegion = \
-		VkStridedDeviceAddressRegionKHR(
-			deviceAddress = deviceAddress,
-			stride        = self.setupDict["stride"],
-			size          = self.setupDict["SIZEBYTES"]
-		)
