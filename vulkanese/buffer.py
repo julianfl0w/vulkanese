@@ -74,10 +74,10 @@ class Buffer(Sinode):
 		vkBindBufferMemory(self.vkDevice, self.vkBuffer, self.vkDeviceMemory, 0)
 
 		# Map the buffer memory, so that we can read from it on the CPU.
-		if "VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT" in setupDict["memProperties"]:
-			self.pmap = vkMapMemory(self.vkDevice, self.vkDeviceMemory, 0, self.setupDict["SIZEBYTES"], 0)
+		self.pmap = vkMapMemory(self.vkDevice, self.vkDeviceMemory, 0, self.setupDict["SIZEBYTES"], 0)
 
-		self.bufferDeviceAddressInfo = jvulkan.VkBufferDeviceAddressInfo(
+		self.bufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
+		
 			sType  = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
 			pNext  = None,
 			buffer = int(ffi.cast("uintptr_t", self.vkBuffer))

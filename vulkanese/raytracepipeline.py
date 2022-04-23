@@ -11,21 +11,6 @@ from vutil import *
 from vulkanese import *
 from PIL import Image as pilImage
 import faulthandler
-import cffi
-import logging
-import jvulkan
-from pprint import pprint
-
-from inspect import currentframe
-
-
-def jlog(instr):
-	cf = currentframe()
-	ln = cf.f_back.f_lineno
-	print(str(ln) + ": " + str(instr))
-
-# WORKAROUND SEGFAULT
-from ctypes import *
 faulthandler.enable()
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -99,16 +84,13 @@ class RaytracePipeline(Pipeline):
 					
 			# Allocate a buffer for storing the SBT.
 			bufferDict = {
-				"name"           : "SBT",
-				"usage"          : "VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |  \
-					VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR ",
+				"usage"          : "VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR",
 				"descriptorSet"  : "global",
 				"rate"           : "VK_VERTEX_INPUT_RATE_VERTEX",
-				#"memProperties"  : "VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT",
-				"memProperties"  : "VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT",
+				"memProperties"  : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT",
 				#"sharingMode"    : "VK_SHARING_MODE_EXCLUSIVE",
 				"sharingMode"    : "0",
-				"SIZEBYTES"      : 65536,
+				"SIZEBYTES"      : 6553600,
 				"qualifier"      : "in",
 				"type"           : "vec3",
 				"format"         : "VK_FORMAT_R32G32B32_SFLOAT",
@@ -121,7 +103,13 @@ class RaytracePipeline(Pipeline):
 
 			jlog("getting device address")
 			
-			#vkGetBufferDeviceAddressKHR = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkGetBufferDeviceAddressKHR')
+			vkGetBufferDeviceAddress = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkGetBufferDeviceAddressKHR')
+			print(self.vkDevice)
+			print(stageDict["buffer"].bufferDeviceAddressInfo)
+			deviceAddress = vkGetBufferDeviceAddress(
+				self.vkDevice, 
+				stageDict["buffer"].bufferDeviceAddressInfo
+			)
 
 			#jlog(stageDict["buffer"].bufferDeviceAddressInfo)
 			#jlog("SHIT " + str(vkGetBufferDeviceAddressKHR))
@@ -140,46 +128,6 @@ class RaytracePipeline(Pipeline):
 				{"device" : devaddr, 
 				 "pInfo"  : pointer(bufaddr)}
 			)
-			#deviceAddress = vkGetBufferDeviceAddressKHR(
-			#	self.vkDevice, 
-			#	stageDict["buffer"].bufferDeviceAddressInfo
-			#)
-			#
-			#	
-			## WORKAROUND SEGFAULT
-			#jlog(VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO)
-			#fuckingBullshit = jbufferDeviceAddressInfo()
-			#fuckingBullshit.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO
-			#fuckingBullshit.pNext = None
-			#BSAddress = getAddressFromString(stageDict["buffer"].vkBuffer)
-			#jlog(hex(BSAddress))
-			#fuckingBullshit.buffer = BSAddress
-#
-			#jlog(ctypes_vulkanlib)
-			#jlog(ctypes_vulkanlib.vkEnumerateInstanceVersion)
-			#ctypes_vulkanlib.vkEnumerateInstanceVersion.argtypes = [POINTER(c_int)]
-			#CTYPES_INT_PTR = POINTER(c_int)
-			#ret = CTYPES_INT_PTR()
-			#ctypes_vulkanlib.vkEnumerateInstanceVersion(ret)
-			#jlog(ret)
-			#jlog(self.vkDevice)
-			#jlog("BS " + str(ffi.addressof(stageDict["buffer"].bufferDeviceAddressInfo)))
-			#BULLSHITFUCKINGBUFFERDEVICEFUCKINGADDRESSDUMBASSINFOSTUPIDFUCKINGPOINTER =  getAddressFromString(ffi.addressof(stageDict["buffer"].bufferDeviceAddressInfo))
-			#jlog("FUCK " +hex(BULLSHITFUCKINGBUFFERDEVICEFUCKINGADDRESSDUMBASSINFOSTUPIDFUCKINGPOINTER))
-			#ctypes_vulkanlib.vkGetBufferDeviceAddress.argtypes = [c_void_p,c_void_p]
-			#jlog(ctypes_vulkanlib.vkGetBufferDeviceAddress)
-			#jlog(vkGetBufferDeviceAddressKHR)
-			#deviceAddress = ctypes_vulkanlib.vkGetBufferDeviceAddress(
-			#	getAddressFromString(self.vkDevice), 
-			#	BULLSHITFUCKINGBUFFERDEVICEFUCKINGADDRESSDUMBASSINFOSTUPIDFUCKINGPOINTER
-			#)
-
-			#IT STILL FUCKING SEGFAULTS
-			
-			#deviceAddress = vkGetBufferDeviceAddressKHR(
-			#	self.vkDevice, 
-			#	stageDict["buffer"].bufferDeviceAddressInfo
-			#)
 
 			jlog("creating strided region")
 			stageDict["vkStridedDeviceAddressRegion"] = \

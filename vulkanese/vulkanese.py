@@ -203,11 +203,12 @@ class Device(Sinode):
 		jlog(self.pFeatures2)
 		
 		self.pProperties  = vkGetPhysicalDeviceProperties (self.physical_device)
-		jlog("pProperties")
-		jlog(self.pProperties)
+
+		print("pProperties")
+		print(self.pProperties)
 		self.pProperties2 = vkGetPhysicalDeviceProperties2(self.physical_device)
-		jlog("pProperties2")
-		jlog(self.pProperties2)
+		print("pProperties2")
+		print(self.pProperties2)
 		
 		
 		jlog("Select queue family")
@@ -266,20 +267,6 @@ class Device(Sinode):
 												 flags=0)
 						 for i in {self.queue_family_graphic_index,
 								   self.queue_family_present_index}]
-		#jlog(self.pFeatures.pNext)
-		#die
-		
-		self.deviceAddressFeatures = jvulkan.VkPhysicalDeviceBufferDeviceAddressFeatures(
-			sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES,
-			pNext = None,
-			bufferDeviceAddress = True,
-			bufferDeviceAddressCaptureReplay = False,
-			bufferDeviceAddressMultiDevice = False
-			)
-		jlog(self.pFeatures2.pNext)
-		self.pFeatures2.pNext = cast(self.deviceAddressFeatures, c_void_p)
-
-
 		self.device_create = VkDeviceCreateInfo(
 			sType=VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 			pNext = self.pFeatures2,
