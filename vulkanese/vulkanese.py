@@ -175,7 +175,11 @@ class Device(Sinode):
 		print(self.pFeatures2)
 		
 		self.pProperties  = vkGetPhysicalDeviceProperties (self.physical_device)
+		print("pProperties")
+		print(self.pProperties)
 		self.pProperties2 = vkGetPhysicalDeviceProperties2(self.physical_device)
+		print("pProperties2")
+		print(self.pProperties2)
 		
 		
 		print("Select queue family")
@@ -234,12 +238,14 @@ class Device(Sinode):
 												 flags=0)
 						 for i in {self.queue_family_graphic_index,
 								   self.queue_family_present_index}]
-
+		#print(self.pFeatures.pNext)
+		#die
 		self.device_create = VkDeviceCreateInfo(
 			sType=VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+			pNext = self.pFeatures2,
 			pQueueCreateInfos    =queues_create,
 			queueCreateInfoCount =len(queues_create),
-			pEnabledFeatures     =self.physical_devices_features,
+			pEnabledFeatures     =self.pFeatures, # NEED TO PUT PFEATURES2 or something
 			flags                =0,
 			enabledLayerCount    =len(self.instance.layers),
 			ppEnabledLayerNames  =self.instance.layers,

@@ -39,6 +39,9 @@ class Buffer(Sinode):
 			usage=eval(setupDict["usage"]),  # buffer is used as a storage buffer.
 			sharingMode=eval(setupDict["sharingMode"])  # buffer is exclusive to a single queue family at a time.
 		)
+		print(self.vkDevice)
+		print(self.bufferCreateInfo)
+		
 		self.vkBuffer = vkCreateBuffer(self.vkDevice, self.bufferCreateInfo, None)
 		self.children += [self.vkBuffer]
 
@@ -68,12 +71,10 @@ class Buffer(Sinode):
 
 		# Now associate that allocated memory with the buffer. With that, the buffer is backed by actual memory.
 		vkBindBufferMemory(self.vkDevice, self.vkBuffer, self.vkDeviceMemory, 0)
-		
+
 		# Map the buffer memory, so that we can read from it on the CPU.
-		if not VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT & eval(setupDict["usage"]):
-			self.pmap = vkMapMemory(self.vkDevice, self.vkDeviceMemory, 0, self.setupDict["SIZEBYTES"], 0)
-		
-		
+		self.pmap = vkMapMemory(self.vkDevice, self.vkDeviceMemory, 0, self.setupDict["SIZEBYTES"], 0)
+
 		self.bufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
 			sType  = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
 			pNext  = None,

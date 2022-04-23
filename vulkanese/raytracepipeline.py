@@ -11,6 +11,9 @@ from commandbuffer import *
 from vutil import *
 from vulkanese import *
 from PIL import Image as pilImage
+import faulthandler
+
+faulthandler.enable()
 
 here = os.path.dirname(os.path.abspath(__file__))
 def getVulkanesePath():
@@ -63,28 +66,27 @@ class RaytracePipeline(Pipeline):
 					
 			# Allocate a buffer for storing the SBT.
 			bufferDict = {
-				#"usage"          : "VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR",
-				"usage"          : "VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR",
+				"usage"          : "VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR",
 				"descriptorSet"  : "global",
 				"rate"           : "VK_VERTEX_INPUT_RATE_VERTEX",
-				#"memProperties"  : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT",
-				"memProperties"  : "0",
+				"memProperties"  : "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT",
 				#"sharingMode"    : "VK_SHARING_MODE_EXCLUSIVE",
 				"sharingMode"    : "0",
-				"SIZEBYTES"      : stageDict["size"  ],
+				"SIZEBYTES"      : 6553600,
 				"qualifier"      : "in",
 				"type"           : "vec3",
 				"format"         : "VK_FORMAT_R32G32B32_SFLOAT",
 				#"stage"          : "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR",
 				"stage"          : "VK_SHADER_STAGE_RAYGEN_BIT_KHR",
-				"stride"         : 65536
+				"stride"         : 1
 			}
 			
 			stageDict["buffer"] = Buffer(self.device, bufferDict)
 
 			print("getting device address")
 			
-			vkGetBufferDeviceAddress = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkGetBufferDeviceAddressEXT')
+			vkGetBufferDeviceAddress = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkGetBufferDeviceAddressKHR')
+			print(self.vkDevice)
 			print(stageDict["buffer"].bufferDeviceAddressInfo)
 			deviceAddress = vkGetBufferDeviceAddress(
 				self.vkDevice, 
