@@ -1,10 +1,10 @@
 import json
 from vutil import *
 import os
-here = os.path.dirname(os.path.abspath(__file__))
 from vulkan import *
 from buffer import *
 from pathlib import Path
+here = os.path.dirname(os.path.abspath(__file__))
 
 class Stage(Sinode):
 	def __init__(self, pipeline, setupDict):

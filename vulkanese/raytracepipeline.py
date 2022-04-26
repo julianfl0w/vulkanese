@@ -1,4 +1,3 @@
-import ctypes
 import os
 import time
 import json
@@ -12,6 +11,12 @@ from vutil import *
 from vulkanese import *
 from PIL import Image as pilImage
 import faulthandler
+import cffi
+import logging
+
+# WORKAROUND SEGFAULT
+from ctypes import *
+ctypes_vulkanlib = CDLL("libvulkan.so.1.3.211")
 
 faulthandler.enable()
 
@@ -27,8 +32,27 @@ class StageIndices(Enum):
 	eClosestHit       = 3
 	eShaderGroupCount = 4
 	
+# WORKAROUND SEGFAULT
+class jbufferDeviceAddressInfo(Structure):
+	_fields_ = [("sType", c_long),
+			   ("pNext", c_void_p),
+			   ("buffer", c_void_p)]
+	
+def getAddressFromString(inobj):
+	return eval(inobj.__str__().split(" ")[-1][:-1])
+	
 class RaytracePipeline(Pipeline):
 	def __init__(self, device, setupDict):
+		
+		
+		self.logger = logging.getLogger('vulkanese')
+		formatter = logging.Formatter('{"debug": %(asctime)s {%(pathname)s:%(lineno)d} %(message)s}')
+		#formatter = logging.Formatter('{{%(pathname)s:%(lineno)d %(message)s}')
+		ch = logging.StreamHandler()
+		ch.setFormatter(formatter)
+		self.logger.addHandler(ch)
+		self.logger.setLevel(1)
+
 		Pipeline.__init__(self, device, setupDict)
 		
 		self.stages = [s.shader_stage_create for s in self.stageDict.values()]
@@ -85,13 +109,54 @@ class RaytracePipeline(Pipeline):
 
 			print("getting device address")
 			
-			vkGetBufferDeviceAddress = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkGetBufferDeviceAddressKHR')
-			print(self.vkDevice)
+			vkGetBufferDeviceAddressKHR = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkGetBufferDeviceAddressKHR')
+
 			print(stageDict["buffer"].bufferDeviceAddressInfo)
-			deviceAddress = vkGetBufferDeviceAddress(
+			print("SHIT " + str(vkGetBufferDeviceAddressKHR))
+			print(self.vkDevice)
+			vkGetBufferDeviceAddressKHR(
+				device = self.vkDevice
+			)
+			deviceAddress = vkGetBufferDeviceAddressKHR(
 				self.vkDevice, 
 				stageDict["buffer"].bufferDeviceAddressInfo
 			)
+			
+				
+			# WORKAROUND SEGFAULT
+			print(VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO)
+			fuckingBullshit = jbufferDeviceAddressInfo()
+			fuckingBullshit.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO
+			fuckingBullshit.pNext = None
+			BSAddress = getAddressFromString(stageDict["buffer"].vkBuffer)
+			print(hex(BSAddress))
+			fuckingBullshit.buffer = BSAddress
+
+			print(ctypes_vulkanlib)
+			print(ctypes_vulkanlib.vkEnumerateInstanceVersion)
+			ctypes_vulkanlib.vkEnumerateInstanceVersion.argtypes = [POINTER(c_int)]
+			CTYPES_INT_PTR = POINTER(c_int)
+			ret = CTYPES_INT_PTR()
+			ctypes_vulkanlib.vkEnumerateInstanceVersion(ret)
+			print(ret)
+			print(self.vkDevice)
+			print("BS " + str(ffi.addressof(stageDict["buffer"].bufferDeviceAddressInfo)))
+			BULLSHITFUCKINGBUFFERDEVICEFUCKINGADDRESSDUMBASSINFOSTUPIDFUCKINGPOINTER =  getAddressFromString(ffi.addressof(stageDict["buffer"].bufferDeviceAddressInfo))
+			print("FUCK " +hex(BULLSHITFUCKINGBUFFERDEVICEFUCKINGADDRESSDUMBASSINFOSTUPIDFUCKINGPOINTER))
+			ctypes_vulkanlib.vkGetBufferDeviceAddress.argtypes = [c_void_p,c_void_p]
+			print(ctypes_vulkanlib.vkGetBufferDeviceAddress)
+			print(vkGetBufferDeviceAddressKHR)
+			deviceAddress = ctypes_vulkanlib.vkGetBufferDeviceAddress(
+				getAddressFromString(self.vkDevice), 
+				BULLSHITFUCKINGBUFFERDEVICEFUCKINGADDRESSDUMBASSINFOSTUPIDFUCKINGPOINTER
+			)
+
+			#IT STILL FUCKING SEGFAULTS
+			
+			#deviceAddress = vkGetBufferDeviceAddressKHR(
+			#	self.vkDevice, 
+			#	stageDict["buffer"].bufferDeviceAddressInfo
+			#)
 
 			print("creating strided region")
 			stageDict["vkStridedDeviceAddressRegion"] = \

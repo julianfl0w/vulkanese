@@ -31,7 +31,7 @@ class Buffer(Sinode):
 		
 		print("creating buffer with description")
 		print(json.dumps(setupDict, indent=2))
-		
+		print(hex(eval(setupDict["usage"])))
 		# We will now create a buffer with these options
 		self.bufferCreateInfo = VkBufferCreateInfo(
 			sType=VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
