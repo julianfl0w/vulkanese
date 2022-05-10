@@ -109,8 +109,14 @@ class RaytracePipeline(Pipeline):
 
 			print("getting device address")
 			
-			vkGetBufferDeviceAddressKHR = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkGetBufferDeviceAddressKHR')
-
+			vkGetBufferDeviceAddress = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkGetBufferDeviceAddressKHR')
+			print(vkGetBufferDeviceAddress)
+			print(self.vkDevice)
+			x_ptr = ffi.new("struct VkBufferDeviceAddressInfo[1]")
+			x_ptr[0] = stageDict["buffer"].bufferDeviceAddressInfo
+			#y_ptr = ffi.new("struct VkDevice_T[1]")
+			#y_ptr[0] = self.vkDevice
+			
 			print(stageDict["buffer"].bufferDeviceAddressInfo)
 			print("SHIT " + str(vkGetBufferDeviceAddressKHR))
 			print(self.vkDevice)
@@ -119,7 +125,7 @@ class RaytracePipeline(Pipeline):
 			)
 			deviceAddress = vkGetBufferDeviceAddressKHR(
 				self.vkDevice, 
-				stageDict["buffer"].bufferDeviceAddressInfo
+				x_ptr
 			)
 			
 				
