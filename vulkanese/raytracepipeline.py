@@ -26,8 +26,6 @@ def jlog(instr):
 
 # WORKAROUND SEGFAULT
 from ctypes import *
-ctypes_vulkanlib = CDLL("libvulkan.so.1.3.211")
-
 faulthandler.enable()
 
 here = os.path.dirname(os.path.abspath(__file__))

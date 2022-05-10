@@ -1,7 +1,7 @@
 
 from enum import Enum
 from ctypes import *
-jvulkanLib = CDLL("/home/julian/Documents/sodll/vulkan/libvulkan.so") 
+jvulkanLib = CDLL("vulkan-1.dll") 
 
 def cdataStr(instr):
 	return ffi.new("char[]", instr.encode('ascii'))
