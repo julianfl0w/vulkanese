@@ -79,9 +79,9 @@ class Stage(Sinode):
 		with open(setupDict["main"]) as f:
 			shader_spirv += f.read()
 			
-		print("---final Stage code---")
-		print(shader_spirv)
-		print("--- end Stage code ---")
+		#print("---final Stage code---")
+		#print(shader_spirv)
+		#print("--- end Stage code ---")
 		
 		print("compiling Stage")
 		compStagesPath = os.path.join(here, "compiledStages")
