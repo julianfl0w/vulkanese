@@ -67,3 +67,11 @@ class Minode(Node):
 			return self
 		return self.parent.getAncestor(ancestorType)
 		
+
+import inspect
+import os
+def jlog(instr):
+	previous_frame = inspect.currentframe().f_back
+	(filename, line_number, function_name, lines, index) = inspect.getframeinfo(previous_frame)
+	print(os.path.basename(filename) + ":" + str(line_number) + ": " + str(instr))
+	

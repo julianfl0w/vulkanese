@@ -24,7 +24,7 @@ class Instance(Sinode):
 	def __init__(self):
 		Sinode.__init__(self, None)
 		
-		print("version number ")
+		jlog("version number ")
 		packedVersion = vkEnumerateInstanceVersion({})["pApiVersion"][0]
 		#The variant is a 3-bit integer packed into bits 31-29.
 		variant = (packedVersion >> 29) & 0x07
@@ -34,10 +34,10 @@ class Instance(Sinode):
 		minor = (packedVersion >> 12) & 0x3FF
 		#The patch version number is a 12-bit integer packed into bits 11-0.
 		patch = (packedVersion >>  0) & 0xFFF
-		print("Variant : " + str(variant))
-		print("Major   : " + str(major))
-		print("Minor   : " + str(minor))
-		print("Patch   : " + str(patch))
+		jlog("Variant : " + str(variant))
+		jlog("Major   : " + str(major))
+		jlog("Minor   : " + str(minor))
+		jlog("Patch   : " + str(patch))
 		
 		# ----------
 		# Create instance
@@ -58,15 +58,15 @@ class Instance(Sinode):
 		extensions["pProperties"] = (VkExtensionProperties*extensions["pPropertyCount"][0])()
 		vkEnumerateInstanceExtensionProperties(extensions)
 	
-		print("available extensions: ")
+		jlog("available extensions: ")
 		self.activeExtentionCount = 0
 		estr = []
-		print(type(extensions["pProperties"]))
+		jlog(type(extensions["pProperties"]))
 		for e in extensions["pProperties"]:
 			estr += [str(bytearray(e.extensionName)[:255].decode("ascii"))]
 			extensions["pProperties"][self.activeExtentionCount].extensionName = e.extensionName
 			self.activeExtentionCount += 1
-		print(estr)
+		jlog(estr)
 		
 		
 		# get available layers
@@ -74,45 +74,50 @@ class Instance(Sinode):
 		self.layers["pProperties"] = (VkLayerProperties*self.layers["pPropertyCount"][0])()
 		vkEnumerateInstanceLayerProperties(self.layers)
 	
-		print("available layers: ")
+		jlog("available layers: ")
 		self.activeLayerCount = 0
 		for e in self.layers["pProperties"]:
 			estr = str(bytearray(e.layerName)[:255].decode("ascii"))
-			print("    " + estr)
+			jlog("    " + estr)
 			if 'VK_LAYER_KHRONOS_validation' in estr:
 				self.layers["pProperties"][self.activeLayerCount].layerName = e.layerName
 				self.activeLayerCount += 1
 			
 		createInfo = VkInstanceCreateInfo(
-			sType=VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-			flags=0,
-			pApplicationInfo=appInfo,
-			enabledExtensionCount=self.activeExtentionCount,
-			ppEnabledExtensionNames=[e.extensionName for e in extensions["pProperties"]],
-			enabledLayerCount=self.activeLayerCount,
-			ppEnabledLayerNames=[l.layerName for l in self.layers["pProperties"]]
-			)
+		{
+			"sType":VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+			"flags":0,
+			"pApplicationInfo":appInfo,
+			"enabledExtensionCount":self.activeExtentionCount,
+			"ppEnabledExtensionNames":[e.extensionName for e in extensions["pProperties"]],
+			"enabledLayerCount":self.activeLayerCount,
+			"ppEnabledLayerNames":[l.layerName for l in self.layers["pProperties"]]
+			}
+		)
 
-		self.vkInstance = vkCreateInstance(createInfo, None)
+		self.vkInstance = vkCreateInstance({"pCreateInfo":createInfo, "pAllocator":None})['pInstance']
 		
 		# ----------
 		# Debug instance
-		vkCreateDebugReportCallbackEXT = vkGetInstanceProcAddr(
-			self.vkInstance,
-			"vkCreateDebugReportCallbackEXT")
-		self.vkDestroyDebugReportCallbackEXT = vkGetInstanceProcAddr(
-			self.vkInstance,
-			"vkDestroyDebugReportCallbackEXT")
+		jlog("getting db instances 1")
+		vkCreateDebugReportCallbackEXT = vkGetInstanceProcAddr({
+			"instance":self.vkInstance,
+			"pName"   :"vkCreateDebugReportCallbackEXT".encode('utf-8')})
+		jlog("getting db instances 2")
+		self.vkDestroyDebugReportCallbackEXT = vkGetInstanceProcAddr({
+			"instance":self.vkInstance,
+			"pName"   :"vkDestroyDebugReportCallbackEXT".encode('utf-8')})
+		jlog("getting db instances done")
 
 		def debugCallback(*args):
-			print('DEBUG: ' + args[5] + ' ' + args[6])
+			jlog('DEBUG: ' + args[5] + ' ' + args[6])
 			return 0
 
-		debug_create = VkDebugReportCallbackCreateInfoEXT(
-			sType=VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,
-			flags=VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT,
-			pfnCallback=debugCallback)
-		self.callback = vkCreateDebugReportCallbackEXT(self.vkInstance, debug_create, None)
+		debug_create = VkDebugReportCallbackCreateInfoEXT({
+			"sType":VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,
+			"flags":VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT,
+			"pfnCallback":debugCallback})
+		self.callback = vkCreateDebugReportCallbackEXT({"instance" : self.vkInstance, "pCreateInfo":debug_create, "pAllocator": None})
 
 	def getDeviceList(self):
 		self.physical_devices            = vkEnumeratePhysicalDevices(self.vkInstance)
@@ -125,12 +130,12 @@ class Instance(Sinode):
 		return newDev
 		
 	def release(self):
-		print("destroying child devices")
+		jlog("destroying child devices")
 		for d in self.children:
 			d.release()
-		print("destroying debug etc")
+		jlog("destroying debug etc")
 		self.vkDestroyDebugReportCallbackEXT(self.vkInstance, self.callback, None)
-		print("destroying instance")
+		jlog("destroying instance")
 		vkDestroyInstance(self.vkInstance, None)
 		
 class Device(Sinode):
@@ -146,7 +151,7 @@ class Device(Sinode):
 				
 	def applyLayout(self, setupDict):
 		self.setupDict = self.nameSubdicts("root", setupDict)
-		print(json.dumps(self.setupDict, indent=2))
+		jlog(json.dumps(self.setupDict, indent=2))
 		self.pipelines = []
 		for pipelineName, pipelineDict in self.setupDict.items():
 			if pipelineDict == "root":
@@ -167,9 +172,9 @@ class Device(Sinode):
 			setupDict = json.loads(f.read())
 
 		# apply setup to device
-		print("Applying the following layout:")
-		print(json.dumps(setupDict, indent = 4))
-		print("")
+		jlog("Applying the following layout:")
+		jlog(json.dumps(setupDict, indent = 4))
+		jlog("")
 		return self.applyLayout(setupDict)
 
 	
@@ -179,31 +184,31 @@ class Device(Sinode):
 		self.vkInstance = instance.vkInstance
 		self.deviceIndex = deviceIndex
 		
-		print("initializing device " + str(deviceIndex))
+		jlog("initializing device " + str(deviceIndex))
 		self.physical_device = vkEnumeratePhysicalDevices(self.instance.vkInstance)[deviceIndex]
 		
-		print("getting features list")
+		jlog("getting features list")
 		
 		vkGetPhysicalDeviceFeatures2   = vkGetInstanceProcAddr(self.vkInstance, 'vkGetPhysicalDeviceFeatures2KHR')
 		vkGetPhysicalDeviceProperties2 = vkGetInstanceProcAddr(self.vkInstance, 'vkGetPhysicalDeviceProperties2KHR')
 
 		self.pFeatures    = vkGetPhysicalDeviceFeatures (self.physical_device)
-		print("pFeatures")
-		print([self.pFeatures])
+		jlog("pFeatures")
+		jlog([self.pFeatures])
 		
 		self.pFeatures2   = vkGetPhysicalDeviceFeatures2(self.physical_device)
-		print("pFeatures2")
-		print(self.pFeatures2)
+		jlog("pFeatures2")
+		jlog(self.pFeatures2)
 		
 		self.pProperties  = vkGetPhysicalDeviceProperties (self.physical_device)
-		print("pProperties")
-		print(self.pProperties)
+		jlog("pProperties")
+		jlog(self.pProperties)
 		self.pProperties2 = vkGetPhysicalDeviceProperties2(self.physical_device)
-		print("pProperties2")
-		print(self.pProperties2)
+		jlog("pProperties2")
+		jlog(self.pProperties2)
 		
 		
-		print("Select queue family")
+		jlog("Select queue family")
 		# ----------
 		# Select queue family
 		vkGetPhysicalDeviceSurfaceSupportKHR = vkGetInstanceProcAddr(
@@ -212,7 +217,7 @@ class Device(Sinode):
 		#queue_families = vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice=self.physical_device)
 		queue_families = vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice=self.physical_device)
 		
-		print("%s available queue family" % len(queue_families))
+		jlog("%s available queue family" % len(queue_families))
 
 		self.queue_family_graphic_index = -1
 		self.queue_family_present_index = -1
@@ -230,7 +235,7 @@ class Device(Sinode):
 			# if queue_family.queueCount > 0 and support_present:
 			#     self.queue_family_present_index = i
 
-		print("indice of selected queue families, graphic: %s, presentation: %s\n" % (
+		jlog("indice of selected queue families, graphic: %s, presentation: %s\n" % (
 			self.queue_family_graphic_index, self.queue_family_present_index))
 
 		self.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE
@@ -247,7 +252,7 @@ class Device(Sinode):
 		# Create logical device and queues
 		extensions = vkEnumerateDeviceExtensionProperties(physicalDevice=self.physical_device, pLayerName=None)
 		extensions = [e.extensionName for e in extensions]
-		print("available device extensions: %s\n" % extensions)
+		jlog("available device extensions: %s\n" % extensions)
 
 		#only use the extensions necessary
 		extensions = [VK_KHR_SWAPCHAIN_EXTENSION_NAME]
@@ -259,7 +264,7 @@ class Device(Sinode):
 												 flags=0)
 						 for i in {self.queue_family_graphic_index,
 								   self.queue_family_present_index}]
-		#print(self.pFeatures.pNext)
+		#jlog(self.pFeatures.pNext)
 		#die
 		self.device_create = VkDeviceCreateInfo(
 			sType=VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -288,7 +293,7 @@ class Device(Sinode):
 			queueFamilyIndex=self.queue_family_present_index,
 			queueIndex=0)
 	
-		print("Logical device and graphic queue successfully created\n")
+		jlog("Logical device and graphic queue successfully created\n")
 		
 		# Create command pool
 		command_pool_create = VkCommandPoolCreateInfo(
@@ -316,13 +321,13 @@ class Device(Sinode):
 		
 	def release(self):
 		
-		print("destroying children")
+		jlog("destroying children")
 		for child in self.children: 
 			child.release()
 		
-		print("destroying command pool")
+		jlog("destroying command pool")
 		vkDestroyCommandPool(self.vkDevice, self.vkCommandPool, None)
 		
-		print("destroying device")
+		jlog("destroying device")
 		vkDestroyDevice(self.vkDevice, None)
 		
