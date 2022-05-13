@@ -1,7 +1,7 @@
 import os
 import time
 import json
-from vulkan import *
+from jvulkan import *
 from surface import *
 from stage import *
 from renderpass import *
@@ -13,10 +13,6 @@ from PIL import Image as pilImage
 import faulthandler
 import cffi
 import logging
-
-# WORKAROUND SEGFAULT
-from ctypes import *
-ctypes_vulkanlib = CDLL("libvulkan.so.1.3.211")
 
 faulthandler.enable()
 
@@ -32,11 +28,6 @@ class StageIndices(Enum):
 	eClosestHit       = 3
 	eShaderGroupCount = 4
 	
-# WORKAROUND SEGFAULT
-class jbufferDeviceAddressInfo(Structure):
-	_fields_ = [("sType", c_long),
-			   ("pNext", c_void_p),
-			   ("buffer", c_void_p)]
 	
 def getAddressFromString(inobj):
 	return eval(inobj.__str__().split(" ")[-1][:-1])
@@ -123,34 +114,6 @@ class RaytracePipeline(Pipeline):
 			)
 			
 				
-			# WORKAROUND SEGFAULT
-			print(VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO)
-			fuckingBullshit = jbufferDeviceAddressInfo()
-			fuckingBullshit.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO
-			fuckingBullshit.pNext = None
-			BSAddress = getAddressFromString(stageDict["buffer"].vkBuffer)
-			print(hex(BSAddress))
-			fuckingBullshit.buffer = BSAddress
-
-			print(ctypes_vulkanlib)
-			print(ctypes_vulkanlib.vkEnumerateInstanceVersion)
-			ctypes_vulkanlib.vkEnumerateInstanceVersion.argtypes = [POINTER(c_int)]
-			CTYPES_INT_PTR = POINTER(c_int)
-			ret = CTYPES_INT_PTR()
-			ctypes_vulkanlib.vkEnumerateInstanceVersion(ret)
-			print(ret)
-			print(self.vkDevice)
-			print("BS " + str(ffi.addressof(stageDict["buffer"].bufferDeviceAddressInfo)))
-			BULLSHITFUCKINGBUFFERDEVICEFUCKINGADDRESSDUMBASSINFOSTUPIDFUCKINGPOINTER =  getAddressFromString(ffi.addressof(stageDict["buffer"].bufferDeviceAddressInfo))
-			print("FUCK " +hex(BULLSHITFUCKINGBUFFERDEVICEFUCKINGADDRESSDUMBASSINFOSTUPIDFUCKINGPOINTER))
-			ctypes_vulkanlib.vkGetBufferDeviceAddress.argtypes = [c_void_p,c_void_p]
-			print(ctypes_vulkanlib.vkGetBufferDeviceAddress)
-			print(vkGetBufferDeviceAddressKHR)
-			deviceAddress = ctypes_vulkanlib.vkGetBufferDeviceAddress(
-				getAddressFromString(self.vkDevice), 
-				BULLSHITFUCKINGBUFFERDEVICEFUCKINGADDRESSDUMBASSINFOSTUPIDFUCKINGPOINTER
-			)
-
 			#IT STILL FUCKING SEGFAULTS
 			
 			#deviceAddress = vkGetBufferDeviceAddressKHR(

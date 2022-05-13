@@ -2,7 +2,7 @@ import ctypes
 import os
 import time
 import json
-from vulkan import *
+from jvulkan import *
 from surface import *
 from stage import *
 from renderpass import *

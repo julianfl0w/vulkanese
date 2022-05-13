@@ -2,7 +2,7 @@ import json
 from vutil import *
 import os
 here = os.path.dirname(os.path.abspath(__file__))
-from vulkan import *
+from jvulkan import *
 
 class DescriptorPool(Sinode):
 	def __init__(self, device, MAX_FRAMES_IN_FLIGHT = 3):

@@ -1,4 +1,4 @@
-from vulkan import *
+from jvulkan import *
 from vutil import *
 import sdl2
 import sdl2.ext

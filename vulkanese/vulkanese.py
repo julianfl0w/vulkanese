@@ -6,22 +6,26 @@ import sdl2.ext
 import time
 import json
 from vutil import *
-from vulkan import *
+from jvulkan import *
 from pipelines import *
 from raytracepipeline import *
 from descriptor import *
 from PIL import Image as pilImage
+import copy
 
 here = os.path.dirname(os.path.abspath(__file__))
 def getVulkanesePath():
 	return here
+
+def VK_MAKE_VERSION(major, minor, patch):
+    return (((major) << 22) | ((minor) << 12) | (patch))
 
 class Instance(Sinode):
 	def __init__(self):
 		Sinode.__init__(self, None)
 		
 		print("version number ")
-		packedVersion = vkEnumerateInstanceVersion()
+		packedVersion = vkEnumerateInstanceVersion({})["pApiVersion"][0]
 		#The variant is a 3-bit integer packed into bits 31-29.
 		variant = (packedVersion >> 29) & 0x07
 		#The major version is a 7-bit integer packed into bits 28-22.
@@ -38,39 +42,56 @@ class Instance(Sinode):
 		# ----------
 		# Create instance
 		appInfo = VkApplicationInfo(
-			sType=VK_STRUCTURE_TYPE_APPLICATION_INFO,
-			pApplicationName="Hello Triangle",
-			applicationVersion=VK_MAKE_VERSION(1, 0, 0),
-			pEngineName="No Engine",
-			engineVersion=VK_MAKE_VERSION(1, 0, 0),
-			apiVersion=VK_API_VERSION_1_0)
+			{
+			"sType": VK_STRUCTURE_TYPE_APPLICATION_INFO,
+			"pApplicationName": "Hello Triangle".encode("ascii"),
+			"applicationVersion": VK_MAKE_VERSION(1, 3, 0),
+			"pEngineName": "No Engine".encode("ascii"),
+			"engineVersion": VK_MAKE_VERSION(1, 3, 0),
+			"apiVersion": VK_MAKE_VERSION(1, 3, 0)
+			}
+			)
 
-		extensions = vkEnumerateInstanceExtensionProperties(None)
-		extensions = [e.extensionName for e in extensions]
+
+		# first, get the extension count
+		extensions = vkEnumerateInstanceExtensionProperties({"pLayerName" : None, "pProperties" : None})
+		extensions["pProperties"] = (VkExtensionProperties*extensions["pPropertyCount"][0])()
+		vkEnumerateInstanceExtensionProperties(extensions)
+	
 		print("available extensions: ")
-		for e in extensions:
-			print("    " + e)
-
-		self.layers = vkEnumerateInstanceLayerProperties()
-		self.layers = [l.layerName for l in self.layers]
-		print("available layers:")
-		for l in self.layers:
-			print("    " + l)
-
-		if 'VK_LAYER_KHRONOS_validation' in self.layers:
-			self.layers = ['VK_LAYER_KHRONOS_validation']
-		else:
-			self.layers = ['VK_LAYER_LUNARG_standard_validation']
-
-
+		self.activeExtentionCount = 0
+		estr = []
+		print(type(extensions["pProperties"]))
+		for e in extensions["pProperties"]:
+			estr += [str(bytearray(e.extensionName)[:255].decode("ascii"))]
+			extensions["pProperties"][self.activeExtentionCount].extensionName = e.extensionName
+			self.activeExtentionCount += 1
+		print(estr)
+		
+		
+		# get available layers
+		self.layers = vkEnumerateInstanceLayerProperties({"pLayerName" : None, "pProperties" : None})
+		self.layers["pProperties"] = (VkLayerProperties*self.layers["pPropertyCount"][0])()
+		vkEnumerateInstanceLayerProperties(self.layers)
+	
+		print("available layers: ")
+		self.activeLayerCount = 0
+		for e in self.layers["pProperties"]:
+			estr = str(bytearray(e.layerName)[:255].decode("ascii"))
+			print("    " + estr)
+			if 'VK_LAYER_KHRONOS_validation' in estr:
+				self.layers["pProperties"][self.activeLayerCount].layerName = e.layerName
+				self.activeLayerCount += 1
+			
 		createInfo = VkInstanceCreateInfo(
 			sType=VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
 			flags=0,
 			pApplicationInfo=appInfo,
-			enabledExtensionCount=len(extensions),
-			ppEnabledExtensionNames=extensions,
-			enabledLayerCount=len(self.layers),
-			ppEnabledLayerNames=self.layers)
+			enabledExtensionCount=self.activeExtentionCount,
+			ppEnabledExtensionNames=[e.extensionName for e in extensions["pProperties"]],
+			enabledLayerCount=self.activeLayerCount,
+			ppEnabledLayerNames=[l.layerName for l in self.layers["pProperties"]]
+			)
 
 		self.vkInstance = vkCreateInstance(createInfo, None)
 		

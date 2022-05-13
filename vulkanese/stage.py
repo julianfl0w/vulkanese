@@ -1,7 +1,7 @@
 import json
 from vutil import *
 import os
-from vulkan import *
+from jvulkan import *
 from buffer import *
 from pathlib import Path
 here = os.path.dirname(os.path.abspath(__file__))
