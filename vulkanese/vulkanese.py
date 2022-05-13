@@ -56,15 +56,13 @@ class Instance(Sinode):
 
 		#extensions = vkEnumerateInstanceExtensionProperties(None)
 		#extensions = [e.extensionName for e in extensions]
-		FUCKJESUS = (jvulkan.VkExtensionProperties*1200)()
-		print(type(FUCKJESUS))
 		print(jvulkan.jvulkanLib.vkEnumerateInstanceExtensionProperties.argtypes)
-		extensions_ctypes = jvulkan.vkEnumerateInstanceExtensionProperties({"pLayerName":None, "pProperties":FUCKJESUS})
-		print(extensions_ctypes)
-		jlog(extensions_ctypes["pPropertyCount"][0])
-		print(extensions_ctypes["pProperties"])
-		jlog(cast(extensions_ctypes["pProperties"], POINTER(VkExtensionProperties())))
-		extensions_ctypes = [e.extensionName for e in extensions_ctypes["pProperties"]]
+		extensions = jvulkan.vkEnumerateInstanceExtensionProperties({"pLayerName":None, "pProperties":None})
+		print(extensions)
+		jlog(extensions["pPropertyCount"][0])
+		print(extensions["pProperties"])
+		jlog(extensions["pProperties"][:])
+		extensions = [e.extensionName for e in extensions["pProperties"]]
 		jlog("available extensions: ")
 		for e in extensions:
 			jlog("    " + e)
