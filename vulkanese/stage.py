@@ -6,8 +6,6 @@ from buffer import *
 from pathlib import Path
 here = os.path.dirname(os.path.abspath(__file__))
 
-here = os.path.dirname(os.path.abspath(__file__))
-
 class Stage(Sinode):
 	def __init__(self, pipeline, setupDict):
 		Sinode.__init__(self, pipeline)
