@@ -27,8 +27,8 @@ else:
 # device selection and instantiation
 instance_inst = Instance()
 print("available Devices:")
-#for i, d in enumerate(instance_inst.getDeviceList()):
-#	print("    " + str(i) + ": " + d.deviceName)
+for i, d in enumerate(instance_inst.getDeviceList()):
+	print("    " + str(i) + ": " + d.deviceName)
 print("")
 
 # choose a device

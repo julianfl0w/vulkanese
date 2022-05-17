@@ -95,32 +95,38 @@ class Instance(Sinode):
 			}
 		)
 
-		self.vkInstance = vkCreateInstance({"pCreateInfo":createInfo, "pAllocator":None})['pInstance']
+		vkdict = vkCreateInstance({"pCreateInfo":createInfo, "pAllocator":None})
+		self.vkInstance = vkdict['pInstance']
+		jlog(vkdict)
+		jlog(self.vkInstance)
 		
 		# ----------
 		# Debug instance
-		jlog("getting db instances 1")
-		vkCreateDebugReportCallbackEXT = vkGetInstanceProcAddr({
-			"instance":self.vkInstance,
-			"pName"   :"vkCreateDebugReportCallbackEXT".encode('utf-8')})
-		jlog("getting db instances 2")
-		self.vkDestroyDebugReportCallbackEXT = vkGetInstanceProcAddr({
-			"instance":self.vkInstance,
-			"pName"   :"vkDestroyDebugReportCallbackEXT".encode('utf-8')})
-		jlog("getting db instances done")
-
-		def debugCallback(*args):
-			jlog('DEBUG: ' + args[5] + ' ' + args[6])
-			return 0
-
-		debug_create = VkDebugReportCallbackCreateInfoEXT({
-			"sType":VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,
-			"flags":VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT,
-			"pfnCallback":debugCallback})
-		self.callback = vkCreateDebugReportCallbackEXT({"instance" : self.vkInstance, "pCreateInfo":debug_create, "pAllocator": None})
+		#jlog("getting db instances 1") 
+		#vkCreateDebugReportCallbackEXT = vkGetInstanceProcAddr({
+		#	"instance":self.vkInstance,
+		#	"pName"   :"vkCreateDebugReportCallbackEXT".encode('utf-8')})
+		#jlog("getting db instances 2")
+		#self.vkDestroyDebugReportCallbackEXT = vkGetInstanceProcAddr({
+		#	"instance":self.vkInstance,
+		#	"pName"   :"vkDestroyDebugReportCallbackEXT".encode('utf-8')})
+		#jlog("getting db instances done")
+		#
+		#def debugCallback(*args):
+		#	jlog('DEBUG: ' + args[5] + ' ' + args[6])
+		#	return 0
+		#
+		#debug_create = VkDebugReportCallbackCreateInfoEXT({
+		#	"sType":VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,
+		#	"flags":VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT,
+		#	"pfnCallback":debugCallback})
+		#self.callback = vkCreateDebugReportCallbackEXT({"instance" : self.vkInstance, "pCreateInfo":debug_create, "pAllocator": None})
 
 	def getDeviceList(self):
-		self.physical_devices            = vkEnumeratePhysicalDevices(self.vkInstance)
+		jlog("getting dev list")
+		self.physical_devices            = vkEnumeratePhysicalDevices({"instance" : self.vkInstance})
+		jlog(self.physical_devices)
+		jlog(" dev list dpme")
 		return self.physical_devices
 			
 		
@@ -185,7 +191,7 @@ class Device(Sinode):
 		self.deviceIndex = deviceIndex
 		
 		jlog("initializing device " + str(deviceIndex))
-		self.physical_device = vkEnumeratePhysicalDevices(self.instance.vkInstance)[deviceIndex]
+		self.physical_device = vkEnumeratePhysicalDevices({"instance" : self.instance.vkInstance})[deviceIndex]
 		
 		jlog("getting features list")
 		
