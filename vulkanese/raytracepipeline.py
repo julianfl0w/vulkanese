@@ -1,4 +1,3 @@
-import ctypes
 import os
 import time
 import json
@@ -12,7 +11,6 @@ from vutil import *
 from vulkanese import *
 from PIL import Image as pilImage
 import faulthandler
-
 faulthandler.enable()
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -27,8 +25,28 @@ class StageIndices(Enum):
 	eClosestHit       = 3
 	eShaderGroupCount = 4
 	
+# WORKAROUND SEGFAULT
+class jbufferDeviceAddressInfo(Structure):
+	_fields_ = [("sType", c_long),
+			   ("pNext", c_void_p),
+			   ("buffer", c_void_p)]
+	
+def getAddressFromString(inobj):
+	return eval(inobj.__str__().split(" ")[-1][:-1])
+	
 class RaytracePipeline(Pipeline):
 	def __init__(self, device, setupDict):
+		
+		logger = logging.getLogger('dtfsdfm')
+		logger.setLevel(logging.DEBUG)
+
+		handler = logging.StreamHandler(sys.stdout)
+		handler.setLevel(logging.DEBUG)
+		formatter = logging.Formatter('{%(filename)s:%(lineno)d %(message)s}')
+		handler.setFormatter(formatter)
+		logger.addHandler(handler)
+		self.logger = logger
+
 		Pipeline.__init__(self, device, setupDict)
 		
 		self.stages = [s.shader_stage_create for s in self.stageDict.values()]
@@ -57,7 +75,7 @@ class RaytracePipeline(Pipeline):
 		self.SBTDict["hit"     ]["stage"] = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR
 		
 		for stage, stageDict in self.SBTDict.items():
-			print("processing RayTrace stage " + stage)
+			jlog("processing RayTrace stage " + stage)
 			for shader in self.stageDict.values():
 				if eval(shader.stage) & stageDict["stage"]:
 					#stageDict["size"  ] += shader.setupDict["SIZEBYTES"]
@@ -83,7 +101,7 @@ class RaytracePipeline(Pipeline):
 			
 			stageDict["buffer"] = Buffer(self.device, bufferDict)
 
-			print("getting device address")
+			jlog("getting device address")
 			
 			vkGetBufferDeviceAddress = vkGetInstanceProcAddr(self.instance.vkInstance, 'vkGetBufferDeviceAddressKHR')
 			print(self.vkDevice)
@@ -93,7 +111,25 @@ class RaytracePipeline(Pipeline):
 				stageDict["buffer"].bufferDeviceAddressInfo
 			)
 
-			print("creating strided region")
+			#jlog(stageDict["buffer"].bufferDeviceAddressInfo)
+			#jlog("SHIT " + str(vkGetBufferDeviceAddressKHR))
+			devaddr = int(ffi.cast("uintptr_t", self.vkDevice))
+			devaddr = c_void_p(devaddr)
+			#bufaddr = int(ffi.cast("uintptr_t", stageDict["buffer"].bufferDeviceAddressInfo))
+			bufaddr = stageDict["buffer"].bufferDeviceAddressInfo
+			jlog(devaddr)
+			jlog(hex(devaddr.value))
+			jlog(bufaddr)
+			jlog(bufaddr.sType)
+			jlog(bufaddr.pNext)
+			jlog(bufaddr.buffer)
+			jlog(stageDict["buffer"].setupDict["name"])
+			jvulkan.vkGetBufferDeviceAddress(
+				{"device" : devaddr, 
+				 "pInfo"  : pointer(bufaddr)}
+			)
+
+			jlog("creating strided region")
 			stageDict["vkStridedDeviceAddressRegion"] = \
 			VkStridedDeviceAddressRegionKHR(
 				deviceAddress = deviceAddress,
@@ -165,7 +201,7 @@ class RaytracePipeline(Pipeline):
 		self.sbt = ShaderBindingTable(self)
 		
 		# wrap it all up into a command buffer
-		print("Creating commandBuffer")
+		jlog("Creating commandBuffer")
 		self.commandBuffer = RaytraceCommandBuffer(self)
 		
 

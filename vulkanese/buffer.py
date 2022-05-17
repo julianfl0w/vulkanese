@@ -4,6 +4,7 @@ import os
 here = os.path.dirname(os.path.abspath(__file__))
 from vulkan import *
 import numpy as np 
+import jvulkan
 
 class Buffer(Sinode):
 
@@ -31,7 +32,7 @@ class Buffer(Sinode):
 		
 		print("creating buffer with description")
 		print(json.dumps(setupDict, indent=2))
-		
+		print(hex(eval(setupDict["usage"])))
 		# We will now create a buffer with these options
 		self.bufferCreateInfo = VkBufferCreateInfo(
 			sType=VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -76,9 +77,10 @@ class Buffer(Sinode):
 		self.pmap = vkMapMemory(self.vkDevice, self.vkDeviceMemory, 0, self.setupDict["SIZEBYTES"], 0)
 
 		self.bufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
+		
 			sType  = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
 			pNext  = None,
-			buffer = self.vkBuffer
+			buffer = int(ffi.cast("uintptr_t", self.vkBuffer))
 			)
 		print("finished creating buffer")
 
