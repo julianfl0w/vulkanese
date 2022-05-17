@@ -1,10 +1,10 @@
 import json
 from vutil import *
 import os
-here = os.path.dirname(os.path.abspath(__file__))
 from vulkan import *
 from buffer import *
 from pathlib import Path
+here = os.path.dirname(os.path.abspath(__file__))
 
 class Stage(Sinode):
 	def __init__(self, pipeline, setupDict):
@@ -79,9 +79,9 @@ class Stage(Sinode):
 		with open(setupDict["main"]) as f:
 			shader_spirv += f.read()
 			
-		print("---final Stage code---")
-		print(shader_spirv)
-		print("--- end Stage code ---")
+		#print("---final Stage code---")
+		#print(shader_spirv)
+		#print("--- end Stage code ---")
 		
 		print("compiling Stage")
 		compStagesPath = os.path.join(here, "compiledStages")
