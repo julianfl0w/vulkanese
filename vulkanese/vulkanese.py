@@ -129,6 +129,19 @@ class Device(Sinode):
         else:
             return value
 
+    # Returns the index of a queue family that supports compute operations.
+    def getComputeQueueFamilyIndex(self):
+        # Retrieve all queue families.
+        queueFamilies = vkGetPhysicalDeviceQueueFamilyProperties(self.physical_device)
+
+        # Now find a family that supports compute.
+        for i, props in enumerate(queueFamilies):
+            if props.queueCount > 0 and props.queueFlags & VK_QUEUE_COMPUTE_BIT:
+                # found a queue with compute. We're done!
+                return i
+
+        return -1
+    
     def applyLayout(self, setupDict):
         self.setupDict = self.nameSubdicts("root", setupDict)
         print(json.dumps(self.setupDict, indent=2))
@@ -293,6 +306,11 @@ class Device(Sinode):
             queueFamilyIndex=self.queue_family_present_index,
             queueIndex=0,
         )
+        self.compute_queue = vkGetDeviceQueue(
+            device=self.vkDevice,
+            queueFamilyIndex=self.getComputeQueueFamilyIndex(),
+            queueIndex=0,
+        )
 
         print("Logical device and graphic queue successfully created\n")
 
@@ -310,8 +328,6 @@ class Device(Sinode):
         self.descriptorPool = DescriptorPool(self)
         self.children += [self.descriptorPool]
 
-    def getBinding(self, buffer, bindName):
-        return self.descriptorPool.getBinding(buffer, bindName)
 
     def getFeatures(self):
 

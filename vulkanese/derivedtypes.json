@@ -41,6 +41,11 @@
 		"texCoord" : "vec2"
 	},
 
+	"Pixel":
+	{
+		"pos"      : "vec4"
+	},
+    
 	"WaveFrontMaterial":
 	{
 		"ambient"       : "vec3",

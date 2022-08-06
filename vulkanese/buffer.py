@@ -31,13 +31,14 @@ class Buffer(Sinode):
         device,
         name,
         location,
+        descriptorSet,
         usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        descriptorSet="global",
         rate=VK_VERTEX_INPUT_RATE_VERTEX,
         memProperties=VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
         sharingMode=VK_SHARING_MODE_EXCLUSIVE,
         SIZEBYTES=65536,
+        stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
         qualifier="in",
         type="vec3",
         format=VK_FORMAT_R32G32B32_SFLOAT,
@@ -56,6 +57,7 @@ class Buffer(Sinode):
         self.type = type
         self.stride = stride
         self.name=name
+        self.descriptorSet=descriptorSet
 
         print("creating buffer " + name)
 
@@ -109,6 +111,15 @@ class Buffer(Sinode):
             pNext=None,
             buffer=self.vkBuffer,
         )
+        
+        self.descriptorSetLayoutBinding = VkDescriptorSetLayoutBinding(
+            binding=self.descriptorSet.binding,
+            descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+            descriptorCount=1,
+            stageFlags=stageFlags,
+        )
+            
+        descriptorSet.buffers += [self]
         print("finished creating buffer")
 
     def saveAsImage(self, height, width, path="mandelbrot.png"):
@@ -200,13 +211,11 @@ class VertexBuffer(Buffer):
         format=format,
         stride=stride)
 
-        outfilename = os.path.join("resources", "standard_bindings.json")
+        outfilename = os.path.join(here, "resources", "standard_bindings.json")
         with open(outfilename, "r") as f:
             bindDict = json.loads(f.read())
 
-        self.binding = self.getAncestor("device").getBinding(
-            self, descriptorSet
-        )
+        self.binding = descriptorSet.binding
 
         # we will standardize its bindings with a attribute description
         self.attributeDescription = VkVertexInputAttributeDescription(

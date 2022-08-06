@@ -26,12 +26,11 @@ class Pipeline(Sinode):
     def __init__(
         self,
         device,
-        indexBuffer,
+        indexBuffer=None,
         stages=[],
         outputClass="surface",
         outputWidthPixels=500,
-        outputHeightPixels=500,
-        pipelineClass="vertex",
+        outputHeightPixels=500
     ):
         self.indexBuffer = indexBuffer
         Sinode.__init__(self, device)
@@ -66,9 +65,6 @@ class Pipeline(Sinode):
             self.surface = newSurface
             self.children += [self.surface]
 
-        self.pipelineClass = pipelineClass
-        self.outputWidthPixels = outputWidthPixels
-        self.outputHeightPixels = outputHeightPixels
 
         self.vkAcquireNextImageKHR = vkGetInstanceProcAddr(
             self.instance.vkInstance, "vkAcquireNextImageKHR"
@@ -79,21 +75,6 @@ class Pipeline(Sinode):
 
         self.children += self.stages
 
-        push_constant_ranges = VkPushConstantRange(stageFlags=0, offset=0, size=0)
-
-        self.pipelineCreateInfo = VkPipelineLayoutCreateInfo(
-            sType=VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            flags=0,
-            setLayoutCount=0,
-            pSetLayouts=None,
-            pushConstantRangeCount=0,
-            pPushConstantRanges=[push_constant_ranges],
-        )
-
-        self.pipelineLayout = vkCreatePipelineLayout(
-            self.vkDevice, self.pipelineCreateInfo, None
-        )
-        self.children += [self.pipelineLayout]
 
     def draw_frame(self):
         image_index = self.vkAcquireNextImageKHR(
@@ -121,14 +102,13 @@ class Pipeline(Sinode):
             stage.release()
 
         vkDestroyPipeline(self.vkDevice, self.vkPipeline, None)
-        vkDestroyPipelineLayout(self.vkDevice, self.pipelineLayout, None)
+        vkDestroyPipelineLayout(self.vkDevice, self.vkPipelineLayout, None)
 
-        print("releasing surface")
-        if self.surface is not None:
+        if hasattr(self, "surface"):
             print("releasing surface")
             self.surface.release()
 
-        if self.renderPass is not None:
+        if hasattr(self, "renderPass"):
             self.renderPass.release()
 
         self.commandBuffer.release()
@@ -137,27 +117,38 @@ class Pipeline(Sinode):
 # the compute pipeline is so much simpler than the old-school
 # graphics pipeline. it should be considered separately
 class ComputePipeline(Pipeline):
-    def __init__(self, device, setupDict):
-        Pipeline.__init__(self, device, setupDict)
+    def __init__(self, device, stages):
+        Pipeline.__init__(self, device, stages=stages, outputClass="image")
 
-        self.descriptorSet = DescriptorSet(device.descriptorPool)
+        self.descriptorSet = device.descriptorPool.descSetGlobal
 
         # The pipeline layout allows the pipeline to access descriptor sets.
         # So we just specify the descriptor set layout we created earlier.
         pipelineLayoutCreateInfo = VkPipelineLayoutCreateInfo(
             sType=VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             setLayoutCount=1,
-            pSetLayouts=[self.__descriptorSetLayout],
+            pSetLayouts=[device.descriptorPool.descSetGlobal.vkDescriptorSetLayout],
         )
-
-        self.pipelineLayout = vkCreatePipelineLayout(
+        
+        self.vkPipelineLayout = vkCreatePipelineLayout(
             self.vkDevice, pipelineLayoutCreateInfo, None
         )
-
+        
+        # Now let us actually create the compute pipeline.
+        # A compute pipeline is very simple compared to a graphics pipeline.
+        # It only consists of a single stage with a compute shader.
+        # So first we specify the compute shader stage, and it's entry point(main).
+        shaderStageCreateInfo = VkPipelineShaderStageCreateInfo(
+            sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            stage=VK_SHADER_STAGE_COMPUTE_BIT,
+            module=stages[0].vkShaderModule,
+            pName='main'
+        )
+        
         self.pipelineCreateInfo = VkComputePipelineCreateInfo(
             sType=VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
             stage=shaderStageCreateInfo,
-            layout=self.pipelineLayout,
+            layout=self.vkPipelineLayout,
         )
 
         # Now, we finally create the compute pipeline.
@@ -165,8 +156,11 @@ class ComputePipeline(Pipeline):
             self.vkDevice, VK_NULL_HANDLE, 1, self.pipelineCreateInfo, None
         )
         if len(pipelines) == 1:
-            self.__pipeline = pipelines[0]
+            self.vkPipeline = pipelines[0]
 
+        self.children += [pipelines]
+        # wrap it all up into a command buffer
+        self.commandBuffer = ComputeCommandBuffer(self)
 
 class RasterPipeline(Pipeline):
     def __init__(
@@ -189,6 +183,22 @@ class RasterPipeline(Pipeline):
         outputWidthPixels =outputWidthPixels,
         outputHeightPixels=outputHeightPixels)
 
+        push_constant_ranges = VkPushConstantRange(stageFlags=0, offset=0, size=0)
+
+        self.pipelineCreateInfo = VkPipelineLayoutCreateInfo(
+            sType=VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            flags=0,
+            setLayoutCount=0,
+            pSetLayouts=None,
+            pushConstantRangeCount=0,
+            pPushConstantRanges=[push_constant_ranges],
+        )
+
+        self.vkPipelineLayout = vkCreatePipelineLayout(
+            self.vkDevice, self.pipelineCreateInfo, None
+        )
+        self.children += [self.vkPipelineLayout]
+        
         # Create a generic render pass
         self.renderPass = RenderPass(self, oversample=oversample, surface=self.surface)
         self.children += [self.renderPass]
@@ -306,7 +316,7 @@ class RasterPipeline(Pipeline):
             pDepthStencilState=None,
             pColorBlendState=color_blend_create,
             pDynamicState=None,
-            layout=self.pipelineLayout,
+            layout=self.vkPipelineLayout,
             renderPass=self.renderPass.vkRenderPass,
             subpass=0,
             basePipelineHandle=None,

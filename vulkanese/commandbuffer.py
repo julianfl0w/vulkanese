@@ -4,7 +4,7 @@ import os
 
 here = os.path.dirname(os.path.abspath(__file__))
 from vulkan import *
-
+import math
 
 class CommandBuffer(Sinode):
     def __init__(self, pipeline):
@@ -160,6 +160,38 @@ class RasterCommandBuffer(CommandBuffer):
         # Fix #55 but downgrade performance -1000FPS)
         vkQueueWaitIdle(self.device.presentation_queue)
 
+
+class ComputeCommandBuffer(CommandBuffer):
+    def __init__(self, pipeline):
+        CommandBuffer.__init__(self, pipeline)
+        self.vkCommandBuffer = self.vkCommandBuffers[0]
+        # Now we shall start recording commands into the newly allocated command buffer.
+        beginInfo = VkCommandBufferBeginInfo(
+            sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            # the buffer is only submitted and used once in this application.
+            flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+        )
+        vkBeginCommandBuffer(self.vkCommandBuffer, beginInfo)
+
+        # We need to bind a pipeline, AND a descriptor set before we dispatch.
+        # The validation layer will NOT give warnings if you forget these, so be very careful not to forget them.
+        vkCmdBindPipeline(self.vkCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, self.pipeline.vkPipeline)
+        vkCmdBindDescriptorSets(self.vkCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, self.pipeline.vkPipelineLayout,
+                                0, 1, [self.pipeline.device.descriptorPool.descSetGlobal.vkDescriptorSet], 0, None)
+
+        WIDTH = 3200  # Size of rendered mandelbrot set.
+        HEIGHT = 2400  # Size of renderered mandelbrot set.
+        WORKGROUP_SIZE = 32  # Workgroup size in compute shader.
+
+        # Calling vkCmdDispatch basically starts the compute pipeline, and executes the compute shader.
+        # The number of workgroups is specified in the arguments.
+        # If you are already familiar with compute shaders from OpenGL, this should be nothing new to you.
+        vkCmdDispatch(self.vkCommandBuffer,
+                      int(math.ceil(WIDTH / float(WORKGROUP_SIZE))),  # int for py2 compatible
+                      int(math.ceil(HEIGHT / float(WORKGROUP_SIZE))),  # int for py2 compatible
+                      1)
+
+        vkEndCommandBuffer(self.vkCommandBuffer)
 
 class RaytraceCommandBuffer(CommandBuffer):
     def __init__(self, pipeline):

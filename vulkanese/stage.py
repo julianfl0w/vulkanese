@@ -37,21 +37,23 @@ class Stage(Sinode):
         shader_spirv = header
 
         shader_spirv += "\n"
-        with open(os.path.join(here, "derivedtypes.json"), "r") as f:
-            derivedDict = json.loads(f.read())
-            for structName, composeDict in derivedDict.items():
-                shader_spirv += "struct " + structName + "\n"
-                shader_spirv += "{\n"
-                for name, ctype in composeDict.items():
-                    shader_spirv += "    " + ctype + " " + name + ";\n"
+        if stage != VK_SHADER_STAGE_COMPUTE_BIT:
+            with open(os.path.join(here, "derivedtypes.json"), "r") as f:
+                derivedDict = json.loads(f.read())
+                for structName, composeDict in derivedDict.items():
+                    shader_spirv += "struct " + structName + "\n"
+                    shader_spirv += "{\n"
+                    for name, ctype in composeDict.items():
+                        shader_spirv += "    " + ctype + " " + name + ";\n"
 
-                shader_spirv += "};\n\n"
+                    shader_spirv += "};\n\n"
 
         self.children += buffers
         
         # novel INPUT buffers belong to THIS Stage (others are linked)
         for buffer in buffers:
-            shader_spirv += buffer.getDeclaration()
+            if stage != VK_SHADER_STAGE_COMPUTE_BIT:
+                shader_spirv += buffer.getDeclaration()
             if buffer.name == "INDEX":
                 self.pipeline.indexBuffer = buffer
 
@@ -77,7 +79,7 @@ class Stage(Sinode):
         # Create Stage
         self.shader_create = VkShaderModuleCreateInfo(
             sType=VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-            flags=0,
+            #flags=0,
             codeSize=len(shader_spirv),
             pCode=shader_spirv,
         )

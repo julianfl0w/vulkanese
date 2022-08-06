@@ -40,21 +40,15 @@ device = instance_inst.getDevice(0)
 # vertex stage
 # buffers
 location = 0
-position = VertexBuffer(device=device,
-    name="position",
-   location=location)
+position = VertexBuffer(device=device, name="position", location=location)
 location += position.getSize()
-normal = VertexBuffer(device=device,
-    name="normal",
-   location=location)
+normal = VertexBuffer(device=device, name="normal", location=location)
 location += normal.getSize()
-color = VertexBuffer(device=device,
-    name="color",
-   location=location)
+color = VertexBuffer(device=device, name="color", location=location)
 location += color.getSize()
 index = VertexBuffer(
     name="index",
-   location=location,
+    location=location,
     device=device,
     type="uint",
     usage=VK_BUFFER_USAGE_TRANSFER_DST_BIT
@@ -65,9 +59,9 @@ index = VertexBuffer(
 )
 location += index.getSize()
 
-fragColor = Buffer(device=device, type="vec3", qualifier="out",
-    name="fragColor",
-   location=location)
+fragColor = Buffer(
+    device=device, type="vec3", qualifier="out", name="fragColor", location=location
+)
 
 main = """
 void main() {                         
@@ -86,7 +80,7 @@ vertex = Stage(
     device=device,
     name="passthrough.vert",
     stage=VK_SHADER_STAGE_VERTEX_BIT,
-    existingBuffers = existingBuffers,
+    existingBuffers=existingBuffers,
     outputWidthPixels=700,
     outputHeightPixels=700,
     header=header,
@@ -97,7 +91,7 @@ vertex = Stage(
 #######################################################
 # fragment stage
 # buffers,
-location=0
+location = 0
 outColor = Buffer(
     device=device,
     name="outColor",
@@ -112,11 +106,11 @@ outColor = Buffer(
     rate=VK_VERTEX_INPUT_RATE_VERTEX,
     memProperties=VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
     | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-   location=location
+    location=location,
 )
 location += fragColor.getSize()
 outColor.location = 0
-#fragColor.location= 1
+# fragColor.location= 1
 fragColor.qualifier = "in"
 # Stage
 existingBuffers += [fragColor, outColor]
@@ -133,7 +127,7 @@ void main() {
 fragment = Stage(
     device=device,
     name="passthrough.frag",
-    existingBuffers = existingBuffers,
+    existingBuffers=existingBuffers,
     stage=VK_SHADER_STAGE_FRAGMENT_BIT,
     outputWidthPixels=700,
     outputHeightPixels=700,
@@ -147,7 +141,7 @@ fragment = Stage(
 
 rasterPipeline = RasterPipeline(
     device=device,
-    indexBuffer = index,
+    indexBuffer=index,
     stages=[vertex, fragment],
     culling=VK_CULL_MODE_BACK_BIT,
     oversample=VK_SAMPLE_COUNT_1_BIT,
@@ -203,9 +197,7 @@ while running:
     pyramidMesh.rotate(R, center=(0, 0, TRANSLATION[2]))
     meshVert = np.asarray(pyramidMesh.vertices, dtype="f4")
     # print(np.asarray(pyramidMesh.vertices).flatten())
-    index.setBuffer(
-        np.asarray(pyramidMesh.triangles, dtype="u4").flatten()
-    )
+    index.setBuffer(np.asarray(pyramidMesh.triangles, dtype="u4").flatten())
 
     position.setBuffer(meshVert)
     pyramidVerticesColorHSV[:, :, 0] = np.fmod(
@@ -213,7 +205,6 @@ while running:
     )
     # pyramidVerticesColor =  cv.cvtColor(pyramidVerticesColorHSV, cv.COLOR_HSV2RGB)
     vp = pyramidVerticesColor.flatten()
-    print(vp)
     color.setBuffer(vp)
     # draw the frame!
     rasterPipeline.draw_frame()
