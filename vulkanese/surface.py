@@ -91,8 +91,8 @@ class Surface(Sinode):
         self.running = True
         self.pipeline = pipeline
 
-        self.WIDTH = pipeline.setupDict["outputWidthPixels"]
-        self.HEIGHT = pipeline.setupDict["outputHeightPixels"]
+        self.WIDTH = pipeline.outputWidthPixels
+        self.HEIGHT = pipeline.outputHeightPixels
         self.extent = VkExtent2D(width=self.WIDTH, height=self.HEIGHT)
 
         self.instance = instance

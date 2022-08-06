@@ -2,10 +2,10 @@ import json
 from vutil import *
 import os
 
-here = os.path.dirname(os.path.abspath(__file__))
 from vulkan import *
 import numpy as np
 
+here = os.path.dirname(os.path.abspath(__file__))
 
 class Buffer(Sinode):
 
@@ -26,27 +26,45 @@ class Buffer(Sinode):
 
         return -1
 
-    def __init__(self, device, setupDict):
+    def __init__(
+        self,
+        device,
+        name,
+        location,
+        usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        descriptorSet="global",
+        rate=VK_VERTEX_INPUT_RATE_VERTEX,
+        memProperties=VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+        sharingMode=VK_SHARING_MODE_EXCLUSIVE,
+        SIZEBYTES=65536,
+        qualifier="in",
+        type="vec3",
+        format=VK_FORMAT_R32G32B32_SFLOAT,
+        stride=12,
+    ):
         # this should be fixed in vulkan wrapper
+        self.released = False
         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT = 0x00020000
-
+        self.usage = usage
         Sinode.__init__(self, device)
-        self.setupDict = setupDict
         self.device = device
+        self.location =location
         self.vkDevice = device.vkDevice
-        self.size = setupDict["SIZEBYTES"]
+        self.size = SIZEBYTES
+        self.qualifier = qualifier
+        self.type = type
+        self.stride = stride
+        self.name=name
 
-        print("creating buffer with description")
-        print(json.dumps(setupDict, indent=2))
+        print("creating buffer " + name)
 
         # We will now create a buffer with these options
         self.bufferCreateInfo = VkBufferCreateInfo(
             sType=VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-            size=setupDict["SIZEBYTES"],  # buffer size in bytes.
-            usage=eval(setupDict["usage"]),  # buffer is used as a storage buffer.
-            sharingMode=eval(
-                setupDict["sharingMode"]
-            ),  # buffer is exclusive to a single queue family at a time.
+            size=SIZEBYTES,  # buffer size in bytes.
+            usage=usage,  # buffer is used as a storage buffer.
+            sharingMode=sharingMode,  # buffer is exclusive to a single queue family at a time.
         )
         print(self.vkDevice)
         print(self.bufferCreateInfo)
@@ -67,7 +85,7 @@ class Buffer(Sinode):
         # visible to the host(CPU), without having to call any extra flushing commands. So mainly for convenience, we set
         # this flag.
         index = self.findMemoryType(
-            memoryRequirements.memoryTypeBits, eval(setupDict["memProperties"])
+            memoryRequirements.memoryTypeBits, memProperties
         )
         # Now use obtained memory requirements info to allocate the memory for the buffer.
         self.allocateInfo = VkMemoryAllocateInfo(
@@ -84,9 +102,7 @@ class Buffer(Sinode):
         vkBindBufferMemory(self.vkDevice, self.vkBuffer, self.vkDeviceMemory, 0)
 
         # Map the buffer memory, so that we can read from it on the CPU.
-        self.pmap = vkMapMemory(
-            self.vkDevice, self.vkDeviceMemory, 0, self.setupDict["SIZEBYTES"], 0
-        )
+        self.pmap = vkMapMemory(self.vkDevice, self.vkDeviceMemory, 0, SIZEBYTES, 0)
 
         self.bufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
             sType=VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
@@ -115,90 +131,132 @@ class Buffer(Sinode):
         image.save(path)
 
     def release(self):
-        print("destroying buffer " + self.setupDict["name"])
-        vkFreeMemory(self.vkDevice, self.vkDeviceMemory, None)
-        vkDestroyBuffer(self.vkDevice, self.vkBuffer, None)
+        if not self.released:
+            print("destroying buffer " + self.name)
+            vkFreeMemory(self.vkDevice, self.vkDeviceMemory, None)
+            vkDestroyBuffer(self.vkDevice, self.vkBuffer, None)
+            self.released = True
 
     def getDeclaration(self):
-        bufferDict = self.setupDict
         return (
             "layout (location = "
-            + str(bufferDict["location"])
+            + str(self.location)
             + ") "
-            + bufferDict["qualifier"]
+            + self.qualifier
             + " "
-            + bufferDict["type"]
+            + self.type
             + " "
-            + bufferDict["name"]
+            + self.name
             + ";\n"
         )
 
     def setBuffer(self, data):
         self.pmap[: data.size * data.itemsize] = data
 
+    def getSize(self):
+        with open(os.path.join(here, "derivedtypes.json"), "r") as f:
+            derivedDict = json.loads(f.read())
+        with open(os.path.join(here, "ctypes.json"), "r") as f:
+            cDict = json.loads(f.read())
+        size = 0
+        if self.type in derivedDict.keys():
+            for subtype in derivedDict[self.type]:
+                size += self.getSize(subtype)
+        else:
+            size += 1
+        return int(size)
+
 class VertexBuffer(Buffer):
-    def __init__(self, device, setupDict):
-        Buffer.__init__(self, device, setupDict)
+    def __init__(
+        self,
+        device,
+        name,
+        location,
+        usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        descriptorSet="global",
+        rate=VK_VERTEX_INPUT_RATE_VERTEX,
+        memProperties=VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+        sharingMode=VK_SHARING_MODE_EXCLUSIVE,
+        SIZEBYTES=65536,
+        qualifier="in",
+        type="vec3",
+        format=VK_FORMAT_R32G32B32_SFLOAT,
+        stride=12):
+        
+        Buffer.__init__(
+        self=self,
+        location=location,
+        device=device,
+        name=name,
+        usage=usage,
+        descriptorSet=descriptorSet,
+        rate=rate,
+        memProperties=memProperties,
+        sharingMode=sharingMode,
+        SIZEBYTES=SIZEBYTES,
+        qualifier=qualifier,
+        type=type,
+        format=format,
+        stride=stride)
 
         outfilename = os.path.join("resources", "standard_bindings.json")
         with open(outfilename, "r") as f:
             bindDict = json.loads(f.read())
 
         self.binding = self.getAncestor("device").getBinding(
-            self, setupDict["descriptorSet"]
+            self, descriptorSet
         )
-        self.setupDict["binding"] = self.binding
 
         # we will standardize its bindings with a attribute description
         self.attributeDescription = VkVertexInputAttributeDescription(
             binding=self.binding,
-            location=setupDict["location"],
-            format=eval(setupDict["format"]),  # single, 4 bytes
+            location=self.location,
+            format=format,  # single, 4 bytes
             offset=0,
         )
         # ^^ Consider VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^
         self.bindingDescription = VkVertexInputBindingDescription(
             binding=self.binding,
-            stride=setupDict["stride"],  # 4 bytes/element
-            inputRate=eval(setupDict["rate"]),
+            stride=stride,  # 4 bytes/element
+            inputRate=rate
         )
 
         # Every buffer contains its own info for descriptor set
         # Next, we need to connect our actual storage buffer with the descrptor.
         # We use vkUpdateDescriptorSets() to update the descriptor set.
         self.descriptorBufferInfo = VkDescriptorBufferInfo(
-            buffer=self.vkBuffer, offset=0, range=setupDict["SIZEBYTES"]
+            buffer=self.vkBuffer, offset=0, range=SIZEBYTES
         )
 
         # VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
         # VK_VERTEX_INPUT_RATE_INSTANCE: Move to the next data entry after each instance
 
     def getDeclaration(self):
-        bufferDict = self.setupDict
-        if "uniform" in bufferDict["qualifier"]:
+        if "uniform" in self.qualifier:
             return (
                 "layout (location = "
-                + str(bufferDict["location"])
+                + str(self.location)
                 + ", binding = "
-                + str(bufferDict["binding"])
+                + str(self.binding)
                 + ") "
-                + bufferDict["qualifier"]
+                + self.qualifier
                 + " "
-                + bufferDict["type"]
+                + self.type
                 + " "
-                + bufferDict["name"]
+                + self.name
                 + ";\n"
             )
         else:
             return (
                 "layout (location = "
-                + str(bufferDict["location"])
+                + str(self.location)
                 + ") "
-                + bufferDict["qualifier"]
+                + self.qualifier
                 + " "
-                + bufferDict["type"]
+                + self.type
                 + " "
-                + bufferDict["name"]
+                + self.name
                 + ";\n"
             )
 
@@ -251,8 +309,8 @@ class AccelerationStructure(DescriptorSetBuffer):
         self.vkCommandPool = self.pipeline.device.vkCommandPool
         self.device = self.pipeline.device
         self.vkDevice = self.pipeline.device.vkDevice
-        self.outputWidthPixels = self.pipeline.setupDict["outputWidthPixels"]
-        self.outputHeightPixels = self.pipeline.setupDict["outputHeightPixels"]
+        self.outputWidthPixels = self.pipeline.outputWidthPixels
+        self.outputHeightPixels = self.pipeline.outputHeightPixels
 
 
 class AccelerationStructureNV(AccelerationStructure):

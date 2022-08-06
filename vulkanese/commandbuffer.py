@@ -10,16 +10,15 @@ class CommandBuffer(Sinode):
     def __init__(self, pipeline):
         Sinode.__init__(self, pipeline)
         self.pipeline = pipeline
-        self.pipelineDict = pipeline.setupDict
         self.vkCommandPool = pipeline.device.vkCommandPool
         self.device = pipeline.device
         self.vkDevice = pipeline.device.vkDevice
-        self.outputWidthPixels = self.pipelineDict["outputWidthPixels"]
-        self.outputHeightPixels = self.pipelineDict["outputHeightPixels"]
+        self.outputWidthPixels  = pipeline.outputWidthPixels
+        self.outputHeightPixels = pipeline.outputHeightPixels
         self.commandBufferCount = 0
 
         # assume triple-buffering for surfaces
-        if self.pipelineDict["outputClass"] == "surface":
+        if pipeline.outputClass == "surface":
             print("allocating 3 command buffers, one for each image")
             self.commandBufferCount += 3
         # single-buffering for images
@@ -94,20 +93,18 @@ class RasterCommandBuffer(CommandBuffer):
             for i, buffer in enumerate(allBuffers):
                 print("-------------------------")
                 print(i)
-                print(json.dumps(buffer.setupDict, indent=4))
             allVertexBuffers = [
                 b
                 for b in allBuffers
                 if (
-                    eval(b.setupDict["usage"]) & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
-                    or b.setupDict["name"] == "index"
+                    b.usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+                    or b.name == "index"
                 )
             ]
             print("--- ALL VERTEX BUFFERS ---")
             for i, buffer in enumerate(allVertexBuffers):
                 print("-------------------------")
                 print(i)
-                print(json.dumps(buffer.setupDict, indent=4))
 
             allVertexBuffersVk = [b.vkBuffer for b in allVertexBuffers]
 
@@ -124,7 +121,7 @@ class RasterCommandBuffer(CommandBuffer):
 
             vkCmdBindIndexBuffer(
                 commandBuffer=vkCommandBuffer,
-                buffer=pipeline.getBuffDict()["index"].vkBuffer,
+                buffer=pipeline.indexBuffer.vkBuffer,
                 offset=0,
                 indexType=VK_INDEX_TYPE_UINT32,
             )

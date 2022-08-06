@@ -100,7 +100,7 @@ class DescriptorSet(Sinode):
         # this gets set in buffer
         # buffer.binding = len(self.buffers.values())
         thisIndex = len(self.buffers.values())
-        self.buffers[buffer.setupDict["name"]] = buffer
+        self.buffers[buffer.name] = buffer
         return thisIndex
 
     def finalize(self):

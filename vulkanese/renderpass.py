@@ -7,7 +7,7 @@ from vulkan import *
 
 
 class RenderPass(Sinode):
-    def __init__(self, pipeline, setupDict, surface):
+    def __init__(self, pipeline, oversample, surface):
         Sinode.__init__(self, pipeline)
         self.pipeline = pipeline
         self.surface = surface
@@ -18,7 +18,7 @@ class RenderPass(Sinode):
         color_attachement = VkAttachmentDescription(
             flags=0,
             format=self.surface.surface_format.format,
-            samples=eval(setupDict["oversample"]),
+            samples=oversample,
             loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR,
             storeOp=VK_ATTACHMENT_STORE_OP_STORE,
             stencilLoadOp=VK_ATTACHMENT_LOAD_OP_DONT_CARE,

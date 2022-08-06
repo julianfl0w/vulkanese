@@ -23,15 +23,27 @@ def getVulkanesePath():
 # at least 1 stage
 # an output size
 class Pipeline(Sinode):
-    def __init__(self, device, setupDict):
-
+    def __init__(
+        self,
+        device,
+        indexBuffer,
+        stages=[],
+        outputClass="surface",
+        outputWidthPixels=500,
+        outputHeightPixels=500,
+        pipelineClass="vertex",
+    ):
+        self.indexBuffer = indexBuffer
         Sinode.__init__(self, device)
         self.location = 0
-
-        self.setupDict = setupDict
+        self.outputClass = outputClass
         self.vkDevice = device.vkDevice
         self.device = device
         self.instance = device.instance
+        self.outputWidthPixels  = outputWidthPixels 
+        self.outputHeightPixels = outputHeightPixels
+        # Add Stages
+        self.stages = stages
 
         # Create semaphores
         semaphore_create = VkSemaphoreCreateInfo(
@@ -49,14 +61,14 @@ class Pipeline(Sinode):
         self.signal_semaphores = [self.semaphore_render_finished]
 
         # Create a surface, if indicated
-        if setupDict["outputClass"] == "surface":
+        if outputClass == "surface":
             newSurface = Surface(self.device.instance, self.device, self)
             self.surface = newSurface
             self.children += [self.surface]
 
-        self.pipelineClass = setupDict["class"]
-        self.outputWidthPixels = setupDict["outputWidthPixels"]
-        self.outputHeightPixels = setupDict["outputHeightPixels"]
+        self.pipelineClass = pipelineClass
+        self.outputWidthPixels = outputWidthPixels
+        self.outputHeightPixels = outputHeightPixels
 
         self.vkAcquireNextImageKHR = vkGetInstanceProcAddr(
             self.instance.vkInstance, "vkAcquireNextImageKHR"
@@ -64,13 +76,6 @@ class Pipeline(Sinode):
         self.vkQueuePresentKHR = vkGetInstanceProcAddr(
             self.instance.vkInstance, "vkQueuePresentKHR"
         )
-
-        # Add Stages
-        self.stages = []
-        for key, value in setupDict["stage"].items():
-            if key == "name":
-                continue
-            self.stages += Stage(self, value)
 
         self.children += self.stages
 
@@ -144,6 +149,7 @@ class ComputePipeline(Pipeline):
             setLayoutCount=1,
             pSetLayouts=[self.__descriptorSetLayout],
         )
+
         self.pipelineLayout = vkCreatePipelineLayout(
             self.vkDevice, pipelineLayoutCreateInfo, None
         )
@@ -163,11 +169,28 @@ class ComputePipeline(Pipeline):
 
 
 class RasterPipeline(Pipeline):
-    def __init__(self, device, setupDict):
-        Pipeline.__init__(self, device, setupDict)
+    def __init__(
+        self,
+        device,
+        indexBuffer,
+        stages,
+        culling=VK_CULL_MODE_BACK_BIT,
+        oversample=VK_SAMPLE_COUNT_1_BIT,
+        outputClass="surface",
+        outputWidthPixels=700,
+        outputHeightPixels=700,
+    ):
+
+        Pipeline.__init__(self, 
+        device=device,
+        stages=stages,
+        indexBuffer=indexBuffer,
+        outputClass=outputClass,
+        outputWidthPixels =outputWidthPixels,
+        outputHeightPixels=outputHeightPixels)
 
         # Create a generic render pass
-        self.renderPass = RenderPass(self, setupDict, self.surface)
+        self.renderPass = RenderPass(self, oversample=oversample, surface=self.surface)
         self.children += [self.renderPass]
 
         # get global lists
@@ -225,7 +248,7 @@ class RasterPipeline(Pipeline):
             rasterizerDiscardEnable=VK_FALSE,
             polygonMode=VK_POLYGON_MODE_FILL,
             lineWidth=1,
-            cullMode=eval(setupDict["culling"]),
+            cullMode=culling,
             frontFace=VK_FRONT_FACE_CLOCKWISE,
             depthBiasEnable=VK_FALSE,
             depthBiasConstantFactor=0.0,
@@ -237,7 +260,7 @@ class RasterPipeline(Pipeline):
             sType=VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
             flags=0,
             sampleShadingEnable=VK_FALSE,
-            rasterizationSamples=eval(setupDict["oversample"]),
+            rasterizationSamples=oversample,
             minSampleShading=1,
             pSampleMask=None,
             alphaToCoverageEnable=VK_FALSE,
@@ -299,4 +322,3 @@ class RasterPipeline(Pipeline):
 
         # wrap it all up into a command buffer
         self.commandBuffer = RasterCommandBuffer(self)
-

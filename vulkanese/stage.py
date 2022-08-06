@@ -11,36 +11,30 @@ here = os.path.dirname(os.path.abspath(__file__))
 class Stage(Sinode):
     def __init__(
         self,
-        pipeline,
-        setupDict,
+        device,
+        header,
+        main,
+        existingBuffers,
         outputWidthPixels=500,
         outputHeightPixels=500,
-        stage="vertex",
+        stage=VK_SHADER_STAGE_VERTEX_BIT,
         name="mandlebrot",
-        buffers = []
+        buffers=[],
     ):
-        Sinode.__init__(self, pipeline)
-        self.vkInstance = pipeline.instance.vkInstance
-        self.vkDevice = pipeline.device.vkDevice
-        self.setupDict = setupDict
-        self.pipeline = pipeline
+        baseFilename = name
+        Sinode.__init__(self, None)
+        self.vkDevice = device.vkDevice
+        self.device = device
         self.name = name
         self.outputWidthPixels = outputWidthPixels
         self.outputHeightPixels = outputHeightPixels
         self.stage = stage
-        print("creating Stage with description")
-        print(json.dumps(setupDict, indent=4))
+        print("creating Stage " + str(stage))
 
         # attributes are ex. location, normal, color
-        self.buffers = {}
-        if stage="vertex":
-            baseFilename = name + ".vert"
-            
-        headerFilename = baseFilename + ".header"
-        mainFilename   = baseFilename + ".main"
+        self.buffers = buffers
         
-        with open(headerFilename) as f:
-            shader_spirv = f.read()
+        shader_spirv = header
 
         shader_spirv += "\n"
         with open(os.path.join(here, "derivedtypes.json"), "r") as f:
@@ -53,39 +47,15 @@ class Stage(Sinode):
 
                 shader_spirv += "};\n\n"
 
-        location = 0
-
+        self.children += buffers
+        
         # novel INPUT buffers belong to THIS Stage (others are linked)
         for buffer in buffers:
+            shader_spirv += buffer.getDeclaration()
+            if buffer.name == "INDEX":
+                self.pipeline.indexBuffer = buffer
 
-            bufferMatch = False
-            for existingBuffer in pipeline.getAllBuffers():
-                print(buffer.name + " : " + existingBuffer.name)
-                if buffer.name == existingBuffer.name:
-                    print(buffer.name + " exists already. linking")
-                    bufferMatch = existingBuffer
-
-            if bufferMatch:
-                shader_spirv += bufferMatch.getDeclaration()
-
-            else:
-                buffer.location = location
-                location += self.getSize(buffer.type)
-
-                if stage == "vertex":
-                    newBuffer = VertexBuffer(pipeline.device, bufferDict)
-                else:
-                    newBuffer = Buffer(pipeline.device, bufferDict)
-
-                shader_spirv += newBuffer.getDeclaration()
-
-                self.children += [buffer]
-
-                if buffer.name == "INDEX":
-                    self.pipeline.indexBuffer = buffer
-
-        with open(setupDict["main"]) as f:
-            shader_spirv += f.read()
+        shader_spirv += main
 
         # print("---final Stage code---")
         # print(shader_spirv)
@@ -95,7 +65,7 @@ class Stage(Sinode):
         compStagesPath = os.path.join(here, "compiledStages")
         compStagesPath = "compiledStages"
         Path(compStagesPath).mkdir(parents=True, exist_ok=True)
-		
+
         with open(baseFilename, "w+") as f:
             f.write(shader_spirv)
 
@@ -126,22 +96,10 @@ class Stage(Sinode):
             pName="main",
         )
 
-    def getSize(self, bufftype):
-        with open(os.path.join(here, "derivedtypes.json"), "r") as f:
-            derivedDict = json.loads(f.read())
-        with open(os.path.join(here, "ctypes.json"), "r") as f:
-            cDict = json.loads(f.read())
-        size = 0
-        if bufftype in derivedDict.keys():
-            for subtype in derivedDict[bufftype]:
-                size += self.getSize(subtype)
-        else:
-            size += 1
-        return size
 
     def getVertexBuffers(self):
         allVertexBuffers = []
-        for b in self.buffers.values():
+        for b in self.buffers:
             if type(b) == VertexBuffer:
                 allVertexBuffers += [b]
         return allVertexBuffers
