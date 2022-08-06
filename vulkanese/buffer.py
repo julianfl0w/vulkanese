@@ -133,6 +133,8 @@ class Buffer(Sinode):
             + ";\n"
         )
 
+    def setBuffer(self, data):
+        self.pmap[: data.size * data.itemsize] = data
 
 class VertexBuffer(Buffer):
     def __init__(self, device, setupDict):

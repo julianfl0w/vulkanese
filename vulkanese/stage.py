@@ -16,13 +16,15 @@ class Stage(Sinode):
         outputWidthPixels=500,
         outputHeightPixels=500,
         stage="vertex",
-        header="",
+        name="mandlebrot",
+        buffers = []
     ):
         Sinode.__init__(self, pipeline)
         self.vkInstance = pipeline.instance.vkInstance
         self.vkDevice = pipeline.device.vkDevice
         self.setupDict = setupDict
         self.pipeline = pipeline
+        self.name = name
         self.outputWidthPixels = outputWidthPixels
         self.outputHeightPixels = outputHeightPixels
         self.stage = stage
@@ -31,8 +33,13 @@ class Stage(Sinode):
 
         # attributes are ex. location, normal, color
         self.buffers = {}
-
-        with open(setupDict["header"]) as f:
+        if stage="vertex":
+            baseFilename = name + ".vert"
+            
+        headerFilename = baseFilename + ".header"
+        mainFilename   = baseFilename + ".main"
+        
+        with open(headerFilename) as f:
             shader_spirv = f.read()
 
         shader_spirv += "\n"
@@ -49,41 +56,33 @@ class Stage(Sinode):
         location = 0
 
         # novel INPUT buffers belong to THIS Stage (others are linked)
-        for bufferName, bufferDict in setupDict["buffers"].items():
-            if type(bufferDict) is not dict:
-                continue
-            for k, v in setupDict["defaultbuffer"].items():
-                if k not in bufferDict.keys():
-                    bufferDict[k] = v
+        for buffer in buffers:
 
             bufferMatch = False
             for existingBuffer in pipeline.getAllBuffers():
-                print(bufferDict["name"] + " : " + existingBuffer.setupDict["name"])
-                if bufferDict["name"] == existingBuffer.setupDict["name"]:
-                    print(bufferDict["name"] + " exists already. linking")
+                print(buffer.name + " : " + existingBuffer.name)
+                if buffer.name == existingBuffer.name:
+                    print(buffer.name + " exists already. linking")
                     bufferMatch = existingBuffer
 
             if bufferMatch:
-                for k, v in bufferDict.items():
-                    bufferMatch.setupDict[k] = v
                 shader_spirv += bufferMatch.getDeclaration()
 
             else:
-                bufferDict["location"] = location
-                location += self.getSize(bufferDict["type"])
+                buffer.location = location
+                location += self.getSize(buffer.type)
 
-                if "vertex" in setupDict["name"]:
+                if stage == "vertex":
                     newBuffer = VertexBuffer(pipeline.device, bufferDict)
                 else:
                     newBuffer = Buffer(pipeline.device, bufferDict)
 
                 shader_spirv += newBuffer.getDeclaration()
 
-                self.buffers[bufferName] = newBuffer
-                self.children += [newBuffer]
+                self.children += [buffer]
 
-                if bufferDict["name"] == "INDEX":
-                    self.pipeline.indexBuffer = newBuffer
+                if buffer.name == "INDEX":
+                    self.pipeline.indexBuffer = buffer
 
         with open(setupDict["main"]) as f:
             shader_spirv += f.read()
@@ -96,12 +95,11 @@ class Stage(Sinode):
         compStagesPath = os.path.join(here, "compiledStages")
         compStagesPath = "compiledStages"
         Path(compStagesPath).mkdir(parents=True, exist_ok=True)
-        basename = os.path.basename(setupDict["header"])
-        outfilename = os.path.join(compStagesPath, basename.replace(".header", ""))
-        with open(outfilename, "w+") as f:
+		
+        with open(baseFilename, "w+") as f:
             f.write(shader_spirv)
 
-        os.system("glslc " + outfilename)
+        os.system("glslc " + baseFilename)
         # POS always outputs to "a.spv"
         with open("a.spv", "rb") as f:
             shader_spirv = f.read()

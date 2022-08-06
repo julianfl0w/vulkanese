@@ -66,13 +66,13 @@ class Pipeline(Sinode):
         )
 
         # Add Stages
-        self.stageDict = {}
+        self.stages = []
         for key, value in setupDict["stage"].items():
             if key == "name":
                 continue
-            self.stageDict[key] = Stage(self, value)
+            self.stages += Stage(self, value)
 
-        self.children += self.stageDict.values()
+        self.children += self.stages
 
         push_constant_ranges = VkPushConstantRange(stageFlags=0, offset=0, size=0)
 
@@ -100,19 +100,10 @@ class Pipeline(Sinode):
         )
         self.commandBuffer.draw_frame(image_index)
 
-    def getBuffDict(self):
-        allBuffers = {}
-        for name, stage in self.stageDict.items():
-            for buffer in stage.buffers.values():
-                allBuffers[buffer.setupDict["name"]] = buffer
-
-        return allBuffers
-
     def getAllBuffers(self):
         allBuffers = []
-        for name, stage in self.stageDict.items():
-            for buffer in stage.buffers.values():
-                allBuffers += [buffer]
+        for stage in self.stages:
+            allBuffers += stage.buffers
 
         return allBuffers
 
@@ -121,7 +112,7 @@ class Pipeline(Sinode):
         vkDestroySemaphore(self.vkDevice, self.semaphore_image_available, None)
         vkDestroySemaphore(self.vkDevice, self.semaphore_render_finished, None)
 
-        for stage in self.stageDict.values():
+        for stage in self.stages:
             stage.release()
 
         vkDestroyPipeline(self.vkDevice, self.vkPipeline, None)
@@ -181,7 +172,7 @@ class RasterPipeline(Pipeline):
 
         # get global lists
         allVertexBuffers = []
-        for s in self.stageDict.values():
+        for s in self.stages:
             allVertexBuffers += s.getVertexBuffers()
 
         allBindingDescriptors = [b.bindingDescription for b in allVertexBuffers]
@@ -281,8 +272,8 @@ class RasterPipeline(Pipeline):
         self.pipelinecreate = VkGraphicsPipelineCreateInfo(
             sType=VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             flags=0,
-            stageCount=len(self.stageDict.values()),
-            pStages=[s.shader_stage_create for s in self.stageDict.values()],
+            stageCount=len(self.stages),
+            pStages=[s.shader_stage_create for s in self.stages],
             pVertexInputState=vertex_input_create,
             pInputAssemblyState=input_assembly_create,
             pTessellationState=None,
@@ -309,5 +300,3 @@ class RasterPipeline(Pipeline):
         # wrap it all up into a command buffer
         self.commandBuffer = RasterCommandBuffer(self)
 
-    def setBuffer(self, stage, buffname, data):
-        self.stageDict[stage].buffers[buffname].pmap[: data.size * data.itemsize] = data
