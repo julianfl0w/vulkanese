@@ -6,6 +6,7 @@ here = os.path.dirname(os.path.abspath(__file__))
 from vulkan import *
 import math
 
+
 class CommandBuffer(Sinode):
     def __init__(self, pipeline):
         Sinode.__init__(self, pipeline)
@@ -13,7 +14,7 @@ class CommandBuffer(Sinode):
         self.vkCommandPool = pipeline.device.vkCommandPool
         self.device = pipeline.device
         self.vkDevice = pipeline.device.vkDevice
-        self.outputWidthPixels  = pipeline.outputWidthPixels
+        self.outputWidthPixels = pipeline.outputWidthPixels
         self.outputHeightPixels = pipeline.outputHeightPixels
         self.commandBufferCount = 0
 
@@ -96,10 +97,7 @@ class RasterCommandBuffer(CommandBuffer):
             allVertexBuffers = [
                 b
                 for b in allBuffers
-                if (
-                    b.usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
-                    or b.name == "index"
-                )
+                if (b.usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or b.name == "index")
             ]
             print("--- ALL VERTEX BUFFERS ---")
             for i, buffer in enumerate(allVertexBuffers):
@@ -169,15 +167,27 @@ class ComputeCommandBuffer(CommandBuffer):
         beginInfo = VkCommandBufferBeginInfo(
             sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
             # the buffer is only submitted and used once in this application.
-            flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+            flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
         )
         vkBeginCommandBuffer(self.vkCommandBuffer, beginInfo)
 
         # We need to bind a pipeline, AND a descriptor set before we dispatch.
         # The validation layer will NOT give warnings if you forget these, so be very careful not to forget them.
-        vkCmdBindPipeline(self.vkCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, self.pipeline.vkPipeline)
-        vkCmdBindDescriptorSets(self.vkCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, self.pipeline.vkPipelineLayout,
-                                0, 1, [self.pipeline.device.descriptorPool.descSetGlobal.vkDescriptorSet], 0, None)
+        vkCmdBindPipeline(
+            self.vkCommandBuffer,
+            VK_PIPELINE_BIND_POINT_COMPUTE,
+            self.pipeline.vkPipeline,
+        )
+        vkCmdBindDescriptorSets(
+            self.vkCommandBuffer,
+            VK_PIPELINE_BIND_POINT_COMPUTE,
+            self.pipeline.vkPipelineLayout,
+            0,
+            1,
+            [self.pipeline.device.descriptorPool.descSetGlobal.vkDescriptorSet],
+            0,
+            None,
+        )
 
         WIDTH = 3200  # Size of rendered mandelbrot set.
         HEIGHT = 2400  # Size of renderered mandelbrot set.
@@ -186,12 +196,15 @@ class ComputeCommandBuffer(CommandBuffer):
         # Calling vkCmdDispatch basically starts the compute pipeline, and executes the compute shader.
         # The number of workgroups is specified in the arguments.
         # If you are already familiar with compute shaders from OpenGL, this should be nothing new to you.
-        vkCmdDispatch(self.vkCommandBuffer,
-                      int(math.ceil(WIDTH / float(WORKGROUP_SIZE))),  # int for py2 compatible
-                      int(math.ceil(HEIGHT / float(WORKGROUP_SIZE))),  # int for py2 compatible
-                      1)
+        vkCmdDispatch(
+            self.vkCommandBuffer,
+            int(math.ceil(WIDTH / float(WORKGROUP_SIZE))),  # int for py2 compatible
+            int(math.ceil(HEIGHT / float(WORKGROUP_SIZE))),  # int for py2 compatible
+            1,
+        )
 
         vkEndCommandBuffer(self.vkCommandBuffer)
+
 
 class RaytraceCommandBuffer(CommandBuffer):
     def __init__(self, pipeline):

@@ -33,27 +33,30 @@ class Stage(Sinode):
 
         # attributes are ex. location, normal, color
         self.buffers = buffers
-        
+
         shader_spirv = header
 
         shader_spirv += "\n"
-        if stage != VK_SHADER_STAGE_COMPUTE_BIT:
-            with open(os.path.join(here, "derivedtypes.json"), "r") as f:
-                derivedDict = json.loads(f.read())
-                for structName, composeDict in derivedDict.items():
-                    shader_spirv += "struct " + structName + "\n"
-                    shader_spirv += "{\n"
+        #if stage != VK_SHADER_STAGE_COMPUTE_BIT:
+        reqdTypes = [b.type for b in buffers]
+        with open(os.path.join(here, "derivedtypes.json"), "r") as f:
+            derivedDict = json.loads(f.read())
+            for structName, composeDict in derivedDict.items():
+                if structName in reqdTypes:
+                    shader_spirv += "struct " + structName + "{\n"
                     for name, ctype in composeDict.items():
-                        shader_spirv += "    " + ctype + " " + name + ";\n"
+                        shader_spirv += "  " + ctype + " " + name + ";\n"
 
                     shader_spirv += "};\n\n"
 
         self.children += buffers
-        
+
         # novel INPUT buffers belong to THIS Stage (others are linked)
         for buffer in buffers:
             if stage != VK_SHADER_STAGE_COMPUTE_BIT:
                 shader_spirv += buffer.getDeclaration()
+            else:
+                shader_spirv += buffer.getComputeDeclaration()
             if buffer.name == "INDEX":
                 self.pipeline.indexBuffer = buffer
 
@@ -79,7 +82,7 @@ class Stage(Sinode):
         # Create Stage
         self.shader_create = VkShaderModuleCreateInfo(
             sType=VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-            #flags=0,
+            # flags=0,
             codeSize=len(shader_spirv),
             pCode=shader_spirv,
         )
@@ -97,7 +100,6 @@ class Stage(Sinode):
             pSpecializationInfo=None,
             pName="main",
         )
-
 
     def getVertexBuffers(self):
         allVertexBuffers = []

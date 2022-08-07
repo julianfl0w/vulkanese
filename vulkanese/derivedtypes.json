@@ -43,7 +43,7 @@
 
 	"Pixel":
 	{
-		"pos"      : "vec4"
+		"value"      : "vec4"
 	},
     
 	"WaveFrontMaterial":

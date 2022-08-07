@@ -40,15 +40,31 @@ device = instance_inst.getDevice(0)
 # vertex stage
 # buffers
 location = 0
-position = VertexBuffer(device=device, name="position", location=location)
+position = VertexBuffer(
+    device=device,
+    name="position",
+    descriptorSet=device.descriptorPool.descSetGlobal,
+    location=location,
+)
 location += position.getSize()
-normal = VertexBuffer(device=device, name="normal", location=location)
+normal = VertexBuffer(
+    device=device,
+    name="normal",
+    descriptorSet=device.descriptorPool.descSetGlobal,
+    location=location,
+)
 location += normal.getSize()
-color = VertexBuffer(device=device, name="color", location=location)
+color = VertexBuffer(
+    device=device,
+    name="color",
+    descriptorSet=device.descriptorPool.descSetGlobal,
+    location=location,
+)
 location += color.getSize()
 index = VertexBuffer(
     name="index",
     location=location,
+    descriptorSet=device.descriptorPool.descSetGlobal,
     device=device,
     type="uint",
     usage=VK_BUFFER_USAGE_TRANSFER_DST_BIT
@@ -60,7 +76,12 @@ index = VertexBuffer(
 location += index.getSize()
 
 fragColor = Buffer(
-    device=device, type="vec3", qualifier="out", name="fragColor", location=location
+    device=device, 
+    type="vec3", 
+    descriptorSet=device.descriptorPool.descSetGlobal,
+    qualifier="out", 
+    name="fragColor", 
+    location=location
 )
 
 main = """
@@ -97,7 +118,7 @@ outColor = Buffer(
     name="outColor",
     qualifier="out",
     type="vec4",
-    descriptorSet="global",
+    descriptorSet=device.descriptorPool.descSetGlobal,
     usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
     sharingMode=VK_SHARING_MODE_EXCLUSIVE,
     SIZEBYTES=65536,

@@ -141,7 +141,7 @@ class Device(Sinode):
                 return i
 
         return -1
-    
+
     def applyLayout(self, setupDict):
         self.setupDict = self.nameSubdicts("root", setupDict)
         print(json.dumps(self.setupDict, indent=2))
@@ -327,7 +327,6 @@ class Device(Sinode):
 
         self.descriptorPool = DescriptorPool(self)
         self.children += [self.descriptorPool]
-
 
     def getFeatures(self):
 

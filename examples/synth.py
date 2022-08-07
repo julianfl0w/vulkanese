@@ -39,76 +39,88 @@ device = instance_inst.getDevice(0)
 
 #######################################################
 
-WIDTH = 3200  # Size of rendered mandelbrot set.
-HEIGHT = 2400  # Size of renderered mandelbrot set.
-WORKGROUP_SIZE = 32  # Workgroup size in compute shader.
+WORKGROUP_SIZE = 1  # Workgroup size in compute shader.
+SAMPLES_PER_DISPATCH = 512
 
-imageData = Buffer(
+phaseBuffer = Buffer(
+    binding=0,
     device=device,
-    type="Pixel",
+    type="float",
     descriptorSet=device.descriptorPool.descSetGlobal,
-    qualifier="out",
-    name="imageData",
-    SIZEBYTES=4 * 4 * WIDTH * HEIGHT,
+    qualifier="",
+    name="phaseBuffer",
+    SIZEBYTES=4 * 4 * SAMPLES_PER_DISPATCH,
     usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
     stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
     location=0,
 )
 
-header = """#version 450
+pcmBufferOut = Buffer(
+    binding=2,
+    device=device,
+    type="uint32_t",
+    descriptorSet=device.descriptorPool.descSetGlobal,
+    qualifier="in",
+    name="pcmBufferOut",
+    SIZEBYTES=4 * 4 * SAMPLES_PER_DISPATCH, # Actually this is the number of sine oscillators
+    usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+    stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
+    location=0,
+)
+
+replaceDict = {
+    "WORKGROUP_SIZE": WORKGROUP_SIZE,
+    "MINIMUM_FREQUENCY_HZ" : 20,
+    "MAXIMUM_FREQUENCY_HZ" : 20000,
+    "SAMPLE_FREQUENCY"     : 48000,
+    "UNDERVOLUME"     : 3,
+    "SAMPLES_PER_DISPATCH" : SAMPLES_PER_DISPATCH
+}
+
+header = """
+#version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-#define WIDTH 3200
-#define HEIGHT 2400
-#define WORKGROUP_SIZE 32
 layout (local_size_x = WORKGROUP_SIZE, local_size_y = WORKGROUP_SIZE, local_size_z = 1 ) in;
 """
 
 main = """
+
 void main() {
 
   /*
   In order to fit the work into workgroups, some unnecessary threads are launched.
   We terminate those threads here.
-  */
-  if(gl_GlobalInvocationID.x >= WIDTH || gl_GlobalInvocationID.y >= HEIGHT)
+  if(gl_GlobalInvocationID.x >= 0 || gl_GlobalInvocationID.y >= 0)
     return;
-
-  float x = float(gl_GlobalInvocationID.x) / float(WIDTH);
-  float y = float(gl_GlobalInvocationID.y) / float(HEIGHT);
-
-  /*
-  What follows is code for rendering the mandelbrot set.
   */
-  vec2 uv = vec2(x,y);
-  float n = 0.0;
-  vec2 c = vec2(-.445, 0.0) +  (uv - 0.5)*(2.0+ 1.7*0.2  ),
-  z = vec2(0.0);
-  const int M =128;
-  for (int i = 0; i<M; i++)
+  
+  uint32_t phaseindex = gl_GlobalInvocationID.x;
+  uint32_t outindex = gl_GlobalInvocationID.x;
+  float frequency_hz = 440;
+  float increment = frequency_hz / SAMPLE_FREQUENCY;
+  float phase = phaseBuffer[index];
+  
+  for (int i = 0; i<SAMPLES_PER_DISPATCH; i++)
   {
-    z = vec2(z.x*z.x - z.y*z.y, 2.*z.x*z.y) + c;
-    if (dot(z, z) > 2) break;
-    n++;
+    pcmBufferOut[index] = (2**(32-UNDERVOLUME)-1) * sin(3.141592*2*phase);
+    
+    phase += increment;
+    if(phase > 1){
+        phase -= 1;
+    }
   }
-
-  // we use a simple cosine palette to determine color:
-  // http://iquilezles.org/www/articles/palettes/palettes.htm
-  float t = float(n) / float(M);
-  vec3 d = vec3(0.3, 0.3 ,0.5);
-  vec3 e = vec3(-0.2, -0.3 ,-0.5);
-  vec3 f = vec3(2.1, 2.0, 3.0);
-  vec3 g = vec3(0.0, 0.1, 0.0);
-  vec4 color = vec4( d + e*cos( 6.28318*(f*t+g) ) ,1.0);
-
-  // store the rendered mandelbrot set into a storage buffer:
-  imageData[WIDTH * gl_GlobalInvocationID.y + gl_GlobalInvocationID.x].value = color;
+  //phaseBuffer[index] = phase;
+  // Multiple shaders will pull from phase array, so it needs to be updated by host
 }
 """
 
+for k, v in replaceDict.items():
+    header.replace(k, str(v))
+    main.replace(k, str(v))
 
 # Stage
-existingBuffers = [imageData]
+existingBuffers = [phaseBuffer]
 mandleStage = Stage(
     device=device,
     name="mandlebrot.comp",
@@ -118,7 +130,7 @@ mandleStage = Stage(
     outputHeightPixels=700,
     header=header,
     main=main,
-    buffers=[imageData],
+    buffers=[phaseBuffer],
 )
 
 #######################################################
@@ -161,7 +173,7 @@ vkWaitForFences(device.vkDevice, 1, [fence], VK_TRUE, 100000000000)
 
 vkDestroyFence(device.vkDevice, fence, None)
 
-pa = np.frombuffer(imageData.pmap, np.float32)
+pa = np.frombuffer(phaseBuffer.pmap, np.float32)
 pa = pa.reshape((HEIGHT, WIDTH, 4))
 pa *= 255
 

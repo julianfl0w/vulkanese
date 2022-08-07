@@ -7,6 +7,7 @@ import numpy as np
 
 here = os.path.dirname(os.path.abspath(__file__))
 
+
 class Buffer(Sinode):
 
     # find memory type with desired properties.
@@ -44,20 +45,21 @@ class Buffer(Sinode):
         format=VK_FORMAT_R32G32B32_SFLOAT,
         stride=12,
     ):
+        self.binding = descriptorSet.binding
         # this should be fixed in vulkan wrapper
         self.released = False
         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT = 0x00020000
         self.usage = usage
         Sinode.__init__(self, device)
         self.device = device
-        self.location =location
+        self.location = location
         self.vkDevice = device.vkDevice
         self.size = SIZEBYTES
         self.qualifier = qualifier
         self.type = type
         self.stride = stride
-        self.name=name
-        self.descriptorSet=descriptorSet
+        self.name = name
+        self.descriptorSet = descriptorSet
 
         print("creating buffer " + name)
 
@@ -86,9 +88,7 @@ class Buffer(Sinode):
         # Also, by setting VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, memory written by the device(GPU) will be easily
         # visible to the host(CPU), without having to call any extra flushing commands. So mainly for convenience, we set
         # this flag.
-        index = self.findMemoryType(
-            memoryRequirements.memoryTypeBits, memProperties
-        )
+        index = self.findMemoryType(memoryRequirements.memoryTypeBits, memProperties)
         # Now use obtained memory requirements info to allocate the memory for the buffer.
         self.allocateInfo = VkMemoryAllocateInfo(
             sType=VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -111,14 +111,14 @@ class Buffer(Sinode):
             pNext=None,
             buffer=self.vkBuffer,
         )
-        
+
         self.descriptorSetLayoutBinding = VkDescriptorSetLayoutBinding(
             binding=self.descriptorSet.binding,
             descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
             descriptorCount=1,
             stageFlags=stageFlags,
         )
-            
+
         descriptorSet.buffers += [self]
         print("finished creating buffer")
 
@@ -161,6 +161,19 @@ class Buffer(Sinode):
             + ";\n"
         )
 
+    def getComputeDeclaration(self):
+        return (
+            "layout(std140, binding = "
+            + str(self.binding)
+            + ") buffer buf\n{\n   "
+            #+ self.qualifier
+            #+ " "
+            + self.type
+            + " "
+            + self.name
+            + "[];\n};"
+        )
+    
     def setBuffer(self, data):
         self.pmap[: data.size * data.itemsize] = data
 
@@ -177,14 +190,15 @@ class Buffer(Sinode):
             size += 1
         return int(size)
 
+
 class VertexBuffer(Buffer):
     def __init__(
         self,
         device,
         name,
         location,
+        descriptorSet,
         usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        descriptorSet="global",
         rate=VK_VERTEX_INPUT_RATE_VERTEX,
         memProperties=VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
@@ -193,29 +207,30 @@ class VertexBuffer(Buffer):
         qualifier="in",
         type="vec3",
         format=VK_FORMAT_R32G32B32_SFLOAT,
-        stride=12):
-        
+        stride=12,
+    ):
+
         Buffer.__init__(
-        self=self,
-        location=location,
-        device=device,
-        name=name,
-        usage=usage,
-        descriptorSet=descriptorSet,
-        rate=rate,
-        memProperties=memProperties,
-        sharingMode=sharingMode,
-        SIZEBYTES=SIZEBYTES,
-        qualifier=qualifier,
-        type=type,
-        format=format,
-        stride=stride)
+            self=self,
+            location=location,
+            device=device,
+            name=name,
+            usage=usage,
+            descriptorSet=descriptorSet,
+            rate=rate,
+            memProperties=memProperties,
+            sharingMode=sharingMode,
+            SIZEBYTES=SIZEBYTES,
+            qualifier=qualifier,
+            type=type,
+            format=format,
+            stride=stride,
+        )
 
         outfilename = os.path.join(here, "resources", "standard_bindings.json")
         with open(outfilename, "r") as f:
             bindDict = json.loads(f.read())
 
-        self.binding = descriptorSet.binding
 
         # we will standardize its bindings with a attribute description
         self.attributeDescription = VkVertexInputAttributeDescription(
@@ -226,9 +241,7 @@ class VertexBuffer(Buffer):
         )
         # ^^ Consider VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^
         self.bindingDescription = VkVertexInputBindingDescription(
-            binding=self.binding,
-            stride=stride,  # 4 bytes/element
-            inputRate=rate
+            binding=self.binding, stride=stride, inputRate=rate  # 4 bytes/element
         )
 
         # Every buffer contains its own info for descriptor set
