@@ -33,7 +33,8 @@ class Stage(Sinode):
 
         # attributes are ex. location, normal, color
         self.buffers = buffers
-
+        # POS always outputs to "a.spv"
+        compiledFilename = "a.spv"
         shader_spirv = header
 
         shader_spirv += "\n"
@@ -74,9 +75,11 @@ class Stage(Sinode):
         with open(baseFilename, "w+") as f:
             f.write(shader_spirv)
 
+        # delete the old one
+        if os.path.exists(compiledFilename):
+            os.remove(compiledFilename)
         os.system("glslc " + baseFilename)
-        # POS always outputs to "a.spv"
-        with open("a.spv", "rb") as f:
+        with open(compiledFilename, "rb") as f:
             shader_spirv = f.read()
 
         # Create Stage

@@ -11,6 +11,8 @@ import open3d as o3d
 import copy
 from exutils import *
 from PIL import Image
+#import matplotlib
+import matplotlib.pyplot as plt
 
 here = os.path.dirname(os.path.abspath(__file__))
 print(sys.path)
@@ -53,19 +55,21 @@ phaseBuffer = Buffer(
     usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
     stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
     location=0,
+    format=VK_FORMAT_R32_SFLOAT,
 )
 
 pcmBufferOut = Buffer(
-    binding=2,
+    binding=1,
     device=device,
-    type="uint32_t",
+    type="int",
     descriptorSet=device.descriptorPool.descSetGlobal,
     qualifier="in",
     name="pcmBufferOut",
     SIZEBYTES=4 * 4 * SAMPLES_PER_DISPATCH, # Actually this is the number of sine oscillators
     usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
     stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-    location=0,
+    location=1,
+    format=VK_FORMAT_R32_SINT,
 )
 
 replaceDict = {
@@ -77,8 +81,7 @@ replaceDict = {
     "SAMPLES_PER_DISPATCH" : SAMPLES_PER_DISPATCH
 }
 
-header = """
-#version 450
+header = """#version 450
 #extension GL_ARB_separate_shader_objects : enable
 
 layout (local_size_x = WORKGROUP_SIZE, local_size_y = WORKGROUP_SIZE, local_size_z = 1 ) in;
@@ -95,32 +98,36 @@ void main() {
     return;
   */
   
-  uint32_t phaseindex = gl_GlobalInvocationID.x;
-  uint32_t outindex = gl_GlobalInvocationID.x;
+  uint phaseindex = gl_GlobalInvocationID.x;
+  //uint outindex = gl_GlobalInvocationID.x;
+  uint outindex = 0;
   float frequency_hz = 440;
   float increment = frequency_hz / SAMPLE_FREQUENCY;
-  float phase = phaseBuffer[index];
+  float phase = phaseBuffer[outindex];
   
   for (int i = 0; i<SAMPLES_PER_DISPATCH; i++)
   {
-    pcmBufferOut[index] = (2**(32-UNDERVOLUME)-1) * sin(3.141592*2*phase);
+  
+    pcmBufferOut[outindex+i] = int((pow(2,(32-UNDERVOLUME))-1) * sin(3.141592*2*phase));
+    //pcmBufferOut[outindex+i] = int(i);
+    //pcmBufferOut[outindex+i] = int(outindex + i);
     
     phase += increment;
     if(phase > 1){
         phase -= 1;
     }
   }
-  //phaseBuffer[index] = phase;
+  //phaseBuffer[outindex] = phase;
   // Multiple shaders will pull from phase array, so it needs to be updated by host
 }
 """
 
 for k, v in replaceDict.items():
-    header.replace(k, str(v))
-    main.replace(k, str(v))
+    header = header.replace(k, str(v))
+    main   = main.replace(k, str(v))
 
 # Stage
-existingBuffers = [phaseBuffer]
+existingBuffers = []
 mandleStage = Stage(
     device=device,
     name="mandlebrot.comp",
@@ -130,7 +137,7 @@ mandleStage = Stage(
     outputHeightPixels=700,
     header=header,
     main=main,
-    buffers=[phaseBuffer],
+    buffers=[phaseBuffer, pcmBufferOut],
 )
 
 #######################################################
@@ -142,9 +149,6 @@ device.children += [computePipeline]
 
 # print the object hierarchy
 print("Object tree:")
-WIDTH = 3200  # Size of rendered mandelbrot set.
-HEIGHT = 2400  # Size of renderered mandelbrot set.
-WORKGROUP_SIZE = 32  # Workgroup size in compute shader.
 
 print(json.dumps(device.asDict(), indent=4))
 
@@ -173,13 +177,13 @@ vkWaitForFences(device.vkDevice, 1, [fence], VK_TRUE, 100000000000)
 
 vkDestroyFence(device.vkDevice, fence, None)
 
-pa = np.frombuffer(phaseBuffer.pmap, np.float32)
-pa = pa.reshape((HEIGHT, WIDTH, 4))
-pa *= 255
-
-# Now we save the acquired color data to a .png.
-image = Image.fromarray(pa.astype(np.uint8))
-image.save("mandelbrot.png")
+pa = np.frombuffer(pcmBufferOut.pmap, np.int32)[::4]
+#pa = pa.reshape((HEIGHT, WIDTH, 4))
+#pa *= 255
+print(pa[:16])
+plt.plot(pa)
+plt.ylabel('some numbers')
+plt.show()
 
 # elegantly free all memory
 instance_inst.release()

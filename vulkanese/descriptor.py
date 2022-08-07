@@ -80,8 +80,34 @@ class DescriptorPool(Sinode):
         print(self.vkDescriptorSets)
         for i, d in enumerate(self.descSets):
             d.vkDescriptorSet = self.vkDescriptorSets[i]
-            d.finalize2()
+            
+            # Next, we need to connect our actual storage buffer with the descrptor.
+            # We use vkUpdateDescriptorSets() to update the descriptor set.
 
+            # one descriptor per buffer?
+            d.vkWriteDescriptorSet = VkWriteDescriptorSet(
+                sType=VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                dstSet=d.vkDescriptorSet,
+                dstBinding=d.binding, 
+                descriptorCount=len(d.buffers),
+                descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                pBufferInfo=[b.descriptorBufferInfo for b in d.buffers],
+            )
+        
+        # The Vulkan spec states: descriptorCount must be greater than 0
+        writeDescriptorSets = []
+        for s in self.descSets:
+            if len(s.buffers):
+                writeDescriptorSets += [s.vkWriteDescriptorSet]
+        
+        # perform the update of the descriptor set.
+        vkUpdateDescriptorSets(
+            device = self.vkDevice, 
+            descriptorWriteCount = len(writeDescriptorSets), 
+            pDescriptorWrites = writeDescriptorSets, 
+            descriptorCopyCount = 0, 
+            pDescriptorCopies = None)
+        
     def release(self):
         for v in self.descSets:
             print("destroying descriptor set " + v.name)
@@ -125,27 +151,6 @@ class DescriptorSet(Sinode):
         self.vkDescriptorSetLayout = vkCreateDescriptorSetLayout(
             self.vkDevice, descriptorSetLayoutCreateInfo, None
         )
-
-    def finalize2(self):
-        # Next, we need to connect our actual storage buffer with the descrptor.
-        # We use vkUpdateDescriptorSets() to update the descriptor set.
-        for buffer in self.buffers:
-            # Specify the buffer to bind to the descriptor.
-            descriptorBufferInfo = VkDescriptorBufferInfo(
-                buffer=buffer.vkBuffer, offset=0, range=buffer.size
-            )
-
-            writeDescriptorSet = VkWriteDescriptorSet(
-                sType=VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                dstSet=self.vkDescriptorSet,
-                dstBinding=0,  # write to the first, and only binding.
-                descriptorCount=1,
-                descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                pBufferInfo=descriptorBufferInfo,
-            )
-
-            # perform the update of the descriptor set.
-            vkUpdateDescriptorSets(self.vkDevice, 1, [writeDescriptorSet], 0, None)
 
     def release(self):
 

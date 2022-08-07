@@ -45,20 +45,20 @@ class Instance(Sinode):
             applicationVersion=VK_MAKE_VERSION(1, 0, 0),
             pEngineName="No Engine",
             engineVersion=VK_MAKE_VERSION(1, 0, 0),
-            apiVersion=VK_API_VERSION_1_0,
+            apiVersion=VK_MAKE_VERSION(1, 3, 0),
         )
 
         extensions = vkEnumerateInstanceExtensionProperties(None)
         extensions = [e.extensionName for e in extensions]
-        print("available extensions: ")
-        for e in extensions:
-            print("    " + e)
+        #print("available extensions: ")
+        #for e in extensions:
+        #    print("    " + e)
 
         self.layers = vkEnumerateInstanceLayerProperties()
         self.layers = [l.layerName for l in self.layers]
-        print("available layers:")
-        for l in self.layers:
-            print("    " + l)
+        #print("available layers:")
+        #for l in self.layers:
+        #    print("    " + l)
 
         if "VK_LAYER_KHRONOS_validation" in self.layers:
             self.layers = ["VK_LAYER_KHRONOS_validation"]
@@ -183,27 +183,27 @@ class Device(Sinode):
 
         print("getting features list")
 
-        vkGetPhysicalDeviceFeatures2 = vkGetInstanceProcAddr(
-            self.vkInstance, "vkGetPhysicalDeviceFeatures2KHR"
-        )
-        vkGetPhysicalDeviceProperties2 = vkGetInstanceProcAddr(
-            self.vkInstance, "vkGetPhysicalDeviceProperties2KHR"
-        )
+        #vkGetPhysicalDeviceFeatures2 = vkGetInstanceProcAddr(
+        #    self.vkInstance, "vkGetPhysicalDeviceFeatures2KHR"
+        #)
+        #vkGetPhysicalDeviceProperties2 = vkGetInstanceProcAddr(
+        #    self.vkInstance, "vkGetPhysicalDeviceProperties2KHR"
+        #)
 
         self.pFeatures = vkGetPhysicalDeviceFeatures(self.physical_device)
         print("pFeatures")
         print([self.pFeatures])
 
-        self.pFeatures2 = vkGetPhysicalDeviceFeatures2(self.physical_device)
-        print("pFeatures2")
-        print(self.pFeatures2)
+        #self.pFeatures2 = vkGetPhysicalDeviceFeatures2(self.physical_device)
+        #print("pFeatures2")
+        #print(self.pFeatures2)
 
         self.pProperties = vkGetPhysicalDeviceProperties(self.physical_device)
         print("pProperties")
         print(self.pProperties)
-        self.pProperties2 = vkGetPhysicalDeviceProperties2(self.physical_device)
-        print("pProperties2")
-        print(self.pProperties2)
+        #self.pProperties2 = vkGetPhysicalDeviceProperties2(self.physical_device)
+        #print("pProperties2")
+        #print(self.pProperties2)
 
         print("Select queue family")
         # ----------
@@ -260,7 +260,7 @@ class Device(Sinode):
             physicalDevice=self.physical_device, pLayerName=None
         )
         extensions = [e.extensionName for e in extensions]
-        print("available device extensions: %s\n" % extensions)
+        #print("available device extensions: %s\n" % extensions)
 
         # only use the extensions necessary
         extensions = [VK_KHR_SWAPCHAIN_EXTENSION_NAME]
@@ -279,7 +279,8 @@ class Device(Sinode):
         # die
         self.device_create = VkDeviceCreateInfo(
             sType=VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-            pNext=self.pFeatures2,
+            #pNext=self.pFeatures2,
+            pNext=None,
             pQueueCreateInfos=queues_create,
             queueCreateInfoCount=len(queues_create),
             pEnabledFeatures=self.pFeatures,  # NEED TO PUT PFEATURES2 or something

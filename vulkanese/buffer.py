@@ -33,8 +33,9 @@ class Buffer(Sinode):
         name,
         location,
         descriptorSet,
+        format,
+        binding = 0,
         usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        rate=VK_VERTEX_INPUT_RATE_VERTEX,
         memProperties=VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
         sharingMode=VK_SHARING_MODE_EXCLUSIVE,
@@ -42,10 +43,8 @@ class Buffer(Sinode):
         stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
         qualifier="in",
         type="vec3",
-        format=VK_FORMAT_R32G32B32_SFLOAT,
-        stride=12,
     ):
-        self.binding = descriptorSet.binding
+        self.binding = binding
         # this should be fixed in vulkan wrapper
         self.released = False
         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT = 0x00020000
@@ -57,7 +56,6 @@ class Buffer(Sinode):
         self.size = SIZEBYTES
         self.qualifier = qualifier
         self.type = type
-        self.stride = stride
         self.name = name
         self.descriptorSet = descriptorSet
 
@@ -101,10 +99,19 @@ class Buffer(Sinode):
         self.children += [self.vkDeviceMemory]
 
         # Now associate that allocated memory with the buffer. With that, the buffer is backed by actual memory.
-        vkBindBufferMemory(self.vkDevice, self.vkBuffer, self.vkDeviceMemory, 0)
+        vkBindBufferMemory(
+            device = self.vkDevice, 
+            buffer = self.vkBuffer, 
+            memory = self.vkDeviceMemory, 
+            memoryOffset = 0)
 
         # Map the buffer memory, so that we can read from it on the CPU.
-        self.pmap = vkMapMemory(self.vkDevice, self.vkDeviceMemory, 0, SIZEBYTES, 0)
+        self.pmap = vkMapMemory(
+            device = self.vkDevice,
+            memory = self.vkDeviceMemory, 
+            offset = 0, 
+            size   = SIZEBYTES, 
+            flags  = 0)
 
         self.bufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
             sType=VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
@@ -113,13 +120,19 @@ class Buffer(Sinode):
         )
 
         self.descriptorSetLayoutBinding = VkDescriptorSetLayoutBinding(
-            binding=self.descriptorSet.binding,
+            binding=self.binding,
             descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
             descriptorCount=1,
             stageFlags=stageFlags,
         )
 
         descriptorSet.buffers += [self]
+        
+        # Specify the buffer to bind to the descriptor.
+        self.descriptorBufferInfo = VkDescriptorBufferInfo(
+            buffer=self.vkBuffer, offset=0, range=self.size
+        )
+            
         print("finished creating buffer")
 
     def saveAsImage(self, height, width, path="mandelbrot.png"):
@@ -165,13 +178,15 @@ class Buffer(Sinode):
         return (
             "layout(std140, binding = "
             + str(self.binding)
-            + ") buffer buf\n{\n   "
+            #+ ", "
+            #+ "xfb_stride = " + str(self.stride)
+            + ") buffer " + self.name + "_buf\n{\n   "
             #+ self.qualifier
             #+ " "
             + self.type
             + " "
             + self.name
-            + "[];\n};"
+            + "[];\n};\n"
         )
     
     def setBuffer(self, data):
@@ -198,6 +213,8 @@ class VertexBuffer(Buffer):
         name,
         location,
         descriptorSet,
+        binding = 0,
+        format =VK_FORMAT_R32G32B32_SFLOAT,
         usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         rate=VK_VERTEX_INPUT_RATE_VERTEX,
         memProperties=VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
@@ -206,25 +223,23 @@ class VertexBuffer(Buffer):
         SIZEBYTES=65536,
         qualifier="in",
         type="vec3",
-        format=VK_FORMAT_R32G32B32_SFLOAT,
         stride=12,
     ):
 
         Buffer.__init__(
             self=self,
             location=location,
+            binding = binding,
             device=device,
             name=name,
             usage=usage,
             descriptorSet=descriptorSet,
-            rate=rate,
             memProperties=memProperties,
             sharingMode=sharingMode,
             SIZEBYTES=SIZEBYTES,
             qualifier=qualifier,
             type=type,
             format=format,
-            stride=stride,
         )
 
         outfilename = os.path.join(here, "resources", "standard_bindings.json")
@@ -236,7 +251,7 @@ class VertexBuffer(Buffer):
         self.attributeDescription = VkVertexInputAttributeDescription(
             binding=self.binding,
             location=self.location,
-            format=format,  # single, 4 bytes
+            format=format,
             offset=0,
         )
         # ^^ Consider VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^
