@@ -160,14 +160,15 @@ class RasterCommandBuffer(CommandBuffer):
 
 
 class ComputeCommandBuffer(CommandBuffer):
-    def __init__(self, pipeline):
+    def __init__(self, pipeline, flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT):
         CommandBuffer.__init__(self, pipeline)
         self.vkCommandBuffer = self.vkCommandBuffers[0]
         # Now we shall start recording commands into the newly allocated command buffer.
         beginInfo = VkCommandBufferBeginInfo(
             sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
             # the buffer is only submitted and used once in this application.
-            flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+            #flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+            flags=VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT
         )
         vkBeginCommandBuffer(self.vkCommandBuffer, beginInfo)
 
@@ -198,8 +199,10 @@ class ComputeCommandBuffer(CommandBuffer):
         # If you are already familiar with compute shaders from OpenGL, this should be nothing new to you.
         vkCmdDispatch(
             self.vkCommandBuffer,
-            int(math.ceil(WIDTH / float(WORKGROUP_SIZE))),  # int for py2 compatible
-            int(math.ceil(HEIGHT / float(WORKGROUP_SIZE))),  # int for py2 compatible
+            #int(math.ceil(WIDTH / float(WORKGROUP_SIZE))),  # int for py2 compatible
+            #int(math.ceil(HEIGHT / float(WORKGROUP_SIZE))),  # int for py2 compatible
+            128,  # int for py2 compatible
+            1,  # int for py2 compatible
             1,
         )
 

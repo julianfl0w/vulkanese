@@ -5,14 +5,23 @@ setup.py
 examples/a.spv
 examples/exutils.py
 examples/helloTriangle.py
+examples/mandlebrot.py
+examples/passthrough.frag
+examples/passthrough.vert
 examples/rtPyramidSkybox.py
 examples/suzanne.py
+examples/synth.py
 examples/__pycache__/exutils.cpython-39.pyc
 examples/compiledStages/passthrough.frag
 examples/compiledStages/passthrough.vert
+examples/compiledStages/raytrace.rchit
+examples/compiledStages/raytrace.rgen
+examples/compiledStages/raytrace.rmiss
 examples/resources/__init__.py
 examples/resources/frag_shader.frag
-examples/resources/mandlebrot_compute.json
+examples/resources/mandelbrot.comp.header
+examples/resources/mandelbrot.comp.main
+examples/resources/mandlebrot.json
 examples/resources/passthrough.frag.header
 examples/resources/passthrough.frag.main
 examples/resources/passthrough.vert.header
@@ -28,6 +37,7 @@ examples/resources/shader.frag.header
 examples/resources/shader.frag.main
 examples/resources/shaders.json
 examples/resources/standard_bindings.json
+examples/resources/standard_compute.json
 examples/resources/standard_raster.json
 examples/resources/standard_raytrace.json
 examples/resources/suzanne.obj
@@ -48,7 +58,6 @@ vulkanese/pipelines.py
 vulkanese/pyproject.toml
 vulkanese/raytracepipeline.py
 vulkanese/renderpass.py
-vulkanese/shader.py
 vulkanese/stage.py
 vulkanese/surface.py
 vulkanese/vulkanese.py
@@ -57,3 +66,4 @@ vulkanese.egg-info/PKG-INFO
 vulkanese.egg-info/SOURCES.txt
 vulkanese.egg-info/dependency_links.txt
 vulkanese.egg-info/top_level.txt
+vulkanese/resources/__init__.py

@@ -123,6 +123,7 @@ outColor = Buffer(
     device=device,
     name="outColor",
     qualifier="out",
+    binding=5,
     type="vec4",
     descriptorSet=device.descriptorPool.descSetGlobal,
     usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,

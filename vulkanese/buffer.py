@@ -129,8 +129,11 @@ class Buffer(Sinode):
         descriptorSet.buffers += [self]
         
         # Specify the buffer to bind to the descriptor.
+        # Every buffer contains its own info for descriptor set
+        # Next, we need to connect our actual storage buffer with the descrptor.
+        # We use vkUpdateDescriptorSets() to update the descriptor set.
         self.descriptorBufferInfo = VkDescriptorBufferInfo(
-            buffer=self.vkBuffer, offset=0, range=self.size
+            buffer=self.vkBuffer, offset=0, range=SIZEBYTES
         )
             
         print("finished creating buffer")
@@ -162,17 +165,32 @@ class Buffer(Sinode):
             self.released = True
 
     def getDeclaration(self):
-        return (
-            "layout (location = "
-            + str(self.location)
-            + ") "
-            + self.qualifier
-            + " "
-            + self.type
-            + " "
-            + self.name
-            + ";\n"
-        )
+        if "uniform" in self.qualifier:
+            return (
+                "layout (location = "
+                + str(self.location)
+                + ", binding = "
+                + str(self.binding)
+                + ") "
+                + self.qualifier
+                + " "
+                + self.type
+                + " "
+                + self.name
+                + ";\n"
+            )
+        else:
+            return (
+                "layout (location = "
+                + str(self.location)
+                + ") "
+                + self.qualifier
+                + " "
+                + self.type
+                + " "
+                + self.name
+                + ";\n"
+            )
 
     def getComputeDeclaration(self):
         return (
@@ -190,7 +208,10 @@ class Buffer(Sinode):
         )
     
     def setBuffer(self, data):
-        self.pmap[: data.size * data.itemsize] = data
+        #self.pmap[: data.size * data.itemsize] = data
+        a = int(len(data))
+        #self.pmap[:a] = data[:int(a/(data.itemsize))]
+        self.pmap[:a*data.itemsize] = data
 
     def getSize(self):
         with open(os.path.join(here, "derivedtypes.json"), "r") as f:
@@ -242,11 +263,6 @@ class VertexBuffer(Buffer):
             format=format,
         )
 
-        outfilename = os.path.join(here, "resources", "standard_bindings.json")
-        with open(outfilename, "r") as f:
-            bindDict = json.loads(f.read())
-
-
         # we will standardize its bindings with a attribute description
         self.attributeDescription = VkVertexInputAttributeDescription(
             binding=self.binding,
@@ -259,44 +275,9 @@ class VertexBuffer(Buffer):
             binding=self.binding, stride=stride, inputRate=rate  # 4 bytes/element
         )
 
-        # Every buffer contains its own info for descriptor set
-        # Next, we need to connect our actual storage buffer with the descrptor.
-        # We use vkUpdateDescriptorSets() to update the descriptor set.
-        self.descriptorBufferInfo = VkDescriptorBufferInfo(
-            buffer=self.vkBuffer, offset=0, range=SIZEBYTES
-        )
 
         # VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
         # VK_VERTEX_INPUT_RATE_INSTANCE: Move to the next data entry after each instance
-
-    def getDeclaration(self):
-        if "uniform" in self.qualifier:
-            return (
-                "layout (location = "
-                + str(self.location)
-                + ", binding = "
-                + str(self.binding)
-                + ") "
-                + self.qualifier
-                + " "
-                + self.type
-                + " "
-                + self.name
-                + ";\n"
-            )
-        else:
-            return (
-                "layout (location = "
-                + str(self.location)
-                + ") "
-                + self.qualifier
-                + " "
-                + self.type
-                + " "
-                + self.name
-                + ";\n"
-            )
-
 
 class DescriptorSetBuffer(Buffer):
     def __init__(self, device, setupDict):

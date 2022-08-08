@@ -1,8 +1,14 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
-
-layout (local_size_x = 1, local_size_y = 1, local_size_z = 1 ) in;
-
+#define WORKGROUP_SIZE 1
+#define MINIMUM_FREQUENCY_HZ 20
+#define MAXIMUM_FREQUENCY_HZ 20000
+#define SAMPLE_FREQUENCY 44100
+#define UNDERVOLUME 3
+#define CHANNELS 1
+#define SAMPLES_PER_DISPATCH 32
+#define LATENCY_SECONDS 0.01
+layout (local_size_x = WORKGROUP_SIZE, local_size_y = WORKGROUP_SIZE, local_size_z = 1 ) in;
 layout(std140, binding = 0) buffer phaseBuffer_buf
 {
    float phaseBuffer[];
@@ -22,24 +28,24 @@ void main() {
     return;
   */
   
-  uint phaseindex = gl_GlobalInvocationID.x;
   //uint outindex = gl_GlobalInvocationID.x;
   uint outindex = 0;
   float frequency_hz = 440;
-  float increment = frequency_hz / 48000;
+  float increment = frequency_hz / SAMPLE_FREQUENCY;
   float phase = phaseBuffer[outindex];
   
-  for (int i = 0; i<512; i++)
+  for (int i = 0; i<SAMPLES_PER_DISPATCH; i++)
   {
   
-    pcmBufferOut[outindex+i] = int((pow(2,(32-3))-1) * sin(3.141592*2*phase));
-    //pcmBufferOut[outindex+i] = int(i);
+    pcmBufferOut[outindex+i] = int((pow(2,(32-UNDERVOLUME))-1) * sin(3.141592*2*phase));
+    //pcmBufferOut[outindex+i] = int(phaseBuffer[outindex+i]);
     //pcmBufferOut[outindex+i] = int(outindex + i);
     
     phase += increment;
+    /*
     if(phase > 1){
         phase -= 1;
-    }
+    }*/
   }
   //phaseBuffer[outindex] = phase;
   // Multiple shaders will pull from phase array, so it needs to be updated by host

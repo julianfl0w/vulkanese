@@ -1,4 +1,4 @@
-Metadata-Version: 2.1
+Metadata-Version: 1.0
 Name: vulkanese
 Version: 1.0
 Summary: An abstraction of Vulkan
@@ -6,8 +6,5 @@ Home-page: https://github.com/julianfl0w/vulkanese
 Author: Julian Loiacono
 Author-email: jcloiacon@gmail.com
 License: UNKNOWN
+Description: UNKNOWN
 Platform: UNKNOWN
-License-File: LICENSE
-
-UNKNOWN
-
