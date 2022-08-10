@@ -1,7 +1,7 @@
 #version 450
-#extension GL_ARB_separate_shader_objects : enable
-#define POLYPHONY 2
-#define SINES_PER_VOICE 1
+        #extension GL_ARB_separate_shader_objects : enable
+        #define POLYPHONY 1
+#define SINES_PER_VOICE 300
 #define MINIMUM_FREQUENCY_HZ 20
 #define MAXIMUM_FREQUENCY_HZ 20000
 #define SAMPLE_FREQUENCY 44100
@@ -16,50 +16,51 @@ layout(std140, set = 0, binding = 0) buffer pcmBufferOut_buf
 };
 layout(std140, set = 1, binding = 1) uniform phaseBuffer_buf
 {
-   float phaseBuffer[8];
+   float phaseBuffer[1200];
 };
 layout(std140, set = 1, binding = 2) uniform baseFrequency_buf
 {
-   float baseFrequency[8];
+   float baseFrequency[4];
 };
 layout(std140, set = 1, binding = 3) uniform harmonicMultiplier_buf
 {
-   float harmonicMultiplier[4];
+   float harmonicMultiplier[1200];
 };
 
 
-void main() {
+        void main() {
 
-  /*
-  In order to fit the work into workgroups, some unnecessary threads are launched.
-  We terminate those threads here.
-  if(gl_GlobalInvocationID.x >= 0 || gl_GlobalInvocationID.y >= 0)
-    return;
-  */
-  
-  uint noteNo = gl_GlobalInvocationID.x;
-  uint sineNo = gl_GlobalInvocationID.y;
-  
-  uint outindex = 0;
-  float frequency_hz    = baseFrequency[noteNo];
-  //float harmonicRatio   = harmonicMultiplier[sineNo];
-  //float thisFreq = frequency_hz*harmonicRatio;
-  //float frequency_hz    = 440;
-  float increment = frequency_hz;// * (1.0 / SAMPLE_FREQUENCY);
-  float phase = phaseBuffer[outindex];
-  
-  for (int i = 0; i<SAMPLES_PER_DISPATCH; i++)
-  {
-  
-    //pcmBufferOut[outindex+i] = int((pow(2,(32-UNDERVOLUME))-1) * sin(3.141592*2*phase));
-    pcmBufferOut[outindex+i] = sin(phase);
-    //pcmBufferOut[outindex+i] = frequency_hz;
-    //pcmBufferOut[outindex+i] = int(phaseBuffer[outindex+i]);
-    //pcmBufferOut[outindex+i] = int(outindex + i);
-    
-    phase += increment;
-    
-  }
-  //float intPart = 0;
-  //phaseBuffer[outindex] = modf(phase, intPart);
-}
+          /*
+          In order to fit the work into workgroups, some unnecessary threads are launched.
+          We terminate those threads here.
+          if(gl_GlobalInvocationID.x >= 0 || gl_GlobalInvocationID.y >= 0)
+            return;
+          */
+
+          uint noteNo = gl_GlobalInvocationID.x;
+          uint sineNo = gl_GlobalInvocationID.y;
+
+          uint outindex = 0;
+          float frequency_hz    = baseFrequency[noteNo];
+          //float harmonicRatio   = harmonicMultiplier[sineNo];
+          //float thisFreq = frequency_hz*harmonicRatio;
+          //float frequency_hz    = 440;
+          float increment = frequency_hz;// * (1.0 / SAMPLE_FREQUENCY);
+          float phase = phaseBuffer[outindex];
+
+          for (int i = 0; i<SAMPLES_PER_DISPATCH; i++)
+          {
+
+            //pcmBufferOut[outindex+i] = int((pow(2,(32-UNDERVOLUME))-1) * sin(3.141592*2*phase));
+            pcmBufferOut[outindex+i] = sin(phase);
+            //pcmBufferOut[outindex+i] = frequency_hz;
+            //pcmBufferOut[outindex+i] = int(phaseBuffer[outindex+i]);
+            //pcmBufferOut[outindex+i] = int(outindex + i);
+
+            phase += increment;
+
+          }
+          //float intPart = 0;
+          //phaseBuffer[outindex] = modf(phase, intPart);
+        }
+        
