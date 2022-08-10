@@ -126,10 +126,14 @@ class Buffer(Sinode):
             buffer=self.vkBuffer,
         )
 
+        descriptorSet.buffers += [self]
         if usage == VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT:
             dt = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
+            descriptorSet.uniformBuffers += [self]
         else:
             dt = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+            descriptorSet.storageBuffers += [self]
+            
         self.descriptorSetLayoutBinding = VkDescriptorSetLayoutBinding(
             binding=self.binding,
             descriptorType=dt,
@@ -137,7 +141,6 @@ class Buffer(Sinode):
             stageFlags=stageFlags,
         )
 
-        descriptorSet.buffers += [self]
 
         # Specify the buffer to bind to the descriptor.
         # Every buffer contains its own info for descriptor set

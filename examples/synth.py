@@ -80,24 +80,9 @@ if SOUND:
         prime_output_buffers_using_stream_callback=None)
 
 
-phaseBuffer = Buffer(
-    binding=0,
-    device=device,
-    type="float",
-    descriptorSet=device.descriptorPool.descSetGlobal,
-    qualifier="",
-    name="phaseBuffer",
-    readFromCPU = True,
-    SIZEBYTES=4 * 4 * SAMPLES_PER_DISPATCH,
-    initData = np.zeros((4 * SAMPLES_PER_DISPATCH), dtype = np.float32),
-    usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-    stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-    location=0,
-    format=VK_FORMAT_R32_SFLOAT,
-)
 
 pcmBufferOut = Buffer(
-    binding=1,
+    binding=0,
     device=device,
     type="float",
     descriptorSet=device.descriptorPool.descSetGlobal,
@@ -112,11 +97,27 @@ pcmBufferOut = Buffer(
     format=VK_FORMAT_R32_SFLOAT,
 )
 
-baseFrequency = Buffer(
-    binding=2,
+phaseBuffer = Buffer(
+    binding=0,
     device=device,
     type="float",
-    descriptorSet=device.descriptorPool.descSetGlobal,
+    descriptorSet=device.descriptorPool.descSetUniform,
+    qualifier="",
+    name="phaseBuffer",
+    readFromCPU = True,
+    SIZEBYTES=4 * 4 * SAMPLES_PER_DISPATCH,
+    initData = np.zeros((4 * SAMPLES_PER_DISPATCH), dtype = np.float32),
+    usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+    stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
+    location=0,
+    format=VK_FORMAT_R32_SFLOAT,
+)
+
+baseFrequency = Buffer(
+    binding=1,
+    device=device,
+    type="float",
+    descriptorSet=device.descriptorPool.descSetUniform,
     qualifier="",
     name="baseFrequency",
     SIZEBYTES=4 * 4 * POLYPHONY,
@@ -128,10 +129,10 @@ baseFrequency = Buffer(
 )
 
 harmonicMultiplier = Buffer(
-    binding=3,
+    binding=2,
     device=device,
     type="float",
-    descriptorSet=device.descriptorPool.descSetGlobal,
+    descriptorSet=device.descriptorPool.descSetUniform,
     qualifier="",
     name="harmonicMultiplier",
     SIZEBYTES=4 * 4 * SINES_PER_VOICE,

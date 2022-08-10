@@ -18,7 +18,7 @@ class DescriptorPool(Sinode):
         self.descSetPerPass = DescriptorSet(self, binding=1, name="perPass")
 
         # The descriptor set number 2 will be used for material resources,
-        self.descSetMaterial = DescriptorSet(self, binding=2, name="material")
+        self.descSetUniform = DescriptorSet(self, binding=2, name="material")
 
         # and the number 3 will be used for per-object resources.
         self.descSetPerObject = DescriptorSet(self, binding=3, name="perObject")
@@ -26,7 +26,7 @@ class DescriptorPool(Sinode):
         self.descSets = [
             self.descSetGlobal,
             self.descSetPerPass,
-            self.descSetMaterial,
+            self.descSetUniform,
             self.descSetPerObject,
         ]
 
@@ -42,17 +42,22 @@ class DescriptorPool(Sinode):
         # self.poolSize = VkDescriptorPoolSize(
         #    type=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptorCount=4
         # )
-        self.poolSize = VkDescriptorPoolSize(
-            type=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, descriptorCount=4
+        
+        # 2 uniform pools, 2 storage?
+        self.poolSizeS = VkDescriptorPoolSize(
+            type=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, descriptorCount=len(self.descSets[0].storageBuffers)
+        )
+        self.poolSizeU = VkDescriptorPoolSize(
+            type=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptorCount=len(self.descSets[2].uniformBuffers)
         )
 
         # We will allocate one of these descriptors for every frame. This pool size structure is referenced by the main VkDescriptorPoolCreateInfo:
         # Aside from the maximum number of individual descriptors that are available, we also need to specify the maximum number of descriptor sets that may be allocated:
         self.poolInfo = VkDescriptorPoolCreateInfo(
             sType=VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-            poolSizeCount=1,
-            pPoolSizes=[self.poolSize],
-            maxSets=4,
+            poolSizeCount=2,
+            pPoolSizes=[self.poolSizeS, self.poolSizeU],
+            maxSets=40,
         )  # imposed by some gpus
 
         # The structure has an optional flag similar to command pools that determines if individual descriptor sets can be freed or not: VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT. We're not going to touch the descriptor set after creating it, so we don't need this flag. You can leave flags to its default value of 0.
@@ -85,20 +90,36 @@ class DescriptorPool(Sinode):
             # We use vkUpdateDescriptorSets() to update the descriptor set.
 
             # one descriptor per buffer?
-            d.vkWriteDescriptorSet = VkWriteDescriptorSet(
+            d.vkWriteDescriptorSetStorage = VkWriteDescriptorSet(
                 sType=VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 dstSet=d.vkDescriptorSet,
                 dstBinding=d.binding, 
-                descriptorCount=len(d.buffers),
+                descriptorCount=len(d.storageBuffers),
                 descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                pBufferInfo=[b.descriptorBufferInfo for b in d.buffers],
+                pBufferInfo=[b.descriptorBufferInfo for b in d.storageBuffers],
             )
+            print("STORAGE")
+            print(d.storageBuffers)
+            
+            d.vkWriteDescriptorSetUniform = VkWriteDescriptorSet(
+                sType=VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                dstSet=d.vkDescriptorSet,
+                dstBinding=d.binding, 
+                descriptorCount=len(d.uniformBuffers),
+                descriptorType=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                pBufferInfo=[b.descriptorBufferInfo for b in d.uniformBuffers],
+            )
+            print("UNIFORM")
+            print(d.uniformBuffers)
+        
         
         # The Vulkan spec states: descriptorCount must be greater than 0
         writeDescriptorSets = []
         for s in self.descSets:
-            if len(s.buffers):
-                writeDescriptorSets += [s.vkWriteDescriptorSet]
+            if len(s.storageBuffers):
+                writeDescriptorSets += [s.vkWriteDescriptorSetStorage]
+            if len(s.uniformBuffers):
+                writeDescriptorSets += [s.vkWriteDescriptorSetUniform]
         
         # perform the update of the descriptor set.
         vkUpdateDescriptorSets(
@@ -123,6 +144,8 @@ class DescriptorSet(Sinode):
         self.vkDevice = descriptorPool.vkDevice
         self.descriptorPool = descriptorPool
         self.buffers = []
+        self.storageBuffers = []
+        self.uniformBuffers = []
         self.binding = binding
 
     def attachBuffer(self, buffer):

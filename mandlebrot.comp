@@ -14,15 +14,15 @@ layout(std140, binding = 0) buffer phaseBuffer_buf
 {
    float phaseBuffer[];
 };
-layout(std140, binding = 1) buffer pcmBufferOut_buf
+layout(std140, binding = 0) buffer pcmBufferOut_buf
 {
    float pcmBufferOut[];
 };
-layout(std140, binding = 2) buffer baseFrequency_buf
+layout(std140, binding = 1) buffer baseFrequency_buf
 {
    float baseFrequency[];
 };
-layout(std140, binding = 3) buffer harmonicMultiplier_buf
+layout(std140, binding = 2) buffer harmonicMultiplier_buf
 {
    float harmonicMultiplier[];
 };
