@@ -21,6 +21,12 @@ import pickle
 
 useMouse = False
 
+logger = logging.getLogger('dtfm')
+#formatter = logging.Formatter('{"debug": %(asctime)s {%(pathname)s:%(lineno)d} %(message)s}')
+formatter = logging.Formatter('{{%(pathname)s:%(lineno)d %(message)s}')
+ch = logging.StreamHandler()
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
 class MidiManager:
     def checkForNewDevices(self):
@@ -33,7 +39,7 @@ class MidiManager:
                 except (EOFError, KeyboardInterrupt):
                     sys.exit()
 
-                midiDevAndPatches = (mididev, [self.GLOBAL_DEFAULT_PATCH])
+                midiDevAndPatches = (mididev, None)
                 self.allMidiDevicesAndPatches += [midiDevAndPatches]
         self.midi_ports_last = midi_ports
 
@@ -82,29 +88,20 @@ class MidiManager:
                 for p in processors:
                     p.midi2commands(msg)
 
-    def eventLoop(self):
+    def eventLoop(self, processor):
 
         # check for new devices once a second
-        if time.time() - lastDevCheck > 1:
-            lastDevCheck = time.time()
+        if time.time() - self.lastDevCheck > 1:
+            self.lastDevCheck = time.time()
             self.checkForNewDevices()
 
         # c = sys.stdin.read(1)
         # if c == 'd':
         # 	dtfm_inst.dumpState()
-        self.checkMidi()
-
+        self.checkMidi([processor])
+        useKeyboard = False
         if useKeyboard:
             self.checkKeyboard()
-
-        # process the IRQUEUE
-        while GPIO.input(37):
-            voiceno, opnos = dtfm.getIRQueue()
-            self.GLOBAL_DEFAULT_PATCH.processIRQueue(voiceno, opnos)
-
-        if time.time() - lastPatchCheck > 0.02:
-            lastPatchCheck = time.time()
-            self.checkForPatchChange()
 
         if useMouse:
             print("CHECKING MOUSE")
@@ -134,6 +131,8 @@ class MidiManager:
     def __init__(self):
 
         PID = os.getpid()
+        
+        useKeyboard = False
         if useKeyboard:
             logger.debug("setting up keyboard")
             keyQueue = queue.Queue()
@@ -163,3 +162,4 @@ class MidiManager:
         # loop related variables
         self.midi_ports_last = []
         self.allMidiDevicesAndPatches = []
+        self.lastDevCheck = 0

@@ -36,6 +36,22 @@ import mido
 
 #######################################################
 
+def noteToFreq(note):
+    a = 440.0 #frequency of A (coomon value is 440Hz)
+    return (a / 32) * (2 ** ((note - 9) / 12.0))
+
+class Note:
+    def __init__(self, index):
+        self.index  = index
+        self.voices = []
+        self.velocity = 0
+        self.velocityReal = 0
+        self.held  = False
+        self.polytouch = 0
+        self.msg  = None
+        self.defaultIncrement = 2**32 * (noteToFreq(index) / 96000.0)
+        self.releaseTime = 0
+
 # WORKGROUP_SIZE = 1  # Workgroup size in compute shader.
 # SAMPLES_PER_DISPATCH = 512
 class Synth:
@@ -59,8 +75,8 @@ class Synth:
         self.device = device
 
         replaceDict = {
-            "POLYPHONY": 64,
-            "SINES_PER_VOICE": 64,
+            "POLYPHONY": 1,
+            "SINES_PER_VOICE": 128,
             "MINIMUM_FREQUENCY_HZ": 20,
             "MAXIMUM_FREQUENCY_HZ": 20000,
             # "SAMPLE_FREQUENCY"     : 48000,
@@ -133,6 +149,7 @@ class Synth:
             descriptorSet=device.descriptorPool.descSetUniform,
             qualifier="",
             name="baseIncrement",
+            readFromCPU=True,
             SIZEBYTES=4 * 4 * self.POLYPHONY,
             initData=np.ones((4 * self.POLYPHONY), dtype=np.float32)
             * 2
@@ -176,6 +193,8 @@ class Synth:
             location=0,
             format=VK_FORMAT_R32_SFLOAT,
         )
+        
+        self.allNotes = [Note(index = i) for i in range(128)] 
 
         # noteAge = Buffer(
         #    binding=5,
@@ -238,7 +257,8 @@ class Synth:
               {
 
                 float harmonicRatio   = harmonicMultiplier[sineNo];
-                sum += vol * sin(phase*harmonicRatio)/(SINES_PER_VOICE*POLYPHONY);
+                //sum += vol * sin(phase*harmonicRatio)/(SINES_PER_VOICE*POLYPHONY);
+                sum += vol * sin(phase*harmonicRatio)/(SINES_PER_VOICE);
 
               }
           }
@@ -293,7 +313,108 @@ class Synth:
         )
 
     def midi2commands(self, msg):
-        print(msg)
+        
+        if msg.type == "note_off" or (msg.type == "note_on" and msg.velocity == 0):
+            #if self.sustain:
+            #    self.toRelease[msg.note] = True
+            #    return
+
+            note = self.allNotes[msg.note] 
+            note.velocity = 0 
+            note.velocityReal = 0 
+            #if note.cluster is not None:
+            #    note.cluster.silenceAllOps()
+            #note.cluster = None
+            note.held = False
+            note.releaseTime = time.time()
+            #self.harmonicsVolume.pmap[msg.note*4:(msg.note+1)*4] = np.array([0                                                      ],dtype=np.float32) 
+            self.harmonicsVolume.pmap[0:4] = np.array([0                                                      ],dtype=np.float32) 
+
+        # if note on, spawn voices
+        elif msg.type == "note_on":
+            #print(msg)
+            note = self.allNotes[msg.note]
+            note.velocity     = msg.velocity
+            note.velocityReal = (msg.velocity/127.0)**2
+            note.held = True
+            note.msg = msg
+            #self.harmonicsVolume.pmap[msg.note*4:(msg.note+1)*4] = np.array([1                                                      ],dtype=np.float32) 
+            #self.baseIncrement.pmap[msg.note*4:(msg.note+1)*4]   = np.array([2*3.141592*noteToFreq(msg.note) / self.SAMPLE_FREQUENCY],dtype=np.float32)
+            self.harmonicsVolume.pmap[0:4] = np.array([1                                                      ],dtype=np.float32) 
+            self.baseIncrement.pmap[0:4]   = np.array([2*3.141592*noteToFreq(msg.note) / self.SAMPLE_FREQUENCY],dtype=np.float32)
+            self.fullAddArray[0] = 2*3.141592*noteToFreq(msg.note)*self.SAMPLES_PER_DISPATCH / self.SAMPLE_FREQUENCY
+            print(2*3.141592*noteToFreq(msg.note) / self.SAMPLE_FREQUENCY)
+
+        elif msg.type == 'pitchwheel':
+            logger.debug("PW: " + str(msg.pitch))
+            self.pitchwheel = msg.pitch
+            ARTIPHON = 1
+            if ARTIPHON:
+                self.pitchwheel *= 2
+            amountchange = self.pitchwheel / 8192.0
+            self.pitchwheelReal = pow(2, amountchange)
+            logger.debug("PWREAL " + str(self.pitchwheelReal))
+            self.setAllIncrements()
+
+        elif msg.type == 'control_change':
+
+            logger.debug("control : " + str(msg.control) + " (" + dtfm.controlNum2Name[msg.control] +  "): " + str(msg.value))
+
+            event = "control[" + str(msg.control) + "]"
+
+            # forward some controls
+
+            # route control3 to control 7 because sometimes 3 is volume control
+            if msg.control == 3:
+                self.midi2commands(mido.Message('control_change', control= 7, value = msg.value ))
+
+            if msg.control == dtfm.ctrl_vibrato_env:
+                dtfm.formatAndSend(dtfm.cmd_env_rate , self.lowestVoiceIndex, 7, [0] * self.polyphony)
+                dtfm.formatAndSend(dtfm.cmd_env , self.lowestVoiceIndex, 7, [(msg.value/127.0)*2**29] * self.polyphony)
+                dtfm.formatAndSend(dtfm.cmd_env_rate , self.lowestVoiceIndex, 7, [(msg.value/127.0)*2**29] * self.polyphony)
+
+            if msg.control == dtfm.ctrl_tremolo_env:
+                dtfm.formatAndSend(dtfm.cmd_env_rate , self.lowestVoiceIndex, 6, [0] * self.polyphony)
+                dtfm.formatAndSend(dtfm.cmd_env , self.lowestVoiceIndex, 6, [(msg.value/127.0)*2**29] * self.polyphony)
+                dtfm.formatAndSend(dtfm.cmd_env_rate , self.lowestVoiceIndex, 6, [(msg.value/127.0)*2**29] * self.polyphony)
+
+            if msg.control == dtfm.ctrl_silence:
+                for op in range(6):
+                    dtfm.formatAndSend(dtfm.cmd_env , self.lowestVoiceIndex,      op, [0] * self.polyphony)
+                    dtfm.formatAndSend(dtfm.cmd_env_rate , self.lowestVoiceIndex, op, [0] * self.polyphony)
+
+
+            # OPERATOR CONCERNS
+            if msg.control == dtfm.ctrl_sustain: 
+                self.sustain  = msg.value
+                if not self.sustain:
+                    for note, release in enumerate(self.toRelease):
+                        if release:
+                            self.midi2commands(mido.Message('note_off', note = note, velocity = 0))
+                    self.toRelease = [False]*MIDINOTES
+
+
+
+        elif msg.type == 'polytouch':
+            self.polytouch = msg.value
+            self.polytouchReal = msg.value/127.0
+
+        elif msg.type == 'aftertouch':
+            self.aftertouch = msg.value
+            self.aftertouchReal = msg.value/127.0
+
+            self.setAllIncrements()
+            #for voice in self.voices:
+            #	if time.time() - voice.note.releaseTime > max(voice.envTimeSeconds[3,:]):
+            #		voice.setAllIncrements(self.pitchwheelReal * (1 + self.aftertouchReal))
+
+
+        #if msg.type == "note_off" or (msg.type == "note_on" and msg.velocity == 0):
+        #    # implement rising mono rate
+        #    for heldnote in self.allNotes[::-1]:
+        #        if heldnote.held and self.polyphony == self.voicesPerCluster :
+        #            self.midi2commands(heldnote.msg)
+        #            break
 
     def run(self):
         timer = 0
@@ -304,7 +425,7 @@ class Synth:
         fence = vkCreateFence(self.device.vkDevice, fenceCreateInfo, None)
 
         # precompute some arrays
-        fullAddArray = (
+        self.fullAddArray = (
             np.ones((int(self.phaseBuffer.size / 4)), dtype=np.float32)
             * 3.141592
             * 2
@@ -312,24 +433,47 @@ class Synth:
             * 440
             / self.SAMPLE_FREQUENCY
         )
-        print(np.shape(fullAddArray))
+        print(np.shape(self.fullAddArray))
 
         if self.SOUND:
             self.stream.start()
 
         hm = np.ones((4 * self.SINES_PER_VOICE), dtype=np.float32)
-        hm[: int(len(hm) / 2)] *= 1.5
+        hm[4] *= 1.5
+        hm[8] *= 1.01
+        hm[12] *= 0.99
+        hm[16] *= 1.02
+        hm[20] *= 0.98
+        hm[24] *= 0.97
+        hm[28] *= 1.03
+        hm[32] *= 0.96
+        hm[36] *= 1.51
+        hm[40] *= 1.49
+        hm[44] *= 1.52
+        hm[48] *= 1.48
+        hm[52] *= 2
+        hm[56] *= 2.01
+        hm[60] *= 1.98
+        #hm[64] *= 1.97
+        #hm[68] *= 2.03
+        #hm[72] *= 1.96
+        #hm[76] *= 2.51
+        #hm[80] *= 2.49
+        #hm[84] *= 2.52
+        #hm[88] *= 2.48
+        #hm[92] *= 4
         self.harmonicMultiplier.setBuffer(hm)
 
-        hm = np.ones((4 * self.POLYPHONY), dtype=np.float32)
-        self.harmonicsVolume.setBuffer(hm)
+        hm2 = np.zeros((4 * self.POLYPHONY), dtype=np.float32)
+        self.harmonicsVolume.setBuffer(hm2)
 
-        newArray = fullAddArray.copy()
+        newArray = self.fullAddArray.copy()
         # into the loop
-        for i in range(int(1024 * 128 / self.SAMPLES_PER_DISPATCH)):
+        #for i in range(int(1024 * 128 / self.SAMPLES_PER_DISPATCH)):
+        while(1):
 
             # we do CPU tings simultaneously
-            newArray += fullAddArray
+            newArray += self.fullAddArray
             self.phaseBuffer.setBuffer(newArray)
 
             pa = np.frombuffer(self.pcmBufferOut.pmap, np.float32)[::4]
@@ -345,14 +489,14 @@ class Synth:
             # We submit the command buffer on the queue, at the same time giving a fence.
             vkQueueSubmit(self.device.compute_queue, 1, self.submitInfo, fence)
 
-            self.mm.eventLoop(self)
-
             # The command will not have finished executing until the fence is signalled.
             # So we wait here.
             # We will directly after this read our buffer from the GPU,
             # and we will not be sure that the command has finished executing unless we wait for the fence.
             # Hence, we use a fence here.
             vkWaitForFences(self.device.vkDevice, 1, [fence], VK_TRUE, 100000000000)
+
+            self.mm.eventLoop(self)
 
             if self.GRAPH:
                 print(pa2[:16])
