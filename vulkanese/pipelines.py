@@ -115,7 +115,7 @@ class Pipeline(Sinode):
 # the compute pipeline is so much simpler than the old-school
 # graphics pipeline. it should be considered separately
 class ComputePipeline(Pipeline):
-    def __init__(self, device, stages):
+    def __init__(self, device, stages, workgroupShape = [1,1,1]):
         Pipeline.__init__(self, device, stages=stages, outputClass="image")
 
         self.descriptorSet = device.descriptorPool.descSetGlobal
@@ -158,7 +158,7 @@ class ComputePipeline(Pipeline):
 
         self.children += [pipelines]
         # wrap it all up into a command buffer
-        self.commandBuffer = ComputeCommandBuffer(self)
+        self.commandBuffer = ComputeCommandBuffer(self, workgroupShape = workgroupShape)
 
 
 class RasterPipeline(Pipeline):

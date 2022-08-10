@@ -160,7 +160,7 @@ class RasterCommandBuffer(CommandBuffer):
 
 
 class ComputeCommandBuffer(CommandBuffer):
-    def __init__(self, pipeline, flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT):
+    def __init__(self, pipeline, workgroupShape, flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT):
         CommandBuffer.__init__(self, pipeline)
         self.vkCommandBuffer = self.vkCommandBuffers[0]
         # Now we shall start recording commands into the newly allocated command buffer.
@@ -190,10 +190,6 @@ class ComputeCommandBuffer(CommandBuffer):
             None,
         )
 
-        WIDTH = 3200  # Size of rendered mandelbrot set.
-        HEIGHT = 2400  # Size of renderered mandelbrot set.
-        WORKGROUP_SIZE = 32  # Workgroup size in compute shader.
-
         # Calling vkCmdDispatch basically starts the compute pipeline, and executes the compute shader.
         # The number of workgroups is specified in the arguments.
         # If you are already familiar with compute shaders from OpenGL, this should be nothing new to you.
@@ -201,9 +197,9 @@ class ComputeCommandBuffer(CommandBuffer):
             self.vkCommandBuffer,
             #int(math.ceil(WIDTH / float(WORKGROUP_SIZE))),  # int for py2 compatible
             #int(math.ceil(HEIGHT / float(WORKGROUP_SIZE))),  # int for py2 compatible
-            128,  # int for py2 compatible
-            1,  # int for py2 compatible
-            1,
+            workgroupShape[0],  # int for py2 compatible
+            workgroupShape[1],  # int for py2 compatible
+            workgroupShape[2],
         )
 
         vkEndCommandBuffer(self.vkCommandBuffer)

@@ -34,6 +34,8 @@ class Buffer(Sinode):
         location,
         descriptorSet,
         format,
+        initData, 
+        readFromCPU = False,
         binding = 0,
         usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         memProperties=VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
@@ -47,7 +49,6 @@ class Buffer(Sinode):
         self.binding = binding
         # this should be fixed in vulkan wrapper
         self.released = False
-        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT = 0x00020000
         self.usage = usage
         Sinode.__init__(self, device)
         self.device = device
@@ -98,13 +99,6 @@ class Buffer(Sinode):
         self.vkDeviceMemory = vkAllocateMemory(self.vkDevice, self.allocateInfo, None)
         self.children += [self.vkDeviceMemory]
 
-        # Now associate that allocated memory with the buffer. With that, the buffer is backed by actual memory.
-        vkBindBufferMemory(
-            device = self.vkDevice, 
-            buffer = self.vkBuffer, 
-            memory = self.vkDeviceMemory, 
-            memoryOffset = 0)
-
         # Map the buffer memory, so that we can read from it on the CPU.
         self.pmap = vkMapMemory(
             device = self.vkDevice,
@@ -112,6 +106,19 @@ class Buffer(Sinode):
             offset = 0, 
             size   = SIZEBYTES, 
             flags  = 0)
+        
+        self.setBuffer(initData)
+        
+        if not readFromCPU:
+            vkUnmapMemory(self.vkDevice, self.vkDeviceMemory);
+            self.pmap = None
+        
+        # Now associate that allocated memory with the buffer. With that, the buffer is backed by actual memory.
+        vkBindBufferMemory(
+            device = self.vkDevice, 
+            buffer = self.vkBuffer, 
+            memory = self.vkDeviceMemory, 
+            memoryOffset = 0)
 
         self.bufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
             sType=VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
@@ -119,15 +126,19 @@ class Buffer(Sinode):
             buffer=self.vkBuffer,
         )
 
+        if usage == VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT:
+            dt = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
+        else:
+            dt = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
         self.descriptorSetLayoutBinding = VkDescriptorSetLayoutBinding(
             binding=self.binding,
-            descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+            descriptorType=dt,
             descriptorCount=1,
             stageFlags=stageFlags,
         )
 
         descriptorSet.buffers += [self]
-        
+
         # Specify the buffer to bind to the descriptor.
         # Every buffer contains its own info for descriptor set
         # Next, we need to connect our actual storage buffer with the descrptor.
@@ -209,9 +220,16 @@ class Buffer(Sinode):
     
     def setBuffer(self, data):
         #self.pmap[: data.size * data.itemsize] = data
-        a = int(len(data))
+        #a = int(len(data))
         #self.pmap[:a] = data[:int(a/(data.itemsize))]
-        self.pmap[:a*data.itemsize] = data
+        #self.pmap[:a*data.itemsize] = data
+        self.pmap[:] = data
+
+    def fill(self, value):
+        #self.pmap[: data.size * data.itemsize] = data
+        a = np.array([value])
+        #self.pmap[:a] = data[:int(a/(data.itemsize))]
+        self.pmap[:] = np.tile(a, int(len(self.pmap[:]) / a.itemsize))
 
     def getSize(self):
         with open(os.path.join(here, "derivedtypes.json"), "r") as f:

@@ -48,7 +48,8 @@ device = instance_inst.getDevice(0)
 #SAMPLES_PER_DISPATCH = 512
 
 replaceDict = {
-    "WORKGROUP_SIZE": 1,
+    "POLYPHONY": 8,
+    "SINES_PER_VOICE": 1,
     "MINIMUM_FREQUENCY_HZ" : 20,
     "MAXIMUM_FREQUENCY_HZ" : 20000,
     #"SAMPLE_FREQUENCY"     : 48000,
@@ -56,7 +57,7 @@ replaceDict = {
     "UNDERVOLUME"     : 3,
     "CHANNELS"     : 1,
     "SAMPLES_PER_DISPATCH" : 32,
-    "LATENCY_SECONDS" : 0.010
+    "LATENCY_SECONDS" : 0.006
 }
 
 for k, v in replaceDict.items():
@@ -68,7 +69,7 @@ if SOUND:
         blocksize=SAMPLES_PER_DISPATCH, 
         device=None, 
         channels=CHANNELS, 
-        dtype=np.int32, 
+        dtype=np.float32, 
         latency=LATENCY_SECONDS, 
         extra_settings=None, 
         callback=None,
@@ -86,36 +87,110 @@ phaseBuffer = Buffer(
     descriptorSet=device.descriptorPool.descSetGlobal,
     qualifier="",
     name="phaseBuffer",
+    readFromCPU = True,
     SIZEBYTES=4 * 4 * SAMPLES_PER_DISPATCH,
+    initData = np.zeros((4 * SAMPLES_PER_DISPATCH), dtype = np.float32),
+    usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+    stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
+    location=0,
+    format=VK_FORMAT_R32_SFLOAT,
+)
+
+pcmBufferOut = Buffer(
+    binding=1,
+    device=device,
+    type="float",
+    descriptorSet=device.descriptorPool.descSetGlobal,
+    qualifier="in",
+    name="pcmBufferOut",
+    readFromCPU = True,
+    SIZEBYTES=4 * 4 * SAMPLES_PER_DISPATCH, # Actually this is the number of sine oscillators
+    initData = np.zeros((4 * SAMPLES_PER_DISPATCH), dtype = np.float32),
     usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
     stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
     location=0,
     format=VK_FORMAT_R32_SFLOAT,
 )
 
-#die
-#phaseBuffer.pmap[:8*4] = fullAddArray[:8]
-
-pcmBufferOut = Buffer(
-    binding=1,
+baseFrequency = Buffer(
+    binding=2,
     device=device,
-    type="int",
+    type="float",
     descriptorSet=device.descriptorPool.descSetGlobal,
-    qualifier="in",
-    name="pcmBufferOut",
-    SIZEBYTES=4 * 4 * SAMPLES_PER_DISPATCH, # Actually this is the number of sine oscillators
-    usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+    qualifier="",
+    name="baseFrequency",
+    SIZEBYTES=4 * 4 * POLYPHONY,
+    initData = np.ones((4 * POLYPHONY), dtype = np.float32)*440/SAMPLE_FREQUENCY,
+    usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
     stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-    location=1,
-    format=VK_FORMAT_R32_SINT,
+    location=0,
+    format=VK_FORMAT_R32_SFLOAT,
 )
+
+harmonicMultiplier = Buffer(
+    binding=3,
+    device=device,
+    type="float",
+    descriptorSet=device.descriptorPool.descSetGlobal,
+    qualifier="",
+    name="harmonicMultiplier",
+    SIZEBYTES=4 * 4 * SINES_PER_VOICE,
+    initData = np.ones((4 * SINES_PER_VOICE), dtype = np.float32),
+    usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+    stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
+    location=0,
+    format=VK_FORMAT_R32_SFLOAT,
+)
+
+
+#harmonicsVolume = Buffer(
+#    binding=4,
+#    device=device,
+#    type="float",
+#    descriptorSet=device.descriptorPool.descSetGlobal,
+#    qualifier="",
+#    name="harmonicsVolume",
+#    SIZEBYTES=4 * 4 * SINES_PER_VOICE,
+#    usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+#    stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
+#    location=0,
+#    format=VK_FORMAT_R32_SFLOAT,
+#)
+#
+#noteAge = Buffer(
+#    binding=5,
+#    device=device,
+#    type="float",
+#    descriptorSet=device.descriptorPool.descSetGlobal,
+#    qualifier="",
+#    name="noteAge",
+#    SIZEBYTES=4 * 4 * SINES_PER_VOICE,
+#    usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+#    stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
+#    location=0,
+#    format=VK_FORMAT_R32_SFLOAT,
+#)
+#
+#ADSR = Buffer(
+#    binding=6,
+#    device=device,
+#    type="Pixel",
+#    descriptorSet=device.descriptorPool.descSetGlobal,
+#    qualifier="",
+#    name="ADSR",
+#    SIZEBYTES=4 * 4 * SINES_PER_VOICE,
+#    usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+#    stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
+#    location=0,
+#    format=VK_FORMAT_R32_SFLOAT,
+#)
 
 header = """#version 450
 #extension GL_ARB_separate_shader_objects : enable
 """
 for k, v in replaceDict.items():
     header += "#define " + k + " " + str(v) + "\n"
-header += "layout (local_size_x = WORKGROUP_SIZE, local_size_y = WORKGROUP_SIZE, local_size_z = 1 ) in;"
+header += "layout (local_size_x = POLYPHONY, local_size_y = SINES_PER_VOICE, local_size_z = 1 ) in;"
     
 main = """
 
@@ -128,27 +203,31 @@ void main() {
     return;
   */
   
-  //uint outindex = gl_GlobalInvocationID.x;
+  uint noteNo = gl_GlobalInvocationID.x;
+  uint sineNo = gl_GlobalInvocationID.y;
+  
   uint outindex = 0;
-  float frequency_hz = 440;
-  float increment = frequency_hz / SAMPLE_FREQUENCY;
+  float frequency_hz    = baseFrequency[noteNo];
+  //float harmonicRatio   = harmonicMultiplier[sineNo];
+  //float thisFreq = frequency_hz*harmonicRatio;
+  //float frequency_hz    = 440;
+  float increment = frequency_hz;// * (1.0 / SAMPLE_FREQUENCY);
   float phase = phaseBuffer[outindex];
   
   for (int i = 0; i<SAMPLES_PER_DISPATCH; i++)
   {
   
-    pcmBufferOut[outindex+i] = int((pow(2,(32-UNDERVOLUME))-1) * sin(3.141592*2*phase));
+    //pcmBufferOut[outindex+i] = int((pow(2,(32-UNDERVOLUME))-1) * sin(3.141592*2*phase));
+    pcmBufferOut[outindex+i] = sin(3.141592*2*phase);
+    //pcmBufferOut[outindex+i] = frequency_hz;
     //pcmBufferOut[outindex+i] = int(phaseBuffer[outindex+i]);
     //pcmBufferOut[outindex+i] = int(outindex + i);
     
     phase += increment;
-    /*
-    if(phase > 1){
-        phase -= 1;
-    }*/
+    
   }
-  //phaseBuffer[outindex] = phase;
-  // Multiple shaders will pull from phase array, so it needs to be updated by host
+  //float intPart = 0;
+  //phaseBuffer[outindex] = modf(phase, intPart);
 }
 """
 
@@ -164,14 +243,16 @@ mandleStage = Stage(
     outputHeightPixels=700,
     header=header,
     main=main,
-    buffers=[phaseBuffer, pcmBufferOut],
+    buffers=[phaseBuffer, pcmBufferOut, baseFrequency, harmonicMultiplier],
 )
 
 #######################################################
 # Pipeline
 device.descriptorPool.finalize()
 
-computePipeline = ComputePipeline(device=device, stages=[mandleStage])
+computePipeline = ComputePipeline(device=device, 
+                                  workgroupShape = [POLYPHONY,SINES_PER_VOICE,1], 
+                                  stages=[mandleStage])
 device.children += [computePipeline]
 
 # print the object hierarchy
@@ -193,23 +274,22 @@ fenceCreateInfo = VkFenceCreateInfo(sType=VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, f
 fence = vkCreateFence(device.vkDevice, fenceCreateInfo, None)
 
 # precompute some arrays
-a = SAMPLES_PER_DISPATCH * 440 / SAMPLE_FREQUENCY
-addArray = np.array([a,a,a,a], dtype=np.float32)
-fullAddArray = np.tile(addArray, int(phaseBuffer.size/16))
+a = 3.141592*2*SAMPLES_PER_DISPATCH * 440 / SAMPLE_FREQUENCY
+addArray = np.array([a], dtype=np.float32)
+fullAddArray = np.tile(addArray, int(phaseBuffer.size/4))
 if SOUND:
     stream.start()
 
 newArray = fullAddArray.copy()
+
 # into the loop 
 for i in range(int(1024*128/SAMPLES_PER_DISPATCH)):
     
     # we do CPU tings simultaneously
-    #newArray = np.add(np.frombuffer(phaseBuffer.pmap, np.float32), fullAddArray)
     newArray += fullAddArray
-    #newArray = np.modf(newArray)[0]
     phaseBuffer.setBuffer(newArray)
 
-    pa = np.frombuffer(pcmBufferOut.pmap, np.int32)[::4]
+    pa = np.frombuffer(pcmBufferOut.pmap, np.float32)[::4]
     pa2 = np.ascontiguousarray(pa)
     #pa2 = pa #np.ascontiguousarray(pa)
     #pa3 = np.vstack((pa2, pa2))
