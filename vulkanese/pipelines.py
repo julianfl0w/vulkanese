@@ -124,8 +124,8 @@ class ComputePipeline(Pipeline):
         # So we just specify the descriptor set layout we created earlier.
         pipelineLayoutCreateInfo = VkPipelineLayoutCreateInfo(
             sType=VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            setLayoutCount=1,
-            pSetLayouts=[device.descriptorPool.descSetGlobal.vkDescriptorSetLayout],
+            setLayoutCount=len(device.descriptorPool.descSets),
+            pSetLayouts=[d.vkDescriptorSetLayout for d in device.descriptorPool.descSets],
         )
 
         self.vkPipelineLayout = vkCreatePipelineLayout(

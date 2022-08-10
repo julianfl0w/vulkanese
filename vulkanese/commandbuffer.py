@@ -180,14 +180,14 @@ class ComputeCommandBuffer(CommandBuffer):
             self.pipeline.vkPipeline,
         )
         vkCmdBindDescriptorSets(
-            self.vkCommandBuffer,
-            VK_PIPELINE_BIND_POINT_COMPUTE,
-            self.pipeline.vkPipelineLayout,
-            0,
-            1,
-            [self.pipeline.device.descriptorPool.descSetGlobal.vkDescriptorSet],
-            0,
-            None,
+            commandBuffer = self.vkCommandBuffer,
+            pipelineBindPoint = VK_PIPELINE_BIND_POINT_COMPUTE,
+            layout = self.pipeline.vkPipelineLayout,
+            firstSet = 0,
+            descriptorSetCount = len(self.pipeline.device.descriptorPool.activevkDescriptorSets),
+            pDescriptorSets = self.pipeline.device.descriptorPool.activevkDescriptorSets,
+            dynamicOffsetCount = 0,
+            pDynamicOffsets = None,
         )
 
         # Calling vkCmdDispatch basically starts the compute pipeline, and executes the compute shader.

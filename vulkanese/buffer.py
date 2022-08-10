@@ -127,16 +127,15 @@ class Buffer(Sinode):
         )
 
         descriptorSet.buffers += [self]
-        if usage == VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT:
-            dt = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
-            descriptorSet.uniformBuffers += [self]
-        else:
-            dt = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
-            descriptorSet.storageBuffers += [self]
-            
+        # descriptorCount is the number of descriptors contained in the binding, 
+        # accessed in a shader as an array, except if descriptorType is 
+        # VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK in which case descriptorCount 
+        # is the size in bytes of the inline uniform block
+        print("BUFFER DTYPE")
+        print(descriptorSet.type)
         self.descriptorSetLayoutBinding = VkDescriptorSetLayoutBinding(
             binding=self.binding,
-            descriptorType=dt,
+            descriptorType=descriptorSet.type,
             descriptorCount=1,
             stageFlags=stageFlags,
         )
@@ -207,18 +206,29 @@ class Buffer(Sinode):
             )
 
     def getComputeDeclaration(self):
+        if self.usage == VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT:
+            b = "uniform " 
+        else:
+            b = "buffer " 
+            
         return (
-            "layout(std140, binding = "
+            "layout(std140, "
+            + "set = "
+            + str(self.descriptorSet.binding)
+            + ", binding = "
             + str(self.binding)
             #+ ", "
             #+ "xfb_stride = " + str(self.stride)
-            + ") buffer " + self.name + "_buf\n{\n   "
+            + ") " + 
+            b + 
+            self.name + "_buf\n{\n   "
             #+ self.qualifier
             #+ " "
             + self.type
             + " "
             + self.name
-            + "[];\n};\n"
+            + "[" + str(int(self.size/4))
+            + "];\n};\n"
         )
     
     def setBuffer(self, data):

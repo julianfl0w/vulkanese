@@ -13,20 +13,20 @@ class DescriptorPool(Sinode):
         self.MAX_FRAMES_IN_FLIGHT = MAX_FRAMES_IN_FLIGHT
 
         # The descriptor set number 0 will be used for engine-global resources, and bound once per frame.
-        self.descSetGlobal = DescriptorSet(self, binding=0, name="global")
-        # The descriptor set number 1 will be used for per-pass resources, and bound once per pass.
-        self.descSetPerPass = DescriptorSet(self, binding=1, name="perPass")
-
+        self.descSetGlobal = DescriptorSet(self, binding=0, name="global", type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
         # The descriptor set number 2 will be used for material resources,
-        self.descSetUniform = DescriptorSet(self, binding=2, name="material")
+        self.descSetUniform = DescriptorSet(self, binding=1, name="uniform", type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+
+        # The descriptor set number 1 will be used for per-pass resources, and bound once per pass.
+        self.descSetPerPass = DescriptorSet(self, binding=2, name="perPass", type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
 
         # and the number 3 will be used for per-object resources.
-        self.descSetPerObject = DescriptorSet(self, binding=3, name="perObject")
+        self.descSetPerObject = DescriptorSet(self, binding=3, name="perObject", type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
 
         self.descSets = [
             self.descSetGlobal,
-            self.descSetPerPass,
             self.descSetUniform,
+            self.descSetPerPass,
             self.descSetPerObject,
         ]
 
@@ -45,11 +45,15 @@ class DescriptorPool(Sinode):
         
         # 2 uniform pools, 2 storage?
         self.poolSizeS = VkDescriptorPoolSize(
-            type=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, descriptorCount=len(self.descSets[0].storageBuffers)
+            type=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, descriptorCount=1000#len(self.descSets[0].buffers)
         )
         self.poolSizeU = VkDescriptorPoolSize(
-            type=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptorCount=len(self.descSets[2].uniformBuffers)
+            type=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptorCount=1000#len(self.descSets[1].buffers)
         )
+        print("sb")
+        print(len(self.descSets[0].buffers))
+        print("ub")
+        print(len(self.descSets[1].buffers))
 
         # We will allocate one of these descriptors for every frame. This pool size structure is referenced by the main VkDescriptorPoolCreateInfo:
         # Aside from the maximum number of individual descriptors that are available, we also need to specify the maximum number of descriptor sets that may be allocated:
@@ -57,12 +61,14 @@ class DescriptorPool(Sinode):
             sType=VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
             poolSizeCount=2,
             pPoolSizes=[self.poolSizeS, self.poolSizeU],
-            maxSets=40,
+            maxSets=4,
         )  # imposed by some gpus
 
         # The structure has an optional flag similar to command pools that determines if individual descriptor sets can be freed or not: VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT. We're not going to touch the descriptor set after creating it, so we don't need this flag. You can leave flags to its default value of 0.
         self.vkDescriptorPool = vkCreateDescriptorPool(
-            self.vkDevice, [self.poolInfo], 0
+            device =self.vkDevice,
+            pCreateInfo = [self.poolInfo], 
+            pAllocator = 0
         )
 
         # This way, the inner render loops will only be binding descriptor sets 2 and 3, and performance will be high.
@@ -82,6 +88,9 @@ class DescriptorPool(Sinode):
             self.vkDevice, descriptorSetAllocateInfo
         )
 
+        self.writeDescriptorSets = []
+        self.activevkDescriptorSets = []
+        self.activeDescriptorSets = []
         print(self.vkDescriptorSets)
         for i, d in enumerate(self.descSets):
             d.vkDescriptorSet = self.vkDescriptorSets[i]
@@ -90,42 +99,40 @@ class DescriptorPool(Sinode):
             # We use vkUpdateDescriptorSets() to update the descriptor set.
 
             # one descriptor per buffer?
-            d.vkWriteDescriptorSetStorage = VkWriteDescriptorSet(
+            d.vkWriteDescriptorSet = VkWriteDescriptorSet(
                 sType=VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 dstSet=d.vkDescriptorSet,
                 dstBinding=d.binding, 
-                descriptorCount=len(d.storageBuffers),
-                descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                pBufferInfo=[b.descriptorBufferInfo for b in d.storageBuffers],
+                descriptorCount=len(d.buffers),
+                descriptorType=d.type,
+                pBufferInfo=[b.descriptorBufferInfo for b in d.buffers],
             )
-            print("STORAGE")
-            print(d.storageBuffers)
+            print("Buffers")
+            print(d.buffers)
+            print("binding")
+            print(d.binding)
+            print("type")
+            print(d.type)
             
-            d.vkWriteDescriptorSetUniform = VkWriteDescriptorSet(
-                sType=VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                dstSet=d.vkDescriptorSet,
-                dstBinding=d.binding, 
-                descriptorCount=len(d.uniformBuffers),
-                descriptorType=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                pBufferInfo=[b.descriptorBufferInfo for b in d.uniformBuffers],
-            )
-            print("UNIFORM")
-            print(d.uniformBuffers)
-        
-        
-        # The Vulkan spec states: descriptorCount must be greater than 0
-        writeDescriptorSets = []
-        for s in self.descSets:
-            if len(s.storageBuffers):
-                writeDescriptorSets += [s.vkWriteDescriptorSetStorage]
-            if len(s.uniformBuffers):
-                writeDescriptorSets += [s.vkWriteDescriptorSetUniform]
-        
+            # The Vulkan spec states: descriptorCount must be greater than 0
+            if len(d.buffers):
+                self.writeDescriptorSets += [d.vkWriteDescriptorSet]
+                self.activevkDescriptorSets += [d.vkDescriptorSet]
+                self.activeDescriptorSets += [d]
+                
+        print(self.writeDescriptorSets)
         # perform the update of the descriptor set.
         vkUpdateDescriptorSets(
             device = self.vkDevice, 
-            descriptorWriteCount = len(writeDescriptorSets), 
-            pDescriptorWrites = writeDescriptorSets, 
+            descriptorWriteCount = 1,#len(writeDescriptorSets), 
+            pDescriptorWrites = self.writeDescriptorSets[0], 
+            descriptorCopyCount = 0, 
+            pDescriptorCopies = None)
+        # perform the update of the descriptor set.
+        vkUpdateDescriptorSets(
+            device = self.vkDevice, 
+            descriptorWriteCount = 1,#len(writeDescriptorSets), 
+            pDescriptorWrites = self.writeDescriptorSets[1], 
             descriptorCopyCount = 0, 
             pDescriptorCopies = None)
         
@@ -138,21 +145,14 @@ class DescriptorPool(Sinode):
 
 
 class DescriptorSet(Sinode):
-    def __init__(self, descriptorPool, binding, name, MAX_FRAMES_IN_FLIGHT=3):
+    def __init__(self, descriptorPool, binding, name, type, MAX_FRAMES_IN_FLIGHT=3):
         Sinode.__init__(self, descriptorPool)
         self.name = name
         self.vkDevice = descriptorPool.vkDevice
         self.descriptorPool = descriptorPool
         self.buffers = []
-        self.storageBuffers = []
-        self.uniformBuffers = []
+        self.type = type
         self.binding = binding
-
-    def attachBuffer(self, buffer):
-        # this gets set in buffer
-        # buffer.binding = len(self.buffers.values())
-        self.buffers += [buffer]
-        return len(self.buffers)
 
     def finalize(self):
         # Here we specify a descriptor set layout. This allows us to bind our descriptors to

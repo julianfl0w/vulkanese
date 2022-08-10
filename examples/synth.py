@@ -10,7 +10,7 @@ import cv2 as cv
 import matplotlib.pyplot as plt
 import sounddevice as sd
 
-GRAPH = False
+GRAPH = True
 SOUND = not GRAPH
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -48,7 +48,7 @@ device = instance_inst.getDevice(0)
 #SAMPLES_PER_DISPATCH = 512
 
 replaceDict = {
-    "POLYPHONY": 8,
+    "POLYPHONY": 1,
     "SINES_PER_VOICE": 1,
     "MINIMUM_FREQUENCY_HZ" : 20,
     "MAXIMUM_FREQUENCY_HZ" : 20000,
@@ -98,15 +98,15 @@ pcmBufferOut = Buffer(
 )
 
 phaseBuffer = Buffer(
-    binding=0,
+    binding=1,
     device=device,
     type="float",
     descriptorSet=device.descriptorPool.descSetUniform,
     qualifier="",
     name="phaseBuffer",
     readFromCPU = True,
-    SIZEBYTES=4 * 4 * SAMPLES_PER_DISPATCH,
-    initData = np.zeros((4 * SAMPLES_PER_DISPATCH), dtype = np.float32),
+    SIZEBYTES=4 * 4 * POLYPHONY * SINES_PER_VOICE,
+    initData = np.zeros((4 * POLYPHONY * SINES_PER_VOICE), dtype = np.float32),
     usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
     stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
     location=0,
@@ -114,7 +114,7 @@ phaseBuffer = Buffer(
 )
 
 baseFrequency = Buffer(
-    binding=1,
+    binding=2,
     device=device,
     type="float",
     descriptorSet=device.descriptorPool.descSetUniform,
@@ -129,7 +129,7 @@ baseFrequency = Buffer(
 )
 
 harmonicMultiplier = Buffer(
-    binding=2,
+    binding=3,
     device=device,
     type="float",
     descriptorSet=device.descriptorPool.descSetUniform,
@@ -244,7 +244,7 @@ mandleStage = Stage(
     outputHeightPixels=700,
     header=header,
     main=main,
-    buffers=[phaseBuffer, pcmBufferOut, baseFrequency, harmonicMultiplier],
+    buffers=[pcmBufferOut, phaseBuffer, baseFrequency, harmonicMultiplier],
 )
 
 #######################################################
@@ -275,9 +275,9 @@ fenceCreateInfo = VkFenceCreateInfo(sType=VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, f
 fence = vkCreateFence(device.vkDevice, fenceCreateInfo, None)
 
 # precompute some arrays
-a = 3.141592*2*SAMPLES_PER_DISPATCH * 440 / SAMPLE_FREQUENCY
-addArray = np.array([a], dtype=np.float32)
-fullAddArray = np.tile(addArray, int(phaseBuffer.size/4))
+fullAddArray = np.ones((int(phaseBuffer.size/4)), dtype = np.float32)*3.141592*2*SAMPLES_PER_DISPATCH * 440 / SAMPLE_FREQUENCY
+print(np.shape(fullAddArray))
+
 if SOUND:
     stream.start()
 
@@ -289,7 +289,8 @@ for i in range(int(1024*128/SAMPLES_PER_DISPATCH)):
     # we do CPU tings simultaneously
     newArray += fullAddArray
     phaseBuffer.setBuffer(newArray)
-
+    print(newArray)
+    
     pa = np.frombuffer(pcmBufferOut.pmap, np.float32)[::4]
     pa2 = np.ascontiguousarray(pa)
     #pa2 = pa #np.ascontiguousarray(pa)
