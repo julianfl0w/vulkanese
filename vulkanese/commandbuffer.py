@@ -160,15 +160,20 @@ class RasterCommandBuffer(CommandBuffer):
 
 
 class ComputeCommandBuffer(CommandBuffer):
-    def __init__(self, pipeline, workgroupShape, flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT):
+    def __init__(
+        self,
+        pipeline,
+        workgroupShape,
+        flags=VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT,
+    ):
         CommandBuffer.__init__(self, pipeline)
         self.vkCommandBuffer = self.vkCommandBuffers[0]
         # Now we shall start recording commands into the newly allocated command buffer.
         beginInfo = VkCommandBufferBeginInfo(
             sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
             # the buffer is only submitted and used once in this application.
-            #flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-            flags=VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT
+            # flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+            flags=VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT,
         )
         vkBeginCommandBuffer(self.vkCommandBuffer, beginInfo)
 
@@ -180,14 +185,16 @@ class ComputeCommandBuffer(CommandBuffer):
             self.pipeline.vkPipeline,
         )
         vkCmdBindDescriptorSets(
-            commandBuffer = self.vkCommandBuffer,
-            pipelineBindPoint = VK_PIPELINE_BIND_POINT_COMPUTE,
-            layout = self.pipeline.vkPipelineLayout,
-            firstSet = 0,
-            descriptorSetCount = len(self.pipeline.device.descriptorPool.activevkDescriptorSets),
-            pDescriptorSets = self.pipeline.device.descriptorPool.activevkDescriptorSets,
-            dynamicOffsetCount = 0,
-            pDynamicOffsets = None,
+            commandBuffer=self.vkCommandBuffer,
+            pipelineBindPoint=VK_PIPELINE_BIND_POINT_COMPUTE,
+            layout=self.pipeline.vkPipelineLayout,
+            firstSet=0,
+            descriptorSetCount=len(
+                self.pipeline.device.descriptorPool.activevkDescriptorSets
+            ),
+            pDescriptorSets=self.pipeline.device.descriptorPool.activevkDescriptorSets,
+            dynamicOffsetCount=0,
+            pDynamicOffsets=None,
         )
 
         # Calling vkCmdDispatch basically starts the compute pipeline, and executes the compute shader.
@@ -195,8 +202,8 @@ class ComputeCommandBuffer(CommandBuffer):
         # If you are already familiar with compute shaders from OpenGL, this should be nothing new to you.
         vkCmdDispatch(
             self.vkCommandBuffer,
-            #int(math.ceil(WIDTH / float(WORKGROUP_SIZE))),  # int for py2 compatible
-            #int(math.ceil(HEIGHT / float(WORKGROUP_SIZE))),  # int for py2 compatible
+            # int(math.ceil(WIDTH / float(WORKGROUP_SIZE))),  # int for py2 compatible
+            # int(math.ceil(HEIGHT / float(WORKGROUP_SIZE))),  # int for py2 compatible
             workgroupShape[0],  # int for py2 compatible
             workgroupShape[1],  # int for py2 compatible
             workgroupShape[2],

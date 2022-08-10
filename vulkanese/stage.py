@@ -38,7 +38,7 @@ class Stage(Sinode):
         shader_spirv = header
 
         shader_spirv += "\n"
-        #if stage != VK_SHADER_STAGE_COMPUTE_BIT:
+        # if stage != VK_SHADER_STAGE_COMPUTE_BIT:
         reqdTypes = [b.type for b in buffers]
         with open(os.path.join(here, "derivedtypes.json"), "r") as f:
             derivedDict = json.loads(f.read())

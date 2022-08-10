@@ -34,9 +34,9 @@ class Buffer(Sinode):
         location,
         descriptorSet,
         format,
-        initData, 
-        readFromCPU = False,
-        binding = 0,
+        initData,
+        readFromCPU=False,
+        binding=0,
         usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         memProperties=VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
@@ -101,24 +101,26 @@ class Buffer(Sinode):
 
         # Map the buffer memory, so that we can read from it on the CPU.
         self.pmap = vkMapMemory(
-            device = self.vkDevice,
-            memory = self.vkDeviceMemory, 
-            offset = 0, 
-            size   = SIZEBYTES, 
-            flags  = 0)
-        
+            device=self.vkDevice,
+            memory=self.vkDeviceMemory,
+            offset=0,
+            size=SIZEBYTES,
+            flags=0,
+        )
+
         self.setBuffer(initData)
-        
+
         if not readFromCPU:
-            vkUnmapMemory(self.vkDevice, self.vkDeviceMemory);
+            vkUnmapMemory(self.vkDevice, self.vkDeviceMemory)
             self.pmap = None
-        
+
         # Now associate that allocated memory with the buffer. With that, the buffer is backed by actual memory.
         vkBindBufferMemory(
-            device = self.vkDevice, 
-            buffer = self.vkBuffer, 
-            memory = self.vkDeviceMemory, 
-            memoryOffset = 0)
+            device=self.vkDevice,
+            buffer=self.vkBuffer,
+            memory=self.vkDeviceMemory,
+            memoryOffset=0,
+        )
 
         self.bufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
             sType=VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
@@ -127,9 +129,9 @@ class Buffer(Sinode):
         )
 
         descriptorSet.buffers += [self]
-        # descriptorCount is the number of descriptors contained in the binding, 
-        # accessed in a shader as an array, except if descriptorType is 
-        # VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK in which case descriptorCount 
+        # descriptorCount is the number of descriptors contained in the binding,
+        # accessed in a shader as an array, except if descriptorType is
+        # VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK in which case descriptorCount
         # is the size in bytes of the inline uniform block
         print("BUFFER DTYPE")
         print(descriptorSet.type)
@@ -140,7 +142,6 @@ class Buffer(Sinode):
             stageFlags=stageFlags,
         )
 
-
         # Specify the buffer to bind to the descriptor.
         # Every buffer contains its own info for descriptor set
         # Next, we need to connect our actual storage buffer with the descrptor.
@@ -148,7 +149,7 @@ class Buffer(Sinode):
         self.descriptorBufferInfo = VkDescriptorBufferInfo(
             buffer=self.vkBuffer, offset=0, range=SIZEBYTES
         )
-            
+
         print("finished creating buffer")
 
     def saveAsImage(self, height, width, path="mandelbrot.png"):
@@ -207,41 +208,43 @@ class Buffer(Sinode):
 
     def getComputeDeclaration(self):
         if self.usage == VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT:
-            b = "uniform " 
+            b = "uniform "
         else:
-            b = "buffer " 
-            
+            b = "buffer "
+
         return (
             "layout(std140, "
             + "set = "
             + str(self.descriptorSet.binding)
             + ", binding = "
             + str(self.binding)
-            #+ ", "
-            #+ "xfb_stride = " + str(self.stride)
-            + ") " + 
-            b + 
-            self.name + "_buf\n{\n   "
-            #+ self.qualifier
-            #+ " "
+            # + ", "
+            # + "xfb_stride = " + str(self.stride)
+            + ") "
+            + b
+            + self.name
+            + "_buf\n{\n   "
+            # + self.qualifier
+            # + " "
             + self.type
             + " "
             + self.name
-            + "[" + str(int(self.size/4))
+            + "["
+            + str(int(self.size / 4))
             + "];\n};\n"
         )
-    
+
     def setBuffer(self, data):
-        #self.pmap[: data.size * data.itemsize] = data
-        #a = int(len(data))
-        #self.pmap[:a] = data[:int(a/(data.itemsize))]
-        #self.pmap[:a*data.itemsize] = data
+        # self.pmap[: data.size * data.itemsize] = data
+        # a = int(len(data))
+        # self.pmap[:a] = data[:int(a/(data.itemsize))]
+        # self.pmap[:a*data.itemsize] = data
         self.pmap[:] = data
 
     def fill(self, value):
-        #self.pmap[: data.size * data.itemsize] = data
+        # self.pmap[: data.size * data.itemsize] = data
         a = np.array([value])
-        #self.pmap[:a] = data[:int(a/(data.itemsize))]
+        # self.pmap[:a] = data[:int(a/(data.itemsize))]
         self.pmap[:] = np.tile(a, int(len(self.pmap[:]) / a.itemsize))
 
     def getSize(self):
@@ -265,8 +268,8 @@ class VertexBuffer(Buffer):
         name,
         location,
         descriptorSet,
-        binding = 0,
-        format =VK_FORMAT_R32G32B32_SFLOAT,
+        binding=0,
+        format=VK_FORMAT_R32G32B32_SFLOAT,
         usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         rate=VK_VERTEX_INPUT_RATE_VERTEX,
         memProperties=VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
@@ -281,7 +284,7 @@ class VertexBuffer(Buffer):
         Buffer.__init__(
             self=self,
             location=location,
-            binding = binding,
+            binding=binding,
             device=device,
             name=name,
             usage=usage,
@@ -296,19 +299,16 @@ class VertexBuffer(Buffer):
 
         # we will standardize its bindings with a attribute description
         self.attributeDescription = VkVertexInputAttributeDescription(
-            binding=self.binding,
-            location=self.location,
-            format=format,
-            offset=0,
+            binding=self.binding, location=self.location, format=format, offset=0,
         )
         # ^^ Consider VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^
         self.bindingDescription = VkVertexInputBindingDescription(
             binding=self.binding, stride=stride, inputRate=rate  # 4 bytes/element
         )
 
-
         # VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
         # VK_VERTEX_INPUT_RATE_INSTANCE: Move to the next data entry after each instance
+
 
 class DescriptorSetBuffer(Buffer):
     def __init__(self, device, setupDict):

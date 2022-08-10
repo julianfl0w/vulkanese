@@ -80,14 +80,14 @@ index = VertexBuffer(
 location += index.getSize()
 
 fragColor = Buffer(
-    device=device, 
+    device=device,
     binding=4,
-    type="vec3", 
-    format =VK_FORMAT_R32G32B32_SFLOAT,
+    type="vec3",
+    format=VK_FORMAT_R32G32B32_SFLOAT,
     descriptorSet=device.descriptorPool.descSetGlobal,
-    qualifier="out", 
-    name="fragColor", 
-    location=location
+    qualifier="out",
+    name="fragColor",
+    location=location,
 )
 
 main = """
