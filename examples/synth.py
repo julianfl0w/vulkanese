@@ -10,7 +10,7 @@ import cv2 as cv
 import matplotlib.pyplot as plt
 import sounddevice as sd
 
-GRAPH = True
+GRAPH = False
 SOUND = not GRAPH
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -48,7 +48,7 @@ device = instance_inst.getDevice(0)
 #SAMPLES_PER_DISPATCH = 512
 
 replaceDict = {
-    "POLYPHONY": 1,
+    "POLYPHONY": 2,
     "SINES_PER_VOICE": 1,
     "MINIMUM_FREQUENCY_HZ" : 20,
     "MAXIMUM_FREQUENCY_HZ" : 20000,
@@ -121,7 +121,7 @@ baseFrequency = Buffer(
     qualifier="",
     name="baseFrequency",
     SIZEBYTES=4 * 4 * POLYPHONY,
-    initData = np.ones((4 * POLYPHONY), dtype = np.float32)*440/SAMPLE_FREQUENCY,
+    initData = np.ones((4 * POLYPHONY), dtype = np.float32)*2*3.141592*440/SAMPLE_FREQUENCY,
     usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
     stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
     location=0,
@@ -219,7 +219,7 @@ void main() {
   {
   
     //pcmBufferOut[outindex+i] = int((pow(2,(32-UNDERVOLUME))-1) * sin(3.141592*2*phase));
-    pcmBufferOut[outindex+i] = sin(3.141592*2*phase);
+    pcmBufferOut[outindex+i] = sin(phase);
     //pcmBufferOut[outindex+i] = frequency_hz;
     //pcmBufferOut[outindex+i] = int(phaseBuffer[outindex+i]);
     //pcmBufferOut[outindex+i] = int(outindex + i);
@@ -289,7 +289,6 @@ for i in range(int(1024*128/SAMPLES_PER_DISPATCH)):
     # we do CPU tings simultaneously
     newArray += fullAddArray
     phaseBuffer.setBuffer(newArray)
-    print(newArray)
     
     pa = np.frombuffer(pcmBufferOut.pmap, np.float32)[::4]
     pa2 = np.ascontiguousarray(pa)

@@ -1,6 +1,6 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
-#define POLYPHONY 1
+#define POLYPHONY 2
 #define SINES_PER_VOICE 1
 #define MINIMUM_FREQUENCY_HZ 20
 #define MAXIMUM_FREQUENCY_HZ 20000
@@ -16,11 +16,11 @@ layout(std140, set = 0, binding = 0) buffer pcmBufferOut_buf
 };
 layout(std140, set = 1, binding = 1) uniform phaseBuffer_buf
 {
-   float phaseBuffer[4];
+   float phaseBuffer[8];
 };
 layout(std140, set = 1, binding = 2) uniform baseFrequency_buf
 {
-   float baseFrequency[4];
+   float baseFrequency[8];
 };
 layout(std140, set = 1, binding = 3) uniform harmonicMultiplier_buf
 {
@@ -52,7 +52,7 @@ void main() {
   {
   
     //pcmBufferOut[outindex+i] = int((pow(2,(32-UNDERVOLUME))-1) * sin(3.141592*2*phase));
-    pcmBufferOut[outindex+i] = sin(3.141592*2*phase);
+    pcmBufferOut[outindex+i] = sin(phase);
     //pcmBufferOut[outindex+i] = frequency_hz;
     //pcmBufferOut[outindex+i] = int(phaseBuffer[outindex+i]);
     //pcmBufferOut[outindex+i] = int(outindex + i);
