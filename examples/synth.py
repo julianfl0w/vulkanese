@@ -429,6 +429,8 @@ class Synth:
         
         # compile the C-code
         if self.SOUND:
+            if os.path.exists("./alsatonic"):
+                os.remove("./alsatonic")
             header = ""
             for k, v in self.replaceDict.items():
                 header += "#define " + k + " " + str(v) + "\n"
@@ -439,7 +441,10 @@ class Synth:
                 f.write(at)
             os.system("gcc " + cfilename + " -o alsatonic -lm -lasound")
             while(1):
-                os.system("./alsatonic")
+                if os.path.exists("./alsatonic"):
+                    os.system("./alsatonic")
+                else:
+                    die
         
         # into the loop
         #for i in range(int(1024 * 128 / self.SAMPLES_PER_DISPATCH)):

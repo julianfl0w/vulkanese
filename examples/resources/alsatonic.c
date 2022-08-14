@@ -225,6 +225,8 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     
+    
+    
     // playing mode
     // without options
     if (mode == 0) {
@@ -273,7 +275,62 @@ int main(int argc, char *argv[]) {
 
 
     closeDevice();
+    
+    
+   int status;
+   int midimode = SND_RAWMIDI_NONBLOCK;
+   snd_rawmidi_t* midiin = NULL;
+   const char* portname = "hw:1,0,0";  // see alsarawportlist.c example program
+   if ((argc > 1) && (strncmp("hw:", argv[1], 3) == 0)) {
+      portname = argv[1];
+   }
+   if ((status = snd_rawmidi_open(&midiin, NULL, portname, midimode)) < 0) {
+      errormessage("Problem opening MIDI input: %s", snd_strerror(status));
+      exit(1);
+   }
+
+   int maxcount = 1000;   // Exit after this many bytes have been received.
+   int count = 0;         // Current count of bytes received.
+   char buffer[1];        // Storage for input buffer received
+   while (count < maxcount) {
+      status = 0;
+      while (status != -EAGAIN) {
+         status = snd_rawmidi_read(midiin, buffer, 1);
+         if ((status < 0) && (status != -EBUSY) && (status != -EAGAIN)) {
+            errormessage("Problem reading MIDI input: %s",snd_strerror(status));
+         } else if (status >= 0) {
+            count++;
+            if ((unsigned char)buffer[0] >= 0x80) {  // print command in hex
+               printf("0x%x ", (unsigned char)buffer[0]);
+            } else {
+               printf("%d ", (unsigned char)buffer[0]);
+            }
+            fflush(stdout);
+            if (count % 20 == 0) {
+               printf("\n");
+            }
+         }
+      }
+   }
+
+   snd_rawmidi_close(midiin);
+   midiin  = NULL;    // snd_rawmidi_close() does not clear invalid pointer,
+   return 0;          // so might be a good idea to erase it after closing.
+    
 
     return EXIT_SUCCESS;
 }
 //-----------------------------------------
+
+//////////////////////////////
+//
+// error -- print error message
+//
+
+void errormessage(const char *format, ...) {
+   va_list ap;
+   va_start(ap, format);
+   vfprintf(stderr, format, ap);
+   va_end(ap);
+   putc('\n', stderr);
+}

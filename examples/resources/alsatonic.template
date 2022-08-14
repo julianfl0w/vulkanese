@@ -175,28 +175,15 @@ int main(int argc, char *argv[]) {
     int start =0;
     int stop =1;
     float step =1;
-    int mode =0;
     int optIndex =0;
 
     while (( optIndex = getopt(argc, argv, "d:f:F:hn:N:s:S:t:")) != -1) {
         switch (optIndex) {
             case 'd':
                 dur = atof(optarg); break;
-            case 'f':
-                mode =1;
-                freq = atof(optarg); break;
-            case 'F':
-                mode =2;
-                freq = atof(optarg); break;
             case 'h':
                 printf(HELP_TEXT);
                 return 0;
-            case 'n':
-                mode =3;
-                note = strtol(optarg, NULL, 10); break;
-            case 'N':
-                mode =4;
-                note = strtol(optarg, NULL, 10); break;
             case 's':
                 start = strtol(optarg, NULL, 10); break;
             case 'S':
@@ -216,55 +203,97 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     
+    
+    
     // playing mode
     // without options
-    if (mode == 0) {
-        freq = (argc > 1) ? atof(argv[1]) : DEF_FREQ;
-        if (freq == 0) {
-            fprintf(stderr, "AlsaTonic: Invalid frequency.\n");
-            return EXIT_FAILURE;
-        }
+      freq = (argc > 1) ? atof(argv[1]) : DEF_FREQ;
+      if (freq == 0) {
+          fprintf(stderr, "AlsaTonic: Invalid frequency.\n");
+          return EXIT_FAILURE;
+      }
 
-        dur = (argc > 2) ? atof(argv[2]) : DEF_DUR;
-        if (dur == 0) {
-            fprintf(stderr, "AlsaTonic: Invalid duration.\n");
-            return EXIT_FAILURE;
-        }
-        
-        start = (argc > 3) ? strtol(argv[3], NULL, 10) : -1;
-        stop = (argc > 4) ? strtol(argv[4], NULL, 10) : 0;
-        step = (argc > 5) ? atof(argv[5]) : 1;
+      dur = (argc > 2) ? atof(argv[2]) : DEF_DUR;
+      if (dur == 0) {
+          fprintf(stderr, "AlsaTonic: Invalid duration.\n");
+          return EXIT_FAILURE;
+      }
 
-        // Playing freq
-        if (start == -1) {
-            printf("Playing freq, Sine tone at %.3fHz during %.3f secs.\n", freq, dur);
-            playFreq(freq, dur);
-        // Playing sequence freq
-        } else {
-            printf("Playing SeqFreq, Sine tone at %.3fHz, during %.3f secs, start: %d, stop: %d, step: %.3f.\n", freq, dur, start, stop, step);
-            playSeq(freq, dur, start, stop, step);
-        }
+      start = (argc > 3) ? strtol(argv[3], NULL, 10) : -1;
+      stop = (argc > 4) ? strtol(argv[4], NULL, 10) : 0;
+      step = (argc > 5) ? atof(argv[5]) : 1;
 
-    } else if (mode == 1) {
-        printf("Playing Freq, Sine tone at %.3fHz during %.3f sec.\n", freq, dur);
-        playFreq(freq, dur);
-    } else if (mode == 2) {
-        printf("Playing SeqFreq, Sine tone at %.3fHz, during %.3f secs, start: %d, stop: %d, step: %.3f.\n", freq, dur, start, stop, step);
-        playSeq(freq, dur, start, stop, step);
+      // Playing freq
+      if (start == -1) {
+          printf("Playing freq, Sine tone at %.3fHz during %.3f secs.\n", freq, dur);
+          playFreq(freq, dur);
+      // Playing sequence freq
+      } else {
+          printf("Playing SeqFreq, Sine tone at %.3fHz, during %.3f secs, start: %d, stop: %d, step: %.3f.\n", freq, dur, start, stop, step);
+          playSeq(freq, dur, start, stop, step);
+      }
 
-    } else if (mode == 3) {
-        printf("Playing Note at %d, during %.3f secs.\n", note, dur);
-        playNote(note, dur);
-    } else if (mode == 4) {
-        printf("Playing sequence Note at note: %d, during %.3f secs, start: %d, stop: %d, step: %.3f.\n", note, dur, start, stop, step);
-        playSeqNote(note, dur, start, stop, step);
-    } 
      
     printf("nbFrames played: %d\n", g_frames);
 
+    
+    
+   int status;
+   int midimode = SND_RAWMIDI_NONBLOCK;
+   snd_rawmidi_t* midiin = NULL;
+   const char* portname = "hw:1,0,0";  // see alsarawportlist.c example program
+   if ((argc > 1) && (strncmp("hw:", argv[1], 3) == 0)) {
+      portname = argv[1];
+   }
+   if ((status = snd_rawmidi_open(&midiin, NULL, portname, midimode)) < 0) {
+      errormessage("Problem opening MIDI input: %s", snd_strerror(status));
+      exit(1);
+   }
 
-    closeDevice();
+   int maxcount = 1000;   // Exit after this many bytes have been received.
+   int count = 0;         // Current count of bytes received.
+   char buffer[1];        // Storage for input buffer received
+   while (count < maxcount) {
+      status = 0;
+      while (status != -EAGAIN) {
+         status = snd_rawmidi_read(midiin, buffer, 1);
+         if ((status < 0) && (status != -EBUSY) && (status != -EAGAIN)) {
+            errormessage("Problem reading MIDI input: %s",snd_strerror(status));
+         } else if (status >= 0) {
+            count++;
+            if ((unsigned char)buffer[0] >= 0x80) {  // print command in hex
+               printf("0x%x ", (unsigned char)buffer[0]);
+            } else {
+               printf("%d ", (unsigned char)buffer[0]);
+            }
+            fflush(stdout);
+            if (count % 20 == 0) {
+               printf("\n");
+            }
+         }
+      }
+   }
+
+
+   closeDevice();
+   snd_rawmidi_close(midiin);
+   midiin  = NULL;    // snd_rawmidi_close() does not clear invalid pointer,
+   return 0;          // so might be a good idea to erase it after closing.
+    
 
     return EXIT_SUCCESS;
 }
 //-----------------------------------------
+
+//////////////////////////////
+//
+// error -- print error message
+//
+
+void errormessage(const char *format, ...) {
+   va_list ap;
+   va_start(ap, format);
+   vfprintf(stderr, format, ap);
+   va_end(ap);
+   putc('\n', stderr);
+}
