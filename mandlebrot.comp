@@ -1,26 +1,26 @@
 #version 450
         #extension GL_ARB_separate_shader_objects : enable
-        #define POLYPHONY 1
+        #define POLYPHONY 128
 #define SINES_PER_VOICE 128
 #define MINIMUM_FREQUENCY_HZ 20
 #define MAXIMUM_FREQUENCY_HZ 20000
 #define SAMPLE_FREQUENCY 44100
 #define UNDERVOLUME 3
 #define CHANNELS 1
-#define SAMPLES_PER_DISPATCH 32
-#define LATENCY_SECONDS 0.006
+#define SAMPLES_PER_DISPATCH 128
+#define LATENCY_SECONDS 0.1
 layout (local_size_x = 1, local_size_y = SINES_PER_VOICE, local_size_z = 1 ) in;
 layout(std140, set = 0, binding = 0) buffer pcmBufferOut_buf
 {
-   float pcmBufferOut[128];
+   float pcmBufferOut[65536];
 };
 layout(std140, set = 1, binding = 1) uniform phaseBuffer_buf
 {
-   float phaseBuffer[512];
+   float phaseBuffer[65536];
 };
 layout(std140, set = 1, binding = 2) uniform baseIncrement_buf
 {
-   float baseIncrement[4];
+   float baseIncrement[512];
 };
 layout(std140, set = 1, binding = 3) uniform harmonicMultiplier_buf
 {
@@ -28,7 +28,7 @@ layout(std140, set = 1, binding = 3) uniform harmonicMultiplier_buf
 };
 layout(std140, set = 1, binding = 4) uniform harmonicsVolume_buf
 {
-   float harmonicsVolume[4];
+   float harmonicsVolume[512];
 };
 
 
@@ -45,23 +45,22 @@ layout(std140, set = 1, binding = 4) uniform harmonicsVolume_buf
           uint timeSlice = gl_GlobalInvocationID.y;
 
           uint outindex = 0;
-          float increment = baseIncrement[noteNo];
-          float phase = phaseBuffer[outindex] + (timeSlice * increment);
           float sum = 0;
 
-          for (int voiceNo = 0; voiceNo<POLYPHONY; voiceNo++)
+          for (int noteNo = 0; noteNo<POLYPHONY; noteNo++)
           {
-              float vol = harmonicsVolume[voiceNo];
+              float increment = baseIncrement[noteNo];
+              float phase = phaseBuffer[outindex] + (timeSlice * increment);
+              float vol = harmonicsVolume[noteNo];
               for (int sineNo = 0; sineNo<SINES_PER_VOICE; sineNo++)
               {
 
                 float harmonicRatio   = harmonicMultiplier[sineNo];
-                //sum += vol * sin(phase*harmonicRatio)/(SINES_PER_VOICE*POLYPHONY);
-                sum += vol * sin(phase*harmonicRatio)/(SINES_PER_VOICE);
+                sum += vol * sin(phase*harmonicRatio)/(SINES_PER_VOICE*POLYPHONY);
 
               }
           }
           
-          pcmBufferOut[timeSlice] = sum;
+          pcmBufferOut[noteNo*SAMPLES_PER_DISPATCH + timeSlice] = sum;
         }
         
