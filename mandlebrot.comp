@@ -1,66 +1,64 @@
 #version 450
         #extension GL_ARB_separate_shader_objects : enable
-        #define POLYPHONY 128
-#define SINES_PER_VOICE 128
+        #define POLYPHONY 6
+#define PARTIALS_PER_VOICE 32
 #define MINIMUM_FREQUENCY_HZ 20
 #define MAXIMUM_FREQUENCY_HZ 20000
 #define SAMPLE_FREQUENCY 44100
 #define UNDERVOLUME 3
 #define CHANNELS 1
-#define SAMPLES_PER_DISPATCH 128
+#define SAMPLES_PER_DISPATCH 64
 #define LATENCY_SECONDS 0.1
-layout (local_size_x = 1, local_size_y = SINES_PER_VOICE, local_size_z = 1 ) in;
+layout (local_size_x = 1, local_size_y = PARTIALS_PER_VOICE, local_size_z = 1 ) in;
 layout(std140, set = 0, binding = 0) buffer pcmBufferOut_buf
 {
-   float pcmBufferOut[65536];
+   float pcmBufferOut[256];
 };
-layout(std140, set = 1, binding = 1) uniform phaseBuffer_buf
+layout(std140, set = 1, binding = 1) uniform noteBasePhase_buf
 {
-   float phaseBuffer[65536];
+   float noteBasePhase[24];
 };
-layout(std140, set = 1, binding = 2) uniform baseIncrement_buf
+layout(std140, set = 1, binding = 2) uniform noteBaseIncrement_buf
 {
-   float baseIncrement[512];
+   float noteBaseIncrement[24];
 };
-layout(std140, set = 1, binding = 3) uniform harmonicMultiplier_buf
+layout(std140, set = 1, binding = 3) uniform partialMultiplier_buf
 {
-   float harmonicMultiplier[512];
+   float partialMultiplier[128];
 };
-layout(std140, set = 1, binding = 4) uniform harmonicsVolume_buf
+layout(std140, set = 1, binding = 4) uniform partialVolume_buf
 {
-   float harmonicsVolume[512];
+   float partialVolume[24];
+};
+layout(std140, set = 1, binding = 5) uniform noteVolume_buf
+{
+   float noteVolume[24];
 };
 
 
         void main() {
 
-          /*
-          In order to fit the work into workgroups, some unnecessary threads are launched.
-          We terminate those threads here.
-          if(gl_GlobalInvocationID.x >= 0 || gl_GlobalInvocationID.y >= 0)
-            return;
-          */
-
-          uint noteNo = gl_GlobalInvocationID.x;
           uint timeSlice = gl_GlobalInvocationID.y;
 
-          uint outindex = 0;
           float sum = 0;
+          
+          for (uint noteNo = 0; noteNo<POLYPHONY; noteNo++){
+              float noteVol = noteVolume[noteNo];
+              float increment = noteBaseIncrement[noteNo];
+              float phase = noteBasePhase[noteNo] + (timeSlice * increment);
 
-          for (int noteNo = 0; noteNo<POLYPHONY; noteNo++)
-          {
-              float increment = baseIncrement[noteNo];
-              float phase = phaseBuffer[outindex] + (timeSlice * increment);
-              float vol = harmonicsVolume[noteNo];
-              for (int sineNo = 0; sineNo<SINES_PER_VOICE; sineNo++)
+              float innersum = 0;
+              for (uint partialNo = 0; partialNo<PARTIALS_PER_VOICE; partialNo++)
               {
+                float vol = partialVolume[partialNo];
 
-                float harmonicRatio   = harmonicMultiplier[sineNo];
-                sum += vol * sin(phase*harmonicRatio)/(SINES_PER_VOICE*POLYPHONY);
+                float harmonicRatio   = partialMultiplier[partialNo];
+                innersum += vol * sin(phase*harmonicRatio);
 
               }
+              sum+=innersum*noteVol;
           }
           
-          pcmBufferOut[noteNo*SAMPLES_PER_DISPATCH + timeSlice] = sum;
+          pcmBufferOut[timeSlice] = sum/(PARTIALS_PER_VOICE*POLYPHONY);
         }
         

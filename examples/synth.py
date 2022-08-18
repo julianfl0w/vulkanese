@@ -50,9 +50,9 @@ class Note:
         self.velocityReal = 0
         self.held  = False
         self.polytouch = 0
+        self.midiIndex = 0
         self.msg  = None
-        self.defaultIncrement = 2**32 * (noteToFreq(index) / 96000.0)
-        self.releaseTime = 0
+        self.releaseTime = -index
 
 # WORKGROUP_SIZE = 1  # Workgroup size in compute shader.
 # SAMPLES_PER_DISPATCH = 512
@@ -61,9 +61,9 @@ class Synth:
 
         self.mm = midiManager.MidiManager()
 
-        self.GRAPH = GRAPH
-        self.PYSOUND = False
-        self.SOUND = not self.GRAPH
+        self.GRAPH = False
+        self.PYSOUND = True
+        self.SOUND = False
 
         # device selection and instantiation
         self.instance_inst = Instance()
@@ -78,15 +78,15 @@ class Synth:
         self.device = device
 
         self.replaceDict = {
-            "POLYPHONY": 128,
-            "SINES_PER_VOICE": 128,
+            "POLYPHONY": 6,
+            "PARTIALS_PER_VOICE": 32,
             "MINIMUM_FREQUENCY_HZ": 20,
             "MAXIMUM_FREQUENCY_HZ": 20000,
             # "SAMPLE_FREQUENCY"     : 48000,
             "SAMPLE_FREQUENCY": 44100,
             "UNDERVOLUME": 3,
             "CHANNELS": 1,
-            "SAMPLES_PER_DISPATCH": 128,
+            "SAMPLES_PER_DISPATCH": 64,
             "LATENCY_SECONDS": 0.100,
         }
         for k, v in self.replaceDict.items():
@@ -119,25 +119,25 @@ class Synth:
             readFromCPU=True,
             SIZEBYTES=4
             * 4
-            * self.SAMPLES_PER_DISPATCH * self.POLYPHONY * self.CHANNELS,
-            initData=np.zeros((4 * self.SAMPLES_PER_DISPATCH * self.POLYPHONY * self.CHANNELS), dtype=np.float32),
+            * self.SAMPLES_PER_DISPATCH * self.CHANNELS,
+            initData=np.zeros((4 * self.SAMPLES_PER_DISPATCH * self.CHANNELS), dtype=np.float32),
             usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
             stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
             location=0,
             format=VK_FORMAT_R32_SFLOAT,
         )
 
-        self.phaseBuffer = Buffer(
+        self.noteBasePhase = Buffer(
             binding=1,
             device=device,
             type="float",
             descriptorSet=device.descriptorPool.descSetUniform,
             qualifier="",
-            name="phaseBuffer",
+            name="noteBasePhase",
             readFromCPU=True,
-            SIZEBYTES=4 * 4 * self.POLYPHONY * self.SINES_PER_VOICE,
+            SIZEBYTES=4 * 4 * self.POLYPHONY,
             initData=np.zeros(
-                (4 * self.POLYPHONY * self.SINES_PER_VOICE), dtype=np.float32
+                (4 * self.POLYPHONY), dtype=np.float32
             ),
             usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
@@ -145,13 +145,13 @@ class Synth:
             format=VK_FORMAT_R32_SFLOAT,
         )
 
-        self.baseIncrement = Buffer(
+        self.noteBaseIncrement = Buffer(
             binding=2,
             device=device,
             type="float",
             descriptorSet=device.descriptorPool.descSetUniform,
             qualifier="",
-            name="baseIncrement",
+            name="noteBaseIncrement",
             readFromCPU=True,
             SIZEBYTES=4 * 4 * self.POLYPHONY,
             initData=np.zeros((4 * self.POLYPHONY), dtype=np.float32),
@@ -161,23 +161,23 @@ class Synth:
             format=VK_FORMAT_R32_SFLOAT,
         )
 
-        self.harmonicMultiplier = Buffer(
+        self.partialMultiplier = Buffer(
             binding=3,
             device=device,
             type="float",
             descriptorSet=device.descriptorPool.descSetUniform,
             qualifier="",
-            name="harmonicMultiplier",
+            name="partialMultiplier",
             readFromCPU=True,
-            SIZEBYTES=4 * 4 * self.SINES_PER_VOICE,
-            initData=np.ones((4 * self.SINES_PER_VOICE), dtype=np.float32),
+            SIZEBYTES=4 * 4 * self.PARTIALS_PER_VOICE,
+            initData=np.ones((4 * self.PARTIALS_PER_VOICE), dtype=np.float32),
             usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
             location=0,
             format=VK_FORMAT_R32_SFLOAT,
         )
 
-        self.harmonicsVolume = Buffer(
+        self.partialVolume = Buffer(
             binding=4,
             device=device,
             type="float",
@@ -185,7 +185,7 @@ class Synth:
             qualifier="",
             readFromCPU=True,
             initData=np.ones((4 * self.POLYPHONY), dtype=np.float32),
-            name="harmonicsVolume",
+            name="partialVolume",
             SIZEBYTES=4 * 4 * self.POLYPHONY,
             usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
@@ -193,7 +193,21 @@ class Synth:
             format=VK_FORMAT_R32_SFLOAT,
         )
         
-        self.allNotes = [Note(index = i) for i in range(128)] 
+        self.noteVolume = Buffer(
+            binding=5,
+            device=device,
+            type="float",
+            descriptorSet=device.descriptorPool.descSetUniform,
+            qualifier="",
+            name="noteVolume",
+            readFromCPU=True,
+            SIZEBYTES=4 * 4 * self.POLYPHONY,
+            initData=np.zeros((4 * self.POLYPHONY), dtype=np.float32),
+            usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
+            location=0,
+            format=VK_FORMAT_R32_SFLOAT,
+        )
 
         # noteAge = Buffer(
         #    binding=5,
@@ -202,7 +216,7 @@ class Synth:
         #    descriptorSet=device.descriptorPool.descSetGlobal,
         #    qualifier="",
         #    name="noteAge",
-        #    SIZEBYTES=4 * 4 * SINES_PER_VOICE,
+        #    SIZEBYTES=4 * 4 * PARTIALS_PER_VOICE,
         #    usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         #    stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
         #    location=0,
@@ -216,7 +230,7 @@ class Synth:
         #    descriptorSet=device.descriptorPool.descSetGlobal,
         #    qualifier="",
         #    name="ADSR",
-        #    SIZEBYTES=4 * 4 * SINES_PER_VOICE,
+        #    SIZEBYTES=4 * 4 * PARTIALS_PER_VOICE,
         #    usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         #    stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
         #    location=0,
@@ -228,40 +242,34 @@ class Synth:
         """
         for k, v in self.replaceDict.items():
             header += "#define " + k + " " + str(v) + "\n"
-        header += "layout (local_size_x = 1, local_size_y = SINES_PER_VOICE, local_size_z = 1 ) in;"
+        header += "layout (local_size_x = 1, local_size_y = PARTIALS_PER_VOICE, local_size_z = 1 ) in;"
 
         main = """
 
         void main() {
 
-          /*
-          In order to fit the work into workgroups, some unnecessary threads are launched.
-          We terminate those threads here.
-          if(gl_GlobalInvocationID.x >= 0 || gl_GlobalInvocationID.y >= 0)
-            return;
-          */
-
-          uint noteNo = gl_GlobalInvocationID.x;
           uint timeSlice = gl_GlobalInvocationID.y;
 
-          uint outindex = 0;
           float sum = 0;
+          
+          for (uint noteNo = 0; noteNo<POLYPHONY; noteNo++){
+              float noteVol = noteVolume[noteNo];
+              float increment = noteBaseIncrement[noteNo];
+              float phase = noteBasePhase[noteNo] + (timeSlice * increment);
 
-          for (int noteNo = 0; noteNo<POLYPHONY; noteNo++)
-          {
-              float increment = baseIncrement[noteNo];
-              float phase = phaseBuffer[outindex] + (timeSlice * increment);
-              float vol = harmonicsVolume[noteNo];
-              for (int sineNo = 0; sineNo<SINES_PER_VOICE; sineNo++)
+              float innersum = 0;
+              for (uint partialNo = 0; partialNo<PARTIALS_PER_VOICE; partialNo++)
               {
+                float vol = partialVolume[partialNo];
 
-                float harmonicRatio   = harmonicMultiplier[sineNo];
-                sum += vol * sin(phase*harmonicRatio)/(SINES_PER_VOICE*POLYPHONY);
+                float harmonicRatio   = partialMultiplier[partialNo];
+                innersum += vol * sin(phase*harmonicRatio);
 
               }
+              sum+=innersum*noteVol;
           }
           
-          pcmBufferOut[noteNo*SAMPLES_PER_DISPATCH + timeSlice] = sum;
+          pcmBufferOut[timeSlice] = sum/(PARTIALS_PER_VOICE*POLYPHONY);
         }
         """
 
@@ -278,10 +286,11 @@ class Synth:
             main=main,
             buffers=[
                 self.pcmBufferOut,
-                self.phaseBuffer,
-                self.baseIncrement,
-                self.harmonicMultiplier,
-                self.harmonicsVolume,
+                self.noteBasePhase,
+                self.noteBaseIncrement,
+                self.partialMultiplier,
+                self.partialVolume,
+                self.noteVolume,
             ],
         )
 
@@ -309,7 +318,25 @@ class Synth:
                 self.computePipeline.commandBuffer.vkCommandBuffers[0]
             ],  # the command buffer to submit.
         )
-
+        
+        self.allNotes = [Note(index = i) for i in range(self.POLYPHONY)] 
+        
+    def spawnVoice(self):
+        unheldNotes = []
+        for n in self.allNotes:
+            if not n.held:
+                unheldNotes += [n]
+        if len(unheldNotes):
+            return sorted(unheldNotes, key=lambda x: x.releaseTime, reverse=True)[0]
+        else:
+            return self.allNotes[0]
+    
+    def getNoteFromMidi(self, num):
+        for n in self.allNotes:
+            if n.midiIndex == num:
+                return n
+        return self.allNotes[0]
+    
     def midi2commands(self, msg):
         
         if msg.type == "note_off" or (msg.type == "note_on" and msg.velocity == 0):
@@ -317,7 +344,7 @@ class Synth:
             #    self.toRelease[msg.note] = True
             #    return
 
-            note = self.allNotes[msg.note] 
+            note = self.getNoteFromMidi(msg.note)
             note.velocity = 0 
             note.velocityReal = 0 
             #if note.cluster is not None:
@@ -325,25 +352,39 @@ class Synth:
             #note.cluster = None
             note.held = False
             note.releaseTime = time.time()
-            #self.harmonicsVolume.pmap[msg.note*4:(msg.note+1)*4] = np.array([0                                                      ],dtype=np.float32) 
-            self.harmonicsVolume.pmap[0:4] = np.array([0                                                      ],dtype=np.float32) 
+            #self.partialVolume.pmap[msg.note*4:(msg.note+1)*4] = np.array([0                                                      ],dtype=np.float32) 
+
+            self.noteBaseIncrement.pmap[note.index*16:note.index*16+4]   = \
+                np.array([0],dtype=np.float32)
+            self.noteBasePhase.pmap[note.index*16:note.index*16+4]   = \
+                np.array([0],dtype=np.float32)
+            self.fullAddArray[note.index*4] = 0
+            self.noteVolume.pmap[note.index*16:note.index*16+4]   = \
+                np.array([0],dtype=np.float32)
 
         # if note on, spawn voices
         elif msg.type == "note_on":
             #print(msg)
-            note = self.allNotes[msg.note]
+            note = self.spawnVoice()
             note.velocity     = msg.velocity
             note.velocityReal = (msg.velocity/127.0)**2
             note.held = True
             note.msg = msg
-            #self.harmonicsVolume.pmap[msg.note*4:(msg.note+1)*4] = np.array([1                                                      ],dtype=np.float32) 
-            #self.baseIncrement.pmap[msg.note*4:(msg.note+1)*4]   = np.array([2*3.141592*noteToFreq(msg.note) / self.SAMPLE_FREQUENCY],dtype=np.float32)
-            self.harmonicsVolume.pmap[0:4] = \
-                np.array([1],dtype=np.float32) 
-            self.baseIncrement.pmap[msg.note*4:msg.note*4+4]   = \
-                np.array([2*3.141592*noteToFreq(msg.note) / self.SAMPLE_FREQUENCY],dtype=np.float32)
-            self.fullAddArray[msg.note*4] = 2*3.141592*noteToFreq(msg.note)*self.SAMPLES_PER_DISPATCH / self.SAMPLE_FREQUENCY
-            print(2*3.141592*noteToFreq(msg.note) / self.SAMPLE_FREQUENCY)
+            note.midiIndex = msg.note
+            #self.partialVolume.pmap[msg.note*4:(msg.note+1)*4] = np.array([1                                                      ],dtype=np.float32) 
+            #self.noteBaseIncrement.pmap[msg.note*4:(msg.note+1)*4]   = np.array([2*3.141592*noteToFreq(msg.note) / self.SAMPLE_FREQUENCY],dtype=np.float32)
+
+            incrementPerSample = 2*3.141592*noteToFreq(msg.note) / self.SAMPLE_FREQUENCY
+            self.noteBaseIncrement.pmap[note.index*16:note.index*16+4]   = \
+                np.array([incrementPerSample],dtype=np.float32)
+            self.noteBasePhase.pmap[note.index*16:note.index*16+4]   = \
+                np.array([0],dtype=np.float32)
+            self.noteVolume.pmap[note.index*16:note.index*16+4]   = \
+                np.array([1],dtype=np.float32)
+            self.fullAddArray[note.index*4] = incrementPerSample*self.SAMPLES_PER_DISPATCH
+            #print("NOTE ON")
+            #print(note.index)
+            #print(incrementPerSample)
 
         elif msg.type == 'pitchwheel':
             print("PW: " + str(msg.pitch))
@@ -354,7 +395,7 @@ class Synth:
             amountchange = self.pitchwheel / 8192.0
             self.pitchwheelReal = pow(2, amountchange)
             print("PWREAL " + str(self.pitchwheelReal))
-            self.setAllIncrements()
+            #self.setAllIncrements()
 
         elif msg.type == 'control_change':
 
@@ -387,16 +428,16 @@ class Synth:
         fenceCreateInfo = VkFenceCreateInfo(
             sType=VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, flags=0
         )
-        fence = vkCreateFence(self.device.vkDevice, fenceCreateInfo, None)
+        self.fence = vkCreateFence(self.device.vkDevice, fenceCreateInfo, None)
 
         # precompute some arrays
         self.fullAddArray = (
-            np.zeros((int(self.phaseBuffer.size / 4)), dtype=np.float32))
+            np.zeros((int(self.noteBasePhase.size / 4)), dtype=np.float32))
 
         if self.PYSOUND:
             self.stream.start()
 
-        hm = np.ones((4 * self.SINES_PER_VOICE), dtype=np.float32)
+        hm = np.ones((4 * self.PARTIALS_PER_VOICE), dtype=np.float32)
         #hm[4] *= 1.5
         #hm[8] *= 1.01
         #hm[12] *= 0.99
@@ -420,13 +461,15 @@ class Synth:
         #hm[84] *= 2.52
         #hm[88] *= 2.48
         #hm[92] *= 4
-        self.harmonicMultiplier.setBuffer(hm)
+        self.partialMultiplier.setBuffer(hm)
 
-        hm2 = np.zeros((4 * self.POLYPHONY), dtype=np.float32)
-        self.harmonicsVolume.setBuffer(hm2)
+        hm2 = np.ones((4 * self.POLYPHONY), dtype=np.float32)
+        self.partialVolume.setBuffer(hm2)
 
         newArray = self.fullAddArray.copy()
-        
+        self.replaceDict["FENCEADDR"] = hex(eval(str(self.fence).split(' ')[-1][:-1]))
+        self.replaceDict["DEVADDR"]   = str(self.device.vkDevice).split(' ')[-1][:-1]
+        self.replaceDict["SUBMITINFOADDR"]   = str(ffi.addressof(self.submitInfo)).split(' ')[-1][:-1]
         # compile the C-code
         if self.SOUND:
             if os.path.exists("./alsatonic"):
@@ -439,24 +482,44 @@ class Synth:
             cfilename = os.path.join(here, "resources", "alsatonic.c")
             with open(cfilename, 'w+') as f:
                 f.write(at)
-            os.system("gcc " + cfilename + " -o alsatonic -lm -lasound")
-            while(1):
+            os.system("g++ " + cfilename + " -o alsatonic -lm -lasound")
+            for i in range(1):
                 if os.path.exists("./alsatonic"):
-                    os.system("./alsatonic")
+                    os.system("taskset -c 15 ./alsatonic")
                 else:
                     die
+                break
         
+        # start middle A note
+        #self.midi2commands(mido.Message('note_on', note=50, velocity=64, time=6.2))
+        #print(np.frombuffer(self.partialVolume.pmap   , np.float32)[::4])
+        #print(np.frombuffer(self.partialMultiplier.pmap, np.float32)[::4])
+        #print(np.frombuffer(self.noteBaseIncrement.pmap     , np.float32)[::4])
+        
+        
+        np.set_printoptions(threshold=sys.maxsize)
         # into the loop
         #for i in range(int(1024 * 128 / self.SAMPLES_PER_DISPATCH)):
         while(1):
+            # We submit the command buffer on the queue, at the same time giving a fence.
+            vkQueueSubmit(self.device.compute_queue, 1, self.submitInfo, self.fence)
+
+            # The command will not have finished executing until the fence is signalled.
+            # So we wait here.
+            # We will directly after this read our buffer from the GPU,
+            # and we will not be sure that the command has finished executing unless we wait for the fence.
+            # Hence, we use a fence here.
+            vkWaitForFences(self.device.vkDevice, 1, [self.fence], VK_TRUE, 100000000000)
 
             # we do CPU tings simultaneously
             newArray += self.fullAddArray
-            self.phaseBuffer.setBuffer(newArray)
+            np.fmod(newArray, 2*np.pi, out=newArray)
+
+            self.noteBasePhase.setBuffer(newArray)
 
             pa = np.frombuffer(self.pcmBufferOut.pmap, np.float32)[::4]
-            pa = np.reshape(pa, (self.SAMPLES_PER_DISPATCH, self.POLYPHONY))
-            pa = np.sum(pa, axis = 1)
+            #pa = np.reshape(pa, (self.SAMPLES_PER_DISPATCH, self.POLYPHONY))
+            #pa = np.sum(pa, axis = 1)
             pa2 = np.ascontiguousarray(pa)
             # pa2 = pa #np.ascontiguousarray(pa)
             # pa3 = np.vstack((pa2, pa2))
@@ -466,27 +529,18 @@ class Synth:
             if self.PYSOUND:
                 self.stream.write(pa2)
 
-            # We submit the command buffer on the queue, at the same time giving a fence.
-            vkQueueSubmit(self.device.compute_queue, 1, self.submitInfo, fence)
-
-            # The command will not have finished executing until the fence is signalled.
-            # So we wait here.
-            # We will directly after this read our buffer from the GPU,
-            # and we will not be sure that the command has finished executing unless we wait for the fence.
-            # Hence, we use a fence here.
-            vkWaitForFences(self.device.vkDevice, 1, [fence], VK_TRUE, 100000000000)
-
             self.mm.eventLoop(self)
 
             if self.GRAPH:
-                print(pa2[:16])
+                print(pa2)
                 plt.plot(pa2)
                 plt.ylabel("some numbers")
                 plt.show()
 
-            vkResetFences(device=self.device.vkDevice, fenceCount=1, pFences=[fence])
 
-        vkDestroyFence(self.device.vkDevice, fence, None)
+            vkResetFences(device=self.device.vkDevice, fenceCount=1, pFences=[self.fence])
+
+        vkDestroyFence(self.device.vkDevice, self.fence, None)
         # elegantly free all memory
         self.instance_inst.release()
 
