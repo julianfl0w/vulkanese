@@ -1,6 +1,6 @@
 #version 450
         #extension GL_ARB_separate_shader_objects : enable
-        #define POLYPHONY 128
+        #define POLYPHONY 32
 #define PARTIALS_PER_VOICE 256
 #define MINIMUM_FREQUENCY_HZ 20
 #define MAXIMUM_FREQUENCY_HZ 20000
@@ -8,7 +8,7 @@
 #define UNDERVOLUME 3
 #define CHANNELS 1
 #define SAMPLES_PER_DISPATCH 64
-#define LATENCY_SECONDS 0.1
+#define LATENCY_SECONDS 0.006
 layout (local_size_x = 1, local_size_y = PARTIALS_PER_VOICE, local_size_z = 1 ) in;
 layout(std140, set = 0, binding = 0) buffer pcmBufferOut_buf
 {
@@ -16,11 +16,11 @@ layout(std140, set = 0, binding = 0) buffer pcmBufferOut_buf
 };
 layout(std140, set = 1, binding = 1) uniform noteBasePhase_buf
 {
-   float noteBasePhase[512];
+   float noteBasePhase[128];
 };
 layout(std140, set = 1, binding = 2) uniform noteBaseIncrement_buf
 {
-   float noteBaseIncrement[512];
+   float noteBaseIncrement[128];
 };
 layout(std140, set = 1, binding = 3) uniform partialMultiplier_buf
 {
@@ -28,11 +28,11 @@ layout(std140, set = 1, binding = 3) uniform partialMultiplier_buf
 };
 layout(std140, set = 1, binding = 4) uniform partialVolume_buf
 {
-   float partialVolume[512];
+   float partialVolume[1024];
 };
 layout(std140, set = 1, binding = 5) uniform noteVolume_buf
 {
-   float noteVolume[512];
+   float noteVolume[128];
 };
 
 
@@ -53,12 +53,12 @@ layout(std140, set = 1, binding = 5) uniform noteVolume_buf
                 float vol = partialVolume[partialNo];
 
                 float harmonicRatio   = partialMultiplier[partialNo];
-                innersum += vol * sin(phase*harmonicRatio);
+                innersum += vol * sin(phase*harmonicRatio + partialNo);
 
               }
               sum+=innersum*noteVol;
           }
           
-          pcmBufferOut[timeSlice] = sum/(PARTIALS_PER_VOICE*POLYPHONY);
+          pcmBufferOut[timeSlice] = sum/64;//(PARTIALS_PER_VOICE*POLYPHONY);
         }
         

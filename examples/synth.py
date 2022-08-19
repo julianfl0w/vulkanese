@@ -79,7 +79,7 @@ class Synth:
         self.device = device
 
         self.replaceDict = {
-            "POLYPHONY": 128,
+            "POLYPHONY": 32,
             "PARTIALS_PER_VOICE": 256,
             "MINIMUM_FREQUENCY_HZ": 20,
             "MAXIMUM_FREQUENCY_HZ": 20000,
@@ -88,7 +88,7 @@ class Synth:
             "UNDERVOLUME": 3,
             "CHANNELS": 1,
             "SAMPLES_PER_DISPATCH": 64,
-            "LATENCY_SECONDS": 0.100,
+            "LATENCY_SECONDS": 0.006,
         }
         for k, v in self.replaceDict.items():
             exec("self." + k + " = " + str(v))
@@ -185,9 +185,9 @@ class Synth:
             descriptorSet=device.descriptorPool.descSetUniform,
             qualifier="",
             readFromCPU=True,
-            initData=np.ones((4 * self.POLYPHONY), dtype=np.float32),
+            initData=np.ones(4 * self.PARTIALS_PER_VOICE, dtype=np.float32),
             name="partialVolume",
-            SIZEBYTES=4 * 4 * self.POLYPHONY,
+            SIZEBYTES=4 * 4 * self.PARTIALS_PER_VOICE,
             usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
             location=0,
@@ -210,19 +210,22 @@ class Synth:
             format=VK_FORMAT_R32_SFLOAT,
         )
 
-        # noteAge = Buffer(
-        #    binding=5,
-        #    device=device,
-        #    type="float",
-        #    descriptorSet=device.descriptorPool.descSetGlobal,
-        #    qualifier="",
-        #    name="noteAge",
-        #    SIZEBYTES=4 * 4 * PARTIALS_PER_VOICE,
-        #    usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        #    stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-        #    location=0,
-        #    format=VK_FORMAT_R32_SFLOAT,
-        # )
+        self.noteAge = Buffer(
+            binding=6,
+            device=device,
+            type="float",
+            descriptorSet=device.descriptorPool.descSetUniform,
+            qualifier="",
+            name="noteVolume",
+            readFromCPU=True,
+            SIZEBYTES=4 * 4 * self.POLYPHONY,
+            initData=np.zeros((4 * self.POLYPHONY), dtype=np.float32),
+            usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
+            location=0,
+            format=VK_FORMAT_R32_SFLOAT,
+        )
+
         #
         # ADSR = Buffer(
         #    binding=6,
@@ -264,13 +267,13 @@ class Synth:
                 float vol = partialVolume[partialNo];
 
                 float harmonicRatio   = partialMultiplier[partialNo];
-                innersum += vol * sin(phase*harmonicRatio);
+                innersum += vol * sin(phase*harmonicRatio + partialNo);
 
               }
               sum+=innersum*noteVol;
           }
           
-          pcmBufferOut[timeSlice] = sum/(PARTIALS_PER_VOICE*POLYPHONY);
+          pcmBufferOut[timeSlice] = sum/64;//(PARTIALS_PER_VOICE*POLYPHONY);
         }
         """
 
@@ -348,6 +351,7 @@ class Synth:
             note = self.getNoteFromMidi(msg.note)
             note.velocity = 0 
             note.velocityReal = 0 
+            note.midiIndex = -1
             #if note.cluster is not None:
             #    note.cluster.silenceAllOps()
             #note.cluster = None
@@ -362,7 +366,8 @@ class Synth:
             self.fullAddArray[note.index*4] = 0
             self.noteVolume.pmap[note.index*16:note.index*16+4]   = \
                 np.array([0],dtype=np.float32)
-            print("NOTE OFF" + str(note.index))
+            #print("NOTE OFF" + str(note.index))
+            #print(str(msg))
         # if note on, spawn voices
         elif msg.type == "note_on":
             #print(msg)
@@ -384,7 +389,8 @@ class Synth:
                 np.array([1],dtype=np.float32)
             self.fullAddArray[note.index*4] = incrementPerSample*self.SAMPLES_PER_DISPATCH
 
-            print("NOTE ON" + str(note.index))
+            #print("NOTE ON" + str(note.index))
+            #print(str(msg))
             #print(note.index)
             #print(incrementPerSample)
 
@@ -440,35 +446,18 @@ class Synth:
             self.stream.start()
 
         hm = np.ones((4 * self.PARTIALS_PER_VOICE), dtype=np.float32)
+        pv = np.ones((4 * self.PARTIALS_PER_VOICE), dtype=np.float32)
         #for i in range(int(self.PARTIALS_PER_VOICE/2)):
         #    hm[4*i*2]= 1.5
-        hm[4]  = 1
-        hm[8]  = 1
-        hm[12] = 1
-        hm[16] = 2.01
-        hm[20] = 2.01
-        hm[24] = 2.01
-        hm[28] = 2.01
-        hm[32] = 3.01
-        hm[36] = 3.01
-        hm[40] = 3.01
-        hm[44] = 3.01
-        hm[48] = 4.01
-        hm[52] = 4.01
-        hm[56] = 4.01
-        hm[60] = 4.01
-        hm[64] = 5.01
-        hm[68] = 5.01
-        hm[72] = 5.01
-        hm[76] = 5.01
-        hm[80] = 6.01
-        hm[84] = 6.01
-        hm[88] = 6.01
-        hm[92] = 6.01
-        self.partialMultiplier.setBuffer(hm)
+        np.set_printoptions(threshold=sys.maxsize)
+        PARTIALS_PER_HARMONIC = 2
+        for harmonic in range(int(self.PARTIALS_PER_VOICE / PARTIALS_PER_HARMONIC)):
+            for partial_in_harmonic in range(PARTIALS_PER_HARMONIC):
+                pv[(harmonic*PARTIALS_PER_HARMONIC+partial_in_harmonic)*4]  = 1 / pow(harmonic+1, 2) #+ (partial_in_harmonic - (PARTIALS_PER_HARMONIC/2.0))*0.1 + partial_in_harmonic/997
+                hm[(harmonic*PARTIALS_PER_HARMONIC+partial_in_harmonic)*4]  = 1 + harmonic #+ (partial_in_harmonic - (PARTIALS_PER_HARMONIC/2.0))*0.1 + partial_in_harmonic/997
 
-        hm2 = np.ones((4 * self.POLYPHONY), dtype=np.float32)
-        self.partialVolume.setBuffer(hm2)
+        self.partialMultiplier.setBuffer(hm)
+        self.partialVolume.setBuffer(pv)
 
         newArray = self.fullAddArray.copy()
         self.replaceDict["FENCEADDR"] = hex(eval(str(self.fence).split(' ')[-1][:-1]))
@@ -501,7 +490,6 @@ class Synth:
         #print(np.frombuffer(self.noteBaseIncrement.pmap     , np.float32)[::4])
         
         
-        np.set_printoptions(threshold=sys.maxsize)
         # into the loop
         #for i in range(int(1024 * 128 / self.SAMPLES_PER_DISPATCH)):
         while(1):
