@@ -68,8 +68,9 @@ class Synth:
         # device selection and instantiation
         self.instance_inst = Instance()
         print("available Devices:")
-        # for i, d in enumerate(instance_inst.getDeviceList()):
-        # 	print("    " + str(i) + ": " + d.deviceName)
+        #for i, d in enumerate(self.instance_inst.getDeviceList()):
+        #    print("    " + str(i) + ": " + d)
+        #die
         print("")
 
         # choose a device
@@ -78,8 +79,8 @@ class Synth:
         self.device = device
 
         self.replaceDict = {
-            "POLYPHONY": 6,
-            "PARTIALS_PER_VOICE": 32,
+            "POLYPHONY": 128,
+            "PARTIALS_PER_VOICE": 256,
             "MINIMUM_FREQUENCY_HZ": 20,
             "MAXIMUM_FREQUENCY_HZ": 20000,
             # "SAMPLE_FREQUENCY"     : 48000,
@@ -361,7 +362,7 @@ class Synth:
             self.fullAddArray[note.index*4] = 0
             self.noteVolume.pmap[note.index*16:note.index*16+4]   = \
                 np.array([0],dtype=np.float32)
-
+            print("NOTE OFF" + str(note.index))
         # if note on, spawn voices
         elif msg.type == "note_on":
             #print(msg)
@@ -382,7 +383,8 @@ class Synth:
             self.noteVolume.pmap[note.index*16:note.index*16+4]   = \
                 np.array([1],dtype=np.float32)
             self.fullAddArray[note.index*4] = incrementPerSample*self.SAMPLES_PER_DISPATCH
-            #print("NOTE ON")
+
+            print("NOTE ON" + str(note.index))
             #print(note.index)
             #print(incrementPerSample)
 
@@ -438,29 +440,31 @@ class Synth:
             self.stream.start()
 
         hm = np.ones((4 * self.PARTIALS_PER_VOICE), dtype=np.float32)
-        #hm[4] *= 1.5
-        #hm[8] *= 1.01
-        #hm[12] *= 0.99
-        #hm[16] *= 1.02
-        #hm[20] *= 0.98
-        #hm[24] *= 0.97
-        #hm[28] *= 1.03
-        #hm[32] *= 0.96
-        #hm[36] *= 1.51
-        #hm[40] *= 1.49
-        #hm[44] *= 1.52
-        #hm[48] *= 1.48
-        #hm[52] *= 2
-        #hm[56] *= 2.01
-        #hm[60] *= 1.98
-        #hm[64] *= 1.97
-        #hm[68] *= 2.03
-        #hm[72] *= 1.96
-        #hm[76] *= 2.51
-        #hm[80] *= 2.49
-        #hm[84] *= 2.52
-        #hm[88] *= 2.48
-        #hm[92] *= 4
+        #for i in range(int(self.PARTIALS_PER_VOICE/2)):
+        #    hm[4*i*2]= 1.5
+        hm[4]  = 1
+        hm[8]  = 1
+        hm[12] = 1
+        hm[16] = 2.01
+        hm[20] = 2.01
+        hm[24] = 2.01
+        hm[28] = 2.01
+        hm[32] = 3.01
+        hm[36] = 3.01
+        hm[40] = 3.01
+        hm[44] = 3.01
+        hm[48] = 4.01
+        hm[52] = 4.01
+        hm[56] = 4.01
+        hm[60] = 4.01
+        hm[64] = 5.01
+        hm[68] = 5.01
+        hm[72] = 5.01
+        hm[76] = 5.01
+        hm[80] = 6.01
+        hm[84] = 6.01
+        hm[88] = 6.01
+        hm[92] = 6.01
         self.partialMultiplier.setBuffer(hm)
 
         hm2 = np.ones((4 * self.POLYPHONY), dtype=np.float32)
@@ -513,7 +517,7 @@ class Synth:
 
             # we do CPU tings simultaneously
             newArray += self.fullAddArray
-            np.fmod(newArray, 2*np.pi, out=newArray)
+            #np.fmod(newArray, 2*np.pi, out=newArray)
 
             self.noteBasePhase.setBuffer(newArray)
 
