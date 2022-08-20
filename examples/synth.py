@@ -267,7 +267,7 @@ class Synth:
                 float vol = partialVolume[partialNo];
 
                 float harmonicRatio   = partialMultiplier[partialNo];
-                innersum += vol * sin(phase*harmonicRatio + partialNo);
+                innersum += vol * sin(phase*harmonicRatio);
 
               }
               sum+=innersum*noteVol;
@@ -450,11 +450,14 @@ class Synth:
         #for i in range(int(self.PARTIALS_PER_VOICE/2)):
         #    hm[4*i*2]= 1.5
         np.set_printoptions(threshold=sys.maxsize)
-        PARTIALS_PER_HARMONIC = 2
+        PARTIALS_PER_HARMONIC = 7
         for harmonic in range(int(self.PARTIALS_PER_VOICE / PARTIALS_PER_HARMONIC)):
             for partial_in_harmonic in range(PARTIALS_PER_HARMONIC):
-                pv[(harmonic*PARTIALS_PER_HARMONIC+partial_in_harmonic)*4]  = 1 / pow(harmonic+1, 2) #+ (partial_in_harmonic - (PARTIALS_PER_HARMONIC/2.0))*0.1 + partial_in_harmonic/997
-                hm[(harmonic*PARTIALS_PER_HARMONIC+partial_in_harmonic)*4]  = 1 + harmonic #+ (partial_in_harmonic - (PARTIALS_PER_HARMONIC/2.0))*0.1 + partial_in_harmonic/997
+                if partial_in_harmonic == 0 or True:
+                    pv[(harmonic*PARTIALS_PER_HARMONIC+partial_in_harmonic)*4]  = 0.7 / pow(harmonic+1, 2)
+                else:
+                    pv[(harmonic*PARTIALS_PER_HARMONIC+partial_in_harmonic)*4]  = 1 / pow(harmonic+1, 2)
+                hm[(harmonic*PARTIALS_PER_HARMONIC+partial_in_harmonic)*4]  = 1 + harmonic# + partial_in_harmonic*0.0001
 
         self.partialMultiplier.setBuffer(hm)
         self.partialVolume.setBuffer(pv)
