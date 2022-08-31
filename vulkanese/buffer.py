@@ -34,7 +34,6 @@ class Buffer(Sinode):
         location,
         descriptorSet,
         format,
-        initData,
         readFromCPU=False,
         binding=0,
         usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
@@ -107,8 +106,6 @@ class Buffer(Sinode):
             size=SIZEBYTES,
             flags=0,
         )
-
-        self.setBuffer(initData)
 
         if not readFromCPU:
             vkUnmapMemory(self.vkDevice, self.vkDeviceMemory)

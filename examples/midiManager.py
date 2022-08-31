@@ -57,6 +57,13 @@ class MidiManager:
                     for patch in patches:
                         patch.midi2commands(msg)
 
+    def flushMidi(self):
+        for dev, patches in self.allMidiDevicesAndPatches:
+            while(1):
+                msg = dev.get_message()
+                if msg is None:
+                    break
+        
     def checkMidi(self, processors):
 
         for dev, patches in self.allMidiDevicesAndPatches:
@@ -163,3 +170,5 @@ class MidiManager:
         self.midi_ports_last = []
         self.allMidiDevicesAndPatches = []
         self.lastDevCheck = 0
+        
+        #self.flushMidi()

@@ -1,5 +1,7 @@
 #version 450
-        #extension GL_ARB_separate_shader_objects : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float64 : enable
+//#extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
+#extension GL_ARB_separate_shader_objects : enable
         #define POLYPHONY 32
 #define PARTIALS_PER_VOICE 256
 #define MINIMUM_FREQUENCY_HZ 20
@@ -9,6 +11,7 @@
 #define CHANNELS 1
 #define SAMPLES_PER_DISPATCH 64
 #define LATENCY_SECONDS 0.006
+#define FILTER_STEPS 2048
 layout (local_size_x = 1, local_size_y = PARTIALS_PER_VOICE, local_size_z = 1 ) in;
 layout(std140, set = 0, binding = 0) buffer pcmBufferOut_buf
 {
@@ -34,7 +37,30 @@ layout(std140, set = 1, binding = 5) uniform noteVolume_buf
 {
    float noteVolume[128];
 };
-
+layout(std140, set = 1, binding = 6) uniform noteStrikeTime_buf
+{
+   float64_t noteStrikeTime[256];
+};
+layout(std140, set = 1, binding = 7) uniform noteReleaseTime_buf
+{
+   float64_t noteReleaseTime[256];
+};
+layout(std140, set = 1, binding = 8) uniform currTime_buf
+{
+   float64_t currTime[128];
+};
+layout(std140, set = 1, binding = 9) uniform envelopeParams_buf
+{
+   float envelopeParams[128];
+};
+layout(std140, set = 1, binding = 10) uniform freqFilter_buf
+{
+   float freqFilter[8192];
+};
+layout(std140, set = 1, binding = 11) uniform pitchFactor_buf
+{
+   float pitchFactor[128];
+};
 
         void main() {
 
@@ -44,7 +70,7 @@ layout(std140, set = 1, binding = 5) uniform noteVolume_buf
           
           for (uint noteNo = 0; noteNo<POLYPHONY; noteNo++){
               float noteVol = noteVolume[noteNo];
-              float increment = noteBaseIncrement[noteNo];
+              float increment = noteBaseIncrement[noteNo]*pitchFactor[0];
               float phase = noteBasePhase[noteNo] + (timeSlice * increment);
 
               float innersum = 0;
@@ -53,7 +79,12 @@ layout(std140, set = 1, binding = 5) uniform noteVolume_buf
                 float vol = partialVolume[partialNo];
 
                 float harmonicRatio   = partialMultiplier[partialNo];
-                innersum += vol * sin(phase*harmonicRatio);
+                float thisIncrement = increment * harmonicRatio;
+                
+                if(thisIncrement < 3.14){
+                    int indexInFilter = int(thisIncrement*(FILTER_STEPS/(3.14)));
+                    innersum += vol * sin(phase*harmonicRatio) * freqFilter[indexInFilter];
+                }
 
               }
               sum+=innersum*noteVol;
