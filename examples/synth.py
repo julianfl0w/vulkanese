@@ -79,8 +79,8 @@ class Synth:
         self.device = device
 
         self.replaceDict = {
-            "POLYPHONY": 32,
-            "PARTIALS_PER_VOICE": 256,
+            "POLYPHONY": 4,
+            "PARTIALS_PER_VOICE": 2,
             "MINIMUM_FREQUENCY_HZ": 20,
             "MAXIMUM_FREQUENCY_HZ": 20000,
             # "SAMPLE_FREQUENCY"     : 48000,
@@ -88,7 +88,14 @@ class Synth:
             "UNDERVOLUME": 3,
             "CHANNELS": 1,
             "SAMPLES_PER_DISPATCH": 64,
-            "LATENCY_SECONDS": 0.006,
+            "LATENCY_SECONDS": 0.010,
+            "ENVELOPE_PARAMS_COUNT": 6,
+            "ATTACK_TIME_INDEX" : 0,
+            "ATTACK_LEVEL_INDEX" : 1,
+            "DECAY_TIME_INDEX"  : 2,
+            "DECAY_LEVEL_INDEX"  : 3,
+            "RELEASE_TIME_INDEX": 4,
+            "RELEASE_LEVEL_INDEX": 5,
             "FILTER_STEPS" : 2048,
         }
         for k, v in self.replaceDict.items():
@@ -257,13 +264,29 @@ class Synth:
             qualifier="",
             name="envelopeParams",
             readFromCPU=True,
-            SIZEBYTES=4 * 4 * self.POLYPHONY,
+            SIZEBYTES=4 * 4 * self.ENVELOPE_PARAMS_COUNT * self.POLYPHONY,
             usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
             location=0,
             format=VK_FORMAT_R32_SFLOAT,
         )
-        
+        for v in range(self.POLYPHONY):
+            # minimum read 16 bytes,  * ENVELOPE_PARAMS_COUNT
+            
+            VOICEBASE = v*16 * self.ENVELOPE_PARAMS_COUNT
+            
+            #"ATTACK_TIME" : 0, ALL TIME AS A FLOAT OF SECONDS
+            self.envelopeParams.pmap[VOICEBASE+0*4:VOICEBASE+0*4+4] = np.array([0.25],dtype=np.float32)
+            #"ATTACK_LEVEL" : 1,
+            self.envelopeParams.pmap[VOICEBASE+1*4:VOICEBASE+1*4+4] = np.array([1.0],dtype=np.float32)
+            #"DECAY_TIME"  : 2,
+            self.envelopeParams.pmap[VOICEBASE+2*4:VOICEBASE+2*4+4] = np.array([0.5],dtype=np.float32)
+            #"DECAY_LEVEL"  : 3,
+            self.envelopeParams.pmap[VOICEBASE+3*4:VOICEBASE+3*4+4] = np.array([0.75],dtype=np.float32)
+            #"RELEASE_TIME": 4,
+            self.envelopeParams.pmap[VOICEBASE+4*4:VOICEBASE+4*4+4] = np.array([4.0],dtype=np.float32)
+            #"RELEASE_LEVEL": 5,
+            self.envelopeParams.pmap[VOICEBASE+5*4:VOICEBASE+5*4+4] = np.array([0],dtype=np.float32)
         
         self.freqFilter = Buffer(
             binding=10,
@@ -334,7 +357,28 @@ class Synth:
           float sum = 0;
           
           for (uint noteNo = 0; noteNo<POLYPHONY; noteNo++){
-              float noteVol = noteVolume[noteNo];
+          
+              // calculate the envelope 
+              // time is a float holding seconds (since epoch?)
+              // these values are updated in the python loop
+              float env = 0;
+              // attack phase
+              if(noteStrikeTime[noteNo] > noteReleaseTime[noteNo]){
+                // attack proper
+                if(currTime[0] - noteStrikeTime[noteNo] > ENVELOPE_PARAMS_COUNT[ATTACK_TIME_INDEX]){
+                
+                // decay phase
+                env = ENVELOPE_PARAMS_COUNT[ATTACK_TIME_INDEX]
+              }
+              // release phase
+              else{
+                ATTACK_TIME_INDEX
+              }
+              
+              // the note volume is given, and env is applied as well
+              float noteVol = noteVolume[noteNo] * ;
+              
+              
               float increment = noteBaseIncrement[noteNo]*pitchFactor[0];
               float phase = noteBasePhase[noteNo] + (timeSlice * increment);
 
@@ -450,6 +494,8 @@ class Synth:
             note.held = False
             note.releaseTime = time.time()
             
+            # we need to mulitiply by 16
+            # because it seems minimum GPU read is 16 bytes
             self.noteBaseIncrement.pmap[note.index*16:note.index*16+4]   = \
                 np.array([0],dtype=np.float32)
             self.noteBasePhase.pmap[note.index*16:note.index*16+4]   = \

@@ -59,12 +59,17 @@ class Instance(Sinode):
         # print("available layers:")
         # for l in self.layers:
         #    print("    " + l)
+        print("all layers " + str(self.layers))
 
         if "VK_LAYER_KHRONOS_validation" in self.layers:
             self.layers = ["VK_LAYER_KHRONOS_validation"]
-        else:
+        elif "VK_LAYER_LUNARG_standard_validation" in self.layers:
             self.layers = ["VK_LAYER_LUNARG_standard_validation"]
-
+        else:
+            self.layers = []
+            
+        
+        print("applying layers " + str(self.layers))
         createInfo = VkInstanceCreateInfo(
             sType=VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             flags=0,
