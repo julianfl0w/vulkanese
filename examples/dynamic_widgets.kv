@@ -1,0 +1,24 @@
+<DynamicWidgetsApp>:
+    Canvas:
+        id: entries_box
+        Color:
+            rgba: (.4, .6, .9, 1)                          #(0,0,0,1)
+        Rectangle:
+            size: self.size
+            pos: self.posc
+            Color:
+                rgba: (1, 1, 1,1)
+    BoxLayout:
+        orientation: 'vertical'
+        Label:
+            size_hint_y: 0.1
+            text: app.status_text
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: 0.2
+            Button:
+                text: "Create Widgets"
+                on_release: app.create_widgets()
+            Button:
+                text: "Clear Widgets"
+                on_release: app.clear_all()

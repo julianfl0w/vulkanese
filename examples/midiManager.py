@@ -21,12 +21,13 @@ import pickle
 
 useMouse = False
 
-logger = logging.getLogger('dtfm')
-#formatter = logging.Formatter('{"debug": %(asctime)s {%(pathname)s:%(lineno)d} %(message)s}')
-formatter = logging.Formatter('{{%(pathname)s:%(lineno)d %(message)s}')
+logger = logging.getLogger("dtfm")
+# formatter = logging.Formatter('{"debug": %(asctime)s {%(pathname)s:%(lineno)d} %(message)s}')
+formatter = logging.Formatter("{{%(pathname)s:%(lineno)d %(message)s}")
 ch = logging.StreamHandler()
 ch.setFormatter(formatter)
 logger.addHandler(ch)
+
 
 class MidiManager:
     def checkForNewDevices(self):
@@ -59,11 +60,11 @@ class MidiManager:
 
     def flushMidi(self):
         for dev, patches in self.allMidiDevicesAndPatches:
-            while(1):
+            while 1:
                 msg = dev.get_message()
                 if msg is None:
                     break
-        
+
     def checkMidi(self, processors):
 
         for dev, patches in self.allMidiDevicesAndPatches:
@@ -138,7 +139,7 @@ class MidiManager:
     def __init__(self):
 
         PID = os.getpid()
-        
+
         useKeyboard = False
         if useKeyboard:
             logger.debug("setting up keyboard")
@@ -170,5 +171,5 @@ class MidiManager:
         self.midi_ports_last = []
         self.allMidiDevicesAndPatches = []
         self.lastDevCheck = 0
-        
-        #self.flushMidi()
+
+        # self.flushMidi()

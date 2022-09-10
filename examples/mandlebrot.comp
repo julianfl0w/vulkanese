@@ -1,0 +1,124 @@
+#version 450
+#extension GL_EXT_shader_explicit_arithmetic_types_float64 : enable
+//#extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
+#extension GL_ARB_separate_shader_objects : enable
+        #define POLYPHONY 4
+#define PARTIALS_PER_VOICE 2
+#define MINIMUM_FREQUENCY_HZ 20
+#define MAXIMUM_FREQUENCY_HZ 20000
+#define SAMPLE_FREQUENCY 44100
+#define UNDERVOLUME 3
+#define CHANNELS 1
+#define SAMPLES_PER_DISPATCH 64
+#define LATENCY_SECONDS 0.01
+#define ENVELOPE_LENGTH 256
+#define ATTACK_TIME_INDEX 0
+#define ATTACK_LEVEL_INDEX 1
+#define DECAY_TIME_INDEX 2
+#define DECAY_LEVEL_INDEX 3
+#define RELEASE_TIME_INDEX 4
+#define RELEASE_LEVEL_INDEX 5
+#define FILTER_STEPS 2048
+layout (local_size_x = 1, local_size_y = PARTIALS_PER_VOICE, local_size_z = 1 ) in;
+layout(std140, set = 0, binding = 0) buffer pcmBufferOut_buf
+{
+   float pcmBufferOut[256];
+};
+layout(std140, set = 1, binding = 1) uniform noteBasePhase_buf
+{
+   float noteBasePhase[16];
+};
+layout(std140, set = 1, binding = 2) uniform noteBaseIncrement_buf
+{
+   float noteBaseIncrement[16];
+};
+layout(std140, set = 1, binding = 3) uniform partialMultiplier_buf
+{
+   float partialMultiplier[8];
+};
+layout(std140, set = 1, binding = 4) uniform partialVolume_buf
+{
+   float partialVolume[8];
+};
+layout(std140, set = 1, binding = 5) uniform noteVolume_buf
+{
+   float noteVolume[16];
+};
+layout(std140, set = 1, binding = 6) uniform noteStrikeTime_buf
+{
+   float64_t noteStrikeTime[32];
+};
+layout(std140, set = 1, binding = 7) uniform noteReleaseTime_buf
+{
+   float64_t noteReleaseTime[32];
+};
+layout(std140, set = 1, binding = 8) uniform currTime_buf
+{
+   float64_t currTime[16];
+};
+layout(std140, set = 1, binding = 9) uniform attackEnvelope_buf
+{
+   float attackEnvelope[4096];
+};
+layout(std140, set = 1, binding = 10) uniform freqFilter_buf
+{
+   float freqFilter[8192];
+};
+layout(std140, set = 1, binding = 11) uniform pitchFactor_buf
+{
+   float pitchFactor[16];
+};
+
+        void main() {
+
+          uint timeSlice = gl_GlobalInvocationID.y;
+
+          float sum = 0;
+          
+          for (uint noteNo = 0; noteNo<POLYPHONY; noteNo++){
+          
+              // calculate the envelope 
+              // time is a float holding seconds (since epoch?)
+              // these values are updated in the python loop
+              float env = 0;
+              // attack phase
+              float64_t secondsSinceStrike  = abs(currTime[0] - noteStrikeTime[noteNo] );
+              float64_t secondsSinceRelease = abs(currTime[0] - noteReleaseTime[noteNo]);
+              if(noteStrikeTime[noteNo] > noteReleaseTime[noteNo]){
+              
+                // if envelope is complete, maintain at the final index
+                // simply follow the path in memory
+                
+              }
+              // release phase
+              else{
+                //ENVELOPE_LENGTH
+              }
+              
+              // the note volume is given, and env is applied as well
+              float noteVol = noteVolume[noteNo] * 1;
+              
+              
+              float increment = noteBaseIncrement[noteNo]*pitchFactor[0];
+              float phase = noteBasePhase[noteNo] + (timeSlice * increment);
+
+              float innersum = 0;
+              for (uint partialNo = 0; partialNo<PARTIALS_PER_VOICE; partialNo++)
+              {
+                float vol = partialVolume[partialNo];
+
+                float harmonicRatio   = partialMultiplier[partialNo];
+                float thisIncrement = increment * harmonicRatio;
+                
+                if(thisIncrement < 3.14){
+                    int indexInFilter = int(thisIncrement*(FILTER_STEPS/(3.14)));
+                    innersum += vol * sin(phase*harmonicRatio) * freqFilter[indexInFilter];
+                }
+
+              }
+              sum+=innersum*noteVol;
+          }
+          
+          pcmBufferOut[timeSlice] = sum/64;//(PARTIALS_PER_VOICE*POLYPHONY);
+        }
+        

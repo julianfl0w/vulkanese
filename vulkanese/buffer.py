@@ -296,7 +296,7 @@ class VertexBuffer(Buffer):
 
         # we will standardize its bindings with a attribute description
         self.attributeDescription = VkVertexInputAttributeDescription(
-            binding=self.binding, location=self.location, format=format, offset=0,
+            binding=self.binding, location=self.location, format=format, offset=0
         )
         # ^^ Consider VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^
         self.bindingDescription = VkVertexInputBindingDescription(

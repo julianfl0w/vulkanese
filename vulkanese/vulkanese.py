@@ -67,8 +67,7 @@ class Instance(Sinode):
             self.layers = ["VK_LAYER_LUNARG_standard_validation"]
         else:
             self.layers = []
-            
-        
+
         print("applying layers " + str(self.layers))
         createInfo = VkInstanceCreateInfo(
             sType=VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
