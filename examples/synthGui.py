@@ -10,6 +10,14 @@ and width of the line, or hit 'Animate' to see a set of sine and cosine
 animations. The Cap and Joint buttons don't work: SmoothLine has not
 implemented these features yet.
 """
+import os
+from math import cos, sin
+import numpy as np
+import time
+import pickle as pkl
+
+from scipy.interpolate import interp1d
+from kivy.uix.floatlayout import FloatLayout
 
 from kivy.app import App
 from kivy.properties import (
@@ -19,15 +27,29 @@ from kivy.properties import (
     ListProperty,
     BooleanProperty,
 )
-from kivy.uix.floatlayout import FloatLayout
 from kivymd.uix.behaviors import TouchBehavior
 from kivy.lang import Builder
 from kivy.clock import Clock
-from math import cos, sin
-import numpy as np
-import time
 
-Builder.load_string(
+class LinePlayground(FloatLayout):
+
+    alpha_controlline = NumericProperty(1.0)
+    alpha = NumericProperty(0.5)
+    close = BooleanProperty(False)
+    joint = StringProperty("round")
+    linewidth = NumericProperty(10.0)
+    dt = NumericProperty(0)
+    dash_length = NumericProperty(1)
+    dash_offset = NumericProperty(0)
+    dashes = ListProperty([])
+    points = ListProperty([[0, 0], [500, 500]])
+
+    _update_points_animation_ev = None
+
+    def __init__(self, q):
+        
+        self.q = q
+        Builder.load_string(
     """
 <LinePlayground>:
     canvas:
@@ -172,31 +194,20 @@ Builder.load_string(
 """
 )
 
-
-class LinePlayground(FloatLayout):
-
-    alpha_controlline = NumericProperty(1.0)
-    alpha = NumericProperty(0.5)
-    close = BooleanProperty(False)
-    joint = StringProperty("round")
-    linewidth = NumericProperty(10.0)
-    dt = NumericProperty(0)
-    dash_length = NumericProperty(1)
-    dash_offset = NumericProperty(0)
-    dashes = ListProperty([])
-    points = ListProperty([[0,0], [500,500]])
-
-    _update_points_animation_ev = None
-    def __init__(self):
         FloatLayout.__init__(self)
         print(self.size)
-        
+
         self.bind(size=self.on_resize)
+
+        # self.points = [[0,0], [500,500]]
         
-        #self.points = [[0,0], [500,500]]
+    def points2synth(self):
+        f1 = interp1d([p[0] for p in self.points], [p[1] for p in self.points], kind='nearest')
+        self.q.put(["attackEnvelope", np.array([0,1,2,3])])
+        
     def on_resize(self, obj, size):
-        self.points[-1] = [size[0], size[1]/2]
-        
+        self.points[-1] = [size[0], size[1] / 2]
+
     def on_touch_down(self, touch):
         if super(LinePlayground, self).on_touch_down(touch):
             return True
@@ -204,17 +215,18 @@ class LinePlayground(FloatLayout):
         for i, point in enumerate(self.points.copy()):
             print(abs(touch.pos[0] - point[0]))
             # if this touch is close IN X to an existing point, drag that point
-            
+
             if abs(touch.pos[0] - point[0]) < 10:
                 self.newestPointIndex = i
                 # if this is a double tap, remove the point
                 if touch.is_double_tap:
-                    print('Touch is a double tap !')
-                    print(' - interval is', touch.double_tap_time)
-                    print(' - distance between previous is', touch.double_tap_distance)
+                    print("Touch is a double tap !")
+                    print(" - interval is", touch.double_tap_time)
+                    print(" - distance between previous is", touch.double_tap_distance)
                     del self.points[i]
+                self.points2synth()
                 return True
-        
+
         # otherwise, add a new point
         self.points.append(touch.pos)
         self.pointsIndex = sorted(
@@ -222,6 +234,7 @@ class LinePlayground(FloatLayout):
         )
         self.newestPointIndex = self.pointsIndex[-1]
         self.points.sort(key=lambda x: x[0])
+        self.points2synth()
         return True
 
     def on_touch_move(self, touch):
@@ -239,9 +252,13 @@ class LinePlayground(FloatLayout):
                     ),
                     touch.pos[1],
                 ]
-                
+
             else:
-                self.points[self.newestPointIndex] = [self.points[self.newestPointIndex][0], touch.pos[1]]
+                self.points[self.newestPointIndex] = [
+                    self.points[self.newestPointIndex][0],
+                    touch.pos[1],
+                ]
+            self.points2synth()
             return True
         return super(LinePlayground, self).on_touch_move(touch)
 
@@ -278,9 +295,33 @@ class LinePlayground(FloatLayout):
 
 
 class TestLineApp(App):
+    def __init__(self, q):
+        self.q = q
+        App.__init__(self)
+        
     def build(self):
-        return LinePlayground()
+        return LinePlayground(self.q)
 
+def runGui(q):
+    TestLineApp(q).run()
+    
+    #from synth import runSynth
+    #mp.freeze_support()
+    #ctx = mp.get_context('spawn')
+    #q = ctx.Queue()
+    #backendProc = ctx.Process(target=runSynth, args=(q,))
+    #backendProc.start()
+    #print("PID" + str(backendProc.pid))
+    #os.sched_setaffinity(backendProc.pid, {7})
+    #print("CPU affinity mask is modified for process id % s" % backendProc.pid) 
+    #print("Now, process is eligible to run on:", os.sched_getaffinity(backendProc.pid))
+     
 
-if __name__ == "__main__":
-    TestLineApp().run()
+    #backendProc.join()
+
+#if __name__ == "__main__":
+#     runGui()
+#    #frontendProc = ctx.Process(target=runGui, args=(q,))
+#    #frontendProc.start()
+#    #frontendProc.join()
+#    #backendProc.join()

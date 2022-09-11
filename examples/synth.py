@@ -14,6 +14,8 @@ import midiManager
 import zmq
 import pickle as pkl
 
+# from numba import njit
+
 print(sys.path)
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -63,8 +65,8 @@ class Note:
 # WORKGROUP_SIZE = 1  # Workgroup size in compute shader.
 # SAMPLES_PER_DISPATCH = 512
 class Synth:
-    def __init__(self):
-
+    def __init__(self, q):
+        self.q = q
         self.mm = midiManager.MidiManager()
 
         self.GRAPH = False
@@ -75,7 +77,7 @@ class Synth:
         # recieve work
         self.consumer_receiver = context.socket(zmq.PULL)
         self.consumer_receiver.connect("tcp://127.0.0.1:5557")
-        
+
         # device selection and instantiation
         self.instance_inst = Instance()
         print("available Devices:")
@@ -293,35 +295,8 @@ class Synth:
             location=0,
             format=VK_FORMAT_R32_SFLOAT,
         )
-        for v in range(self.POLYPHONY):
-            # minimum read 16 bytes,  * ENVELOPE_LENGTH
-
-            VOICEBASE = v * 16 * self.ENVELOPE_LENGTH
-
-            # "ATTACK_TIME" : 0, ALL TIME AS A FLOAT OF SECONDS
-            self.attackEnvelope.pmap[
-                VOICEBASE + 0 * 4 : VOICEBASE + 0 * 4 + 4
-            ] = np.array([0.25], dtype=np.float32)
-            # "ATTACK_LEVEL" : 1,
-            self.attackEnvelope.pmap[
-                VOICEBASE + 1 * 4 : VOICEBASE + 1 * 4 + 4
-            ] = np.array([1.0], dtype=np.float32)
-            # "DECAY_TIME"  : 2,
-            self.attackEnvelope.pmap[
-                VOICEBASE + 2 * 4 : VOICEBASE + 2 * 4 + 4
-            ] = np.array([0.5], dtype=np.float32)
-            # "DECAY_LEVEL"  : 3,
-            self.attackEnvelope.pmap[
-                VOICEBASE + 3 * 4 : VOICEBASE + 3 * 4 + 4
-            ] = np.array([0.75], dtype=np.float32)
-            # "RELEASE_TIME": 4,
-            self.attackEnvelope.pmap[
-                VOICEBASE + 4 * 4 : VOICEBASE + 4 * 4 + 4
-            ] = np.array([4.0], dtype=np.float32)
-            # "RELEASE_LEVEL": 5,
-            self.attackEnvelope.pmap[
-                VOICEBASE + 5 * 4 : VOICEBASE + 5 * 4 + 4
-            ] = np.array([0], dtype=np.float32)
+        # "ATTACK_TIME" : 0, ALL TIME AS A FLOAT OF SECONDS
+        self.attackEnvelope.pmap[:] = np.ones((4 * self.ENVELOPE_LENGTH * self.POLYPHONY), dtype=np.float32)
 
         self.freqFilter = Buffer(
             binding=10,
@@ -337,7 +312,7 @@ class Synth:
             location=0,
             format=VK_FORMAT_R32_SFLOAT,
         )
-        self.freqFilter.pmap[:] = np.ones(4*self.FILTER_STEPS, dtype=np.float32)
+        self.freqFilter.pmap[:] = np.ones(4 * self.FILTER_STEPS, dtype=np.float32)
 
         self.pitchFactor = Buffer(
             binding=11,
@@ -377,6 +352,7 @@ class Synth:
         main = """
         void main() {
 
+          uint polySlice = gl_GlobalInvocationID.x;
           uint timeSlice = gl_GlobalInvocationID.y;
 
           float sum = 0;
@@ -539,7 +515,7 @@ class Synth:
             # print(str(msg))
         # if note on, spawn voices
         elif msg.type == "note_on":
-            #print(msg)
+            # print(msg)
 
             # if its already going, despawn it
             # if self.getNoteFromMidi(msg.note).held:
@@ -628,6 +604,7 @@ class Synth:
         #            self.midi2commands(heldnote.msg)
         #            break
 
+    # @njit
     def run(self):
         timer = 0
         # We create a fence.
@@ -713,10 +690,10 @@ class Synth:
             # do CPU things.
             # NO MEMORY ACCESS
             # NO PMAP
-            #startPoint = int((1 - self.modWheelReal) * 4 * self.FILTER_STEPS)
-            #currFilt = self.freqFilterTotal[
+            # startPoint = int((1 - self.modWheelReal) * 4 * self.FILTER_STEPS)
+            # currFilt = self.freqFilterTotal[
             #    startPoint : startPoint + self.FILTER_STEPS * 4
-            #]
+            # ]
             if self.GRAPH:
                 # print(pa2)
                 # updating data values
@@ -759,8 +736,8 @@ class Synth:
             # pa3 = np.vstack((pa2, pa2))
             # pa4 = np.swapaxes(pa3, 0, 1)
             # pa5 = np.ascontiguousarray(pa4)
-            #print(np.shape(pa2))
-            #print(pa2)
+            # print(np.shape(pa2))
+            # print(pa2)
             if self.PYSOUND:
                 self.stream.write(pa2)
 
@@ -770,23 +747,43 @@ class Synth:
                 device=self.device.vkDevice, fenceCount=1, pFences=[self.fence]
             )
 
-            #self.freqFilter.pmap[:] = currFilt
+            # self.freqFilter.pmap[:] = currFilt
             self.currTime.pmap[0:8] = np.array(time.time(), dtype=np.float64)
 
             self.pitchFactor.pmap[0:4] = np.array(
                 [self.pitchwheelReal], dtype=np.float32
             )
             
-            #work = self.consumer_receiver.recv()
-            #if work is not None:
-            #    print(pkl.load(work))
-            #    die
-            #print("cycle")
+            #self.getZMQCommands()
+            # get q commands
+            while self.q.qsize():
+                recvd = self.q.get()
+                print(recvd)
+                varName, newVal = recvd
+                eval("self." + varName + ".pmap[:] = newVal")
+                
 
         vkDestroyFence(self.device.vkDevice, self.fence, None)
         # elegantly free all memory
         self.instance_inst.release()
 
+    def getZMQCommands(self):
+        ## check for control from gui
+        try:
+            work = self.consumer_receiver.recv(zmq.DONTWAIT)
+            if work is not None:
+                recvd = pkl.loads(work)
+                print(recvd)
+                varName, newVal = recvd
+                eval("self." + varName + ".pmap[:] = newVal")
+        except zmq.error.Again:
+            pass
+        # print("cycle")
+
+
+def runSynth(q):
+    s = Synth(q).run()
+
 
 if __name__ == "__main__":
-    s = Synth().run()
+    runSynth()

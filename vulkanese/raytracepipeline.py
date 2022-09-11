@@ -11,9 +11,10 @@ from commandbuffer import *
 from vutil import *
 from vulkanese import *
 from PIL import Image as pilImage
-import faulthandler
 
-faulthandler.enable()
+# import faulthandler
+
+# faulthandler.enable()
 
 here = os.path.dirname(os.path.abspath(__file__))
 

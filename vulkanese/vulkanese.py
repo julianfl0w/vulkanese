@@ -204,7 +204,26 @@ class Device(Sinode):
 
         self.pProperties = vkGetPhysicalDeviceProperties(self.physical_device)
         print("pProperties")
-        print(self.pProperties)
+        print(self.pProperties.deviceName)
+        for l in [
+            "maxComputeWorkGroupCount",
+            "maxComputeWorkGroupInvocations",
+            "maxComputeWorkGroupSize",
+            "maxImageDimension1D",
+            "maxImageDimension2D",
+            "maxImageDimension3D",
+            "maxUniformBufferRange",
+            "maxPerStageDescriptorUniformBuffers",
+            "maxPerStageDescriptorStorageBuffers",
+            "maxPerStageDescriptorSampledImages",
+            "maxPerStageDescriptorStorageImages"
+        ]:
+            val = eval("self.pProperties.limits." + l)
+            try:
+                print(l + ": " + str(list(val)))
+            except:
+                print(l + ": " + str(val))
+
         # self.pProperties2 = vkGetPhysicalDeviceProperties2(self.physical_device)
         # print("pProperties2")
         # print(self.pProperties2)

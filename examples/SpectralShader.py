@@ -11,8 +11,8 @@ if localtest == True:
     from vulkanese import *
 else:
     from vulkanese.vulkanese import *
-    
-    
+
+
 class SpectralShader:
     def __init__(self):
 
@@ -224,7 +224,7 @@ class SpectralShader:
             location=0,
             format=VK_FORMAT_R32_SFLOAT,
         )
-        self.freqFilter.pmap[:] = np.ones(4*self.FILTER_STEPS, dtype=np.float32)
+        self.freqFilter.pmap[:] = np.ones(4 * self.FILTER_STEPS, dtype=np.float32)
 
         self.pitchFactor = Buffer(
             binding=11,
