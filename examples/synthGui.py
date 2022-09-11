@@ -15,7 +15,8 @@ from math import cos, sin
 import numpy as np
 import time
 import pickle as pkl
-
+import cv2
+from scipy import signal
 from scipy.interpolate import interp1d
 from kivy.uix.floatlayout import FloatLayout
 
@@ -33,8 +34,8 @@ from kivy.clock import Clock
 
 class LinePlayground(FloatLayout):
 
-    alpha_controlline = NumericProperty(1.0)
-    alpha = NumericProperty(0.5)
+    lifespan_controlline = NumericProperty(1.0)
+    lifespan = NumericProperty(0.5)
     close = BooleanProperty(False)
     joint = StringProperty("round")
     linewidth = NumericProperty(10.0)
@@ -54,7 +55,7 @@ class LinePlayground(FloatLayout):
 <LinePlayground>:
     canvas:
         Color:
-            rgba: .4, .4, 1, root.alpha
+            rgba: .4, .4, 1, root.lifespan
         Line:
             points: self.points
             joint: self.joint
@@ -73,17 +74,17 @@ class LinePlayground(FloatLayout):
             cols: 2
 
             Label:
-                text: 'Alpha'
+                text: 'Lifespan'
             Slider:
-                value: root.alpha
-                on_value: root.alpha = float(args[1])
+                value: root.lifespan
+                on_value: root.lifespan = float(args[1])
                 min: 0.
-                max: 1.
+                max: 20.
             Label:
-                text: 'Alpha Control Line'
+                text: 'Lifespan Control Line'
             Slider:
-                value: root.alpha_controlline
-                on_value: root.alpha_controlline = float(args[1])
+                value: root.lifespan_controlline
+                on_value: root.lifespan_controlline = float(args[1])
                 min: 0.
                 max: 1.
             Label:
@@ -198,12 +199,28 @@ class LinePlayground(FloatLayout):
         print(self.size)
 
         self.bind(size=self.on_resize)
+        self.bind(lifespan=self.updateLifespan)
 
         # self.points = [[0,0], [500,500]]
+    def updateLifespan(self, obj, value):
+        self.q.put(["attackLifespan", value])
+        
         
     def points2synth(self):
-        f1 = interp1d([p[0] for p in self.points], [p[1] for p in self.points], kind='nearest')
-        self.q.put(["attackEnvelope", np.array([0,1,2,3])])
+        # separate xs and ys
+        xs = np.array([p[0] for p in self.points])
+        ys = np.array([p[1] for p in self.points])
+        xs/=np.max(xs) # normalize on [0,1)
+        ys/=np.max(ys) # normalize on [0,1)
+        
+        f1 = interp1d(xs, ys, kind='linear')
+        #print(f1)
+        #f2 = signal.resample(f1.astype(np.float32), 4*256*64)
+        linspac = np.arange(4*256) / (4*256)
+        print(linspac)
+        f2 = f1(linspac)
+        print(f2)
+        self.q.put(["attackEnvelope", np.array(f2, dtype=np.float32)])
         
     def on_resize(self, obj, size):
         self.points[-1] = [size[0], size[1] / 2]

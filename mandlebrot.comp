@@ -2,7 +2,9 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float64 : enable
 //#extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
 #extension GL_ARB_separate_shader_objects : enable
-        #define POLYPHONY 4
+        #define POLYPHONY 64
+#define POLYPHONY_PER_SHADER 2
+#define SHADERS_PER_TIMESLICE 32
 #define PARTIALS_PER_VOICE 2
 #define MINIMUM_FREQUENCY_HZ 20
 #define MAXIMUM_FREQUENCY_HZ 20000
@@ -11,19 +13,20 @@
 #define CHANNELS 1
 #define SAMPLES_PER_DISPATCH 64
 #define LATENCY_SECONDS 0.01
+#define ENVELOPE_LENGTH 256
 #define FILTER_STEPS 2048
 layout (local_size_x = 1, local_size_y = PARTIALS_PER_VOICE, local_size_z = 1 ) in;
 layout(std140, set = 0, binding = 0) buffer pcmBufferOut_buf
 {
-   float pcmBufferOut[256];
+   float pcmBufferOut[8192];
 };
 layout(std140, set = 1, binding = 1) uniform noteBasePhase_buf
 {
-   float noteBasePhase[16];
+   float noteBasePhase[256];
 };
 layout(std140, set = 1, binding = 2) uniform noteBaseIncrement_buf
 {
-   float noteBaseIncrement[16];
+   float noteBaseIncrement[256];
 };
 layout(std140, set = 1, binding = 3) uniform partialMultiplier_buf
 {
@@ -35,41 +38,86 @@ layout(std140, set = 1, binding = 4) uniform partialVolume_buf
 };
 layout(std140, set = 1, binding = 5) uniform noteVolume_buf
 {
-   float noteVolume[16];
+   float noteVolume[256];
 };
 layout(std140, set = 1, binding = 6) uniform noteStrikeTime_buf
 {
-   float64_t noteStrikeTime[32];
+   float64_t noteStrikeTime[512];
 };
 layout(std140, set = 1, binding = 7) uniform noteReleaseTime_buf
 {
-   float64_t noteReleaseTime[32];
+   float64_t noteReleaseTime[512];
 };
 layout(std140, set = 1, binding = 8) uniform currTime_buf
 {
-   float64_t currTime[16];
+   float64_t currTime[256];
 };
-layout(std140, set = 1, binding = 9) uniform envelopeParams_buf
+layout(std140, set = 1, binding = 9) uniform attackEnvelope_buf
 {
-   float envelopeParams[16];
+   float attackEnvelope[1024];
 };
-layout(std140, set = 1, binding = 10) uniform freqFilter_buf
+layout(std140, set = 1, binding = 10) uniform releaseEnvelope_buf
+{
+   float releaseEnvelope[1024];
+};
+layout(std140, set = 1, binding = 11) uniform envelopeSpeedMultiplier_buf
+{
+   float envelopeSpeedMultiplier[256];
+};
+layout(std140, set = 1, binding = 12) uniform freqFilter_buf
 {
    float freqFilter[8192];
 };
-layout(std140, set = 1, binding = 11) uniform pitchFactor_buf
+layout(std140, set = 1, binding = 13) uniform pitchFactor_buf
 {
-   float pitchFactor[16];
+   float pitchFactor[256];
 };
 
         void main() {
 
+          uint polySlice = gl_GlobalInvocationID.x;
           uint timeSlice = gl_GlobalInvocationID.y;
 
           float sum = 0;
           
-          for (uint noteNo = 0; noteNo<POLYPHONY; noteNo++){
-              float noteVol = noteVolume[noteNo];
+          for (uint noteNo = polySlice*POLYPHONY_PER_SHADER; noteNo<(polySlice+1)*POLYPHONY_PER_SHADER; noteNo++){
+          
+              // calculate the envelope 
+              // time is a float holding seconds (since epoch?)
+              // these values are updated in the python loop
+              float env = 0;
+              int envelopeIndex;
+              
+              // attack phase
+              float64_t secondsSinceStrike  = abs(currTime[0] - noteStrikeTime[noteNo] );
+              float64_t secondsSinceRelease = abs(currTime[0] - noteReleaseTime[noteNo]);
+              
+              // attack phase
+              if(noteStrikeTime[noteNo] > noteReleaseTime[noteNo]){
+                envelopeIndex = int(secondsSinceStrike*envelopeSpeedMultiplier[noteNo]); // inverse seconds
+                // if envelope is complete, maintain at the final index
+                if(envelopeIndex >= ENVELOPE_LENGTH)
+                    env = attackEnvelope[ENVELOPE_LENGTH-1];
+                // otherwise, linear interp the envelope
+                else
+                    env = attackEnvelope[envelopeIndex];
+                
+              }
+              // release phase
+              else{
+                envelopeIndex = int(secondsSinceRelease*envelopeSpeedMultiplier[noteNo]); // inverse seconds
+                // if envelope is complete, maintain at the final index
+                if(envelopeIndex >= ENVELOPE_LENGTH)
+                    env = releaseEnvelope[ENVELOPE_LENGTH-1];
+                // otherwise, linear interp the envelope
+                else
+                    env = releaseEnvelope[envelopeIndex];
+              }
+              
+              // the note volume is given, and env is applied as well
+              float noteVol = noteVolume[noteNo] * env;
+              
+              
               float increment = noteBaseIncrement[noteNo]*pitchFactor[0];
               float phase = noteBasePhase[noteNo] + (timeSlice * increment);
 
@@ -90,6 +138,6 @@ layout(std140, set = 1, binding = 11) uniform pitchFactor_buf
               sum+=innersum*noteVol;
           }
           
-          pcmBufferOut[timeSlice] = sum/64;//(PARTIALS_PER_VOICE*POLYPHONY);
+          pcmBufferOut[timeSlice*SHADERS_PER_TIMESLICE + polySlice] = sum/64;//(PARTIALS_PER_VOICE*POLYPHONY);
         }
         

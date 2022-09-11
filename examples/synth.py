@@ -14,7 +14,7 @@ import midiManager
 import zmq
 import pickle as pkl
 
-# from numba import njit
+from numba import njit
 
 print(sys.path)
 
@@ -92,7 +92,9 @@ class Synth:
         self.device = device
 
         self.replaceDict = {
-            "POLYPHONY": 4,
+            "POLYPHONY": 64,
+            "POLYPHONY_PER_SHADER": 2,
+            "SHADERS_PER_TIMESLICE": int(64/2),
             "PARTIALS_PER_VOICE": 2,
             "MINIMUM_FREQUENCY_HZ": 20,
             "MAXIMUM_FREQUENCY_HZ": 20000,
@@ -103,12 +105,6 @@ class Synth:
             "SAMPLES_PER_DISPATCH": 64,
             "LATENCY_SECONDS": 0.010,
             "ENVELOPE_LENGTH": 256,
-            "ATTACK_TIME_INDEX": 0,
-            "ATTACK_LEVEL_INDEX": 1,
-            "DECAY_TIME_INDEX": 2,
-            "DECAY_LEVEL_INDEX": 3,
-            "RELEASE_TIME_INDEX": 4,
-            "RELEASE_LEVEL_INDEX": 5,
             "FILTER_STEPS": 2048,
         }
         for k, v in self.replaceDict.items():
@@ -139,7 +135,7 @@ class Synth:
             qualifier="in",
             name="pcmBufferOut",
             readFromCPU=True,
-            SIZEBYTES=4 * 4 * self.SAMPLES_PER_DISPATCH * self.CHANNELS,
+            SIZEBYTES=4 * 4 * self.SAMPLES_PER_DISPATCH * self.SHADERS_PER_TIMESLICE * self.CHANNELS,
             usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
             stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
             location=0,
@@ -274,12 +270,15 @@ class Synth:
             qualifier="",
             name="attackEnvelope",
             readFromCPU=True,
-            SIZEBYTES=4 * 4 * self.ENVELOPE_LENGTH * self.POLYPHONY,
+            SIZEBYTES=4 * 4 * self.ENVELOPE_LENGTH,
             usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
             location=0,
             format=VK_FORMAT_R32_SFLOAT,
         )
+        # "ATTACK_TIME" : 0, ALL TIME AS A FLOAT OF SECONDS
+        self.attackEnvelope.pmap[:] = np.ones((4 * self.ENVELOPE_LENGTH), dtype=np.float32)
+
 
         self.releaseEnvelope = Buffer(
             binding=10,
@@ -289,17 +288,35 @@ class Synth:
             qualifier="",
             name="releaseEnvelope",
             readFromCPU=True,
-            SIZEBYTES=4 * 4 * self.ENVELOPE_LENGTH * self.POLYPHONY,
+            SIZEBYTES=4 * 4 * self.ENVELOPE_LENGTH,
             usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
             location=0,
             format=VK_FORMAT_R32_SFLOAT,
         )
-        # "ATTACK_TIME" : 0, ALL TIME AS A FLOAT OF SECONDS
-        self.attackEnvelope.pmap[:] = np.ones((4 * self.ENVELOPE_LENGTH * self.POLYPHONY), dtype=np.float32)
+        
+        self.envelopeSpeedMultiplier = Buffer(
+            binding=11,
+            device=device,
+            type="float",
+            descriptorSet=device.descriptorPool.descSetUniform,
+            qualifier="",
+            name="envelopeSpeedMultiplier",
+            readFromCPU=True,
+            SIZEBYTES=4 * 4 * self.POLYPHONY,
+            usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
+            location=0,
+            format=VK_FORMAT_R32_SFLOAT,
+        )
+        # value of 1 means 1 second attack. 2 means 1/2 second attack
+        ENVTIME_SECONDS = 1
+        factor = self.ENVELOPE_LENGTH * 4 / ENVTIME_SECONDS
+        self.envelopeSpeedMultiplier.pmap[:] = np.ones((4 * self.POLYPHONY), dtype=np.float32)*factor
 
+        
         self.freqFilter = Buffer(
-            binding=10,
+            binding=12,
             device=device,
             type="float",
             descriptorSet=device.descriptorPool.descSetUniform,
@@ -315,7 +332,7 @@ class Synth:
         self.freqFilter.pmap[:] = np.ones(4 * self.FILTER_STEPS, dtype=np.float32)
 
         self.pitchFactor = Buffer(
-            binding=11,
+            binding=13,
             device=device,
             type="float",
             descriptorSet=device.descriptorPool.descSetUniform,
@@ -335,7 +352,8 @@ class Synth:
 
             # here we are creating sub plots
             self.figure, ax = plt.subplots(figsize=(10, 8))
-            self.plot, = ax.plot(self.freqFilterTotal[0 : 4 * self.FILTER_STEPS])
+            self.newVal = np.ones((4 * 256*64))
+            self.plot, = ax.plot(self.newVal)
             plt.ylabel("some numbers")
             plt.show()
             plt.ylim(-2, 2)
@@ -357,28 +375,42 @@ class Synth:
 
           float sum = 0;
           
-          for (uint noteNo = 0; noteNo<POLYPHONY; noteNo++){
+          for (uint noteNo = polySlice*POLYPHONY_PER_SHADER; noteNo<(polySlice+1)*POLYPHONY_PER_SHADER; noteNo++){
           
               // calculate the envelope 
               // time is a float holding seconds (since epoch?)
               // these values are updated in the python loop
               float env = 0;
+              int envelopeIndex;
+              
               // attack phase
               float64_t secondsSinceStrike  = abs(currTime[0] - noteStrikeTime[noteNo] );
               float64_t secondsSinceRelease = abs(currTime[0] - noteReleaseTime[noteNo]);
-              if(noteStrikeTime[noteNo] > noteReleaseTime[noteNo]){
               
+              // attack phase
+              if(noteStrikeTime[noteNo] > noteReleaseTime[noteNo]){
+                envelopeIndex = int(secondsSinceStrike*envelopeSpeedMultiplier[noteNo]); // inverse seconds
                 // if envelope is complete, maintain at the final index
-                // simply follow the path in memory
+                if(envelopeIndex >= ENVELOPE_LENGTH)
+                    env = attackEnvelope[ENVELOPE_LENGTH-1];
+                // otherwise, linear interp the envelope
+                else
+                    env = attackEnvelope[envelopeIndex];
                 
               }
               // release phase
               else{
-                //ENVELOPE_LENGTH
+                envelopeIndex = int(secondsSinceRelease*envelopeSpeedMultiplier[noteNo]); // inverse seconds
+                // if envelope is complete, maintain at the final index
+                if(envelopeIndex >= ENVELOPE_LENGTH)
+                    env = releaseEnvelope[ENVELOPE_LENGTH-1];
+                // otherwise, linear interp the envelope
+                else
+                    env = releaseEnvelope[envelopeIndex];
               }
               
               // the note volume is given, and env is applied as well
-              float noteVol = noteVolume[noteNo] * 1;
+              float noteVol = noteVolume[noteNo] * env;
               
               
               float increment = noteBaseIncrement[noteNo]*pitchFactor[0];
@@ -401,7 +433,7 @@ class Synth:
               sum+=innersum*noteVol;
           }
           
-          pcmBufferOut[timeSlice] = sum/64;//(PARTIALS_PER_VOICE*POLYPHONY);
+          pcmBufferOut[timeSlice*SHADERS_PER_TIMESLICE + polySlice] = sum/64;//(PARTIALS_PER_VOICE*POLYPHONY);
         }
         """
 
@@ -427,6 +459,8 @@ class Synth:
                 self.noteReleaseTime,
                 self.currTime,
                 self.attackEnvelope,
+                self.releaseEnvelope,
+                self.envelopeSpeedMultiplier,
                 self.freqFilter,
                 self.pitchFactor,
             ],
@@ -438,7 +472,7 @@ class Synth:
 
         self.computePipeline = ComputePipeline(
             device=device,
-            workgroupShape=[1, self.SAMPLES_PER_DISPATCH, 1],
+            workgroupShape=[self.SHADERS_PER_TIMESLICE, self.SAMPLES_PER_DISPATCH, 1],
             stages=[mandleStage],
         )
         device.children += [self.computePipeline]
@@ -604,7 +638,20 @@ class Synth:
         #            self.midi2commands(heldnote.msg)
         #            break
 
-    # @njit
+    def updatingGraph(self, data):
+        # print(pa2)
+        # updating data values
+        self.plot.set_ydata(data)
+
+        # drawing updated values
+        self.figure.canvas.draw()
+
+        # This will run the GUI event
+        # loop until all UI events
+        # currently waiting have been processed
+        self.figure.canvas.flush_events()
+        
+    #@njit
     def run(self):
         timer = 0
         # We create a fence.
@@ -694,19 +741,6 @@ class Synth:
             # currFilt = self.freqFilterTotal[
             #    startPoint : startPoint + self.FILTER_STEPS * 4
             # ]
-            if self.GRAPH:
-                # print(pa2)
-                # updating data values
-                self.plot.set_ydata(currFilt)
-
-                # drawing updated values
-                self.figure.canvas.draw()
-
-                # This will run the GUI event
-                # loop until all UI events
-                # currently waiting have been processed
-                self.figure.canvas.flush_events()
-
             # sineFilt = np.roll(sineFilt, 10)
             # currFilt += sineFilt
             # cfm = np.max(currFilt)
@@ -729,8 +763,8 @@ class Synth:
             self.noteBasePhase.setBuffer(newArray)
 
             pa = np.frombuffer(self.pcmBufferOut.pmap, np.float32)[::4]
-            # pa = np.reshape(pa, (self.SAMPLES_PER_DISPATCH, self.POLYPHONY))
-            # pa = np.sum(pa, axis = 1)
+            pa = np.reshape(pa, (self.SAMPLES_PER_DISPATCH, self.SHADERS_PER_TIMESLICE))
+            pa = np.sum(pa, axis = 1)
             pa2 = np.ascontiguousarray(pa)
             # pa2 = pa #np.ascontiguousarray(pa)
             # pa3 = np.vstack((pa2, pa2))
@@ -740,6 +774,10 @@ class Synth:
             # print(pa2)
             if self.PYSOUND:
                 self.stream.write(pa2)
+                
+            #if self.GRAPH:
+            #    self.updatingGraph(currFilt)
+
 
             self.mm.eventLoop(self)
 
@@ -756,29 +794,38 @@ class Synth:
             
             #self.getZMQCommands()
             # get q commands
-            while self.q.qsize():
-                recvd = self.q.get()
-                print(recvd)
-                varName, newVal = recvd
-                eval("self." + varName + ".pmap[:] = newVal")
+            if self.q is not None:
+                while self.q.qsize():
+                    recvd = self.q.get()
+                    #print(recvd)
+                    varName, self.newVal = recvd
+                    if varName == "attackEnvelope":
+                        self.attackEnvelope.pmap[:] = self.newVal
+                    elif varName == "attackLifespan":
+                        multiplier =  * np.log(1 / self.newVal)
+                        print(multiplier)
+                        self.envelopeSpeedMultiplier.pmap[:] = np.ones((4*self.POLYPHONY), dtype=np.float32) * mulitiplier
+            if self.GRAPH:
+                self.updatingGraph(self.newVal)
+                #eval("self." + varName + ".pmap[:] = newVal")
                 
 
         vkDestroyFence(self.device.vkDevice, self.fence, None)
         # elegantly free all memory
         self.instance_inst.release()
 
-    def getZMQCommands(self):
-        ## check for control from gui
-        try:
-            work = self.consumer_receiver.recv(zmq.DONTWAIT)
-            if work is not None:
-                recvd = pkl.loads(work)
-                print(recvd)
-                varName, newVal = recvd
-                eval("self." + varName + ".pmap[:] = newVal")
-        except zmq.error.Again:
-            pass
-        # print("cycle")
+    #def getZMQCommands(self):
+    #    ## check for control from gui
+    #    try:
+    #        work = self.consumer_receiver.recv(zmq.DONTWAIT)
+    #        if work is not None:
+    #            recvd = pkl.loads(work)
+    #            print(recvd)
+    #            varName, newVal = recvd
+    #            eval("self." + varName + ".pmap[:] = newVal")
+    #    except zmq.error.Again:
+    #        pass
+    #    # print("cycle")
 
 
 def runSynth(q):
@@ -786,4 +833,4 @@ def runSynth(q):
 
 
 if __name__ == "__main__":
-    runSynth()
+    runSynth(q = None)
