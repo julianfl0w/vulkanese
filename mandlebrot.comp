@@ -5,7 +5,7 @@
         #define POLYPHONY 64
 #define POLYPHONY_PER_SHADER 2
 #define SHADERS_PER_TIMESLICE 32
-#define PARTIALS_PER_VOICE 2
+#define PARTIALS_PER_VOICE 8
 #define MINIMUM_FREQUENCY_HZ 20
 #define MAXIMUM_FREQUENCY_HZ 20000
 #define SAMPLE_FREQUENCY 44100
@@ -22,7 +22,7 @@ layout(std140, set = 0, binding = 0) buffer pcmBufferOut_buf
 };
 layout(std140, set = 1, binding = 1) uniform noteBasePhase_buf
 {
-   float noteBasePhase[256];
+   float64_t noteBasePhase[512];
 };
 layout(std140, set = 1, binding = 2) uniform noteBaseIncrement_buf
 {
@@ -30,11 +30,11 @@ layout(std140, set = 1, binding = 2) uniform noteBaseIncrement_buf
 };
 layout(std140, set = 1, binding = 3) uniform partialMultiplier_buf
 {
-   float partialMultiplier[8];
+   float partialMultiplier[32];
 };
 layout(std140, set = 1, binding = 4) uniform partialVolume_buf
 {
-   float partialVolume[8];
+   float partialVolume[32];
 };
 layout(std140, set = 1, binding = 5) uniform noteVolume_buf
 {
@@ -50,7 +50,7 @@ layout(std140, set = 1, binding = 7) uniform noteReleaseTime_buf
 };
 layout(std140, set = 1, binding = 8) uniform currTime_buf
 {
-   float64_t currTime[256];
+   float64_t currTime[512];
 };
 layout(std140, set = 1, binding = 9) uniform attackEnvelope_buf
 {
@@ -87,6 +87,7 @@ layout(std140, set = 1, binding = 13) uniform pitchFactor_buf
               // these values are updated in the python loop
               float env = 0;
               int envelopeIndex;
+              float64_t envelopeIndexFloat64;
               
               // attack phase
               float64_t secondsSinceStrike  = abs(currTime[0] - noteStrikeTime[noteNo] );
@@ -94,7 +95,10 @@ layout(std140, set = 1, binding = 13) uniform pitchFactor_buf
               
               // attack phase
               if(noteStrikeTime[noteNo] > noteReleaseTime[noteNo]){
-                envelopeIndex = int(secondsSinceStrike*envelopeSpeedMultiplier[noteNo]); // inverse seconds
+                envelopeIndexFloat64 = secondsSinceStrike*envelopeSpeedMultiplier[noteNo];
+                // keep the fractional part, for interp
+                float64_t fractional = mod(envelopeIndexFloat64, envelopeIndex);
+                
                 // if envelope is complete, maintain at the final index
                 if(envelopeIndex >= ENVELOPE_LENGTH)
                     env = attackEnvelope[ENVELOPE_LENGTH-1];
@@ -105,7 +109,9 @@ layout(std140, set = 1, binding = 13) uniform pitchFactor_buf
               }
               // release phase
               else{
-                envelopeIndex = int(secondsSinceRelease*envelopeSpeedMultiplier[noteNo]); // inverse seconds
+                envelopeIndexFloat64 = secondsSinceRelease*envelopeSpeedMultiplier[noteNo];
+                // keep the fractional part, for interp
+                float64_t fractional = mod(envelopeIndexFloat64, envelopeIndex);
                 // if envelope is complete, maintain at the final index
                 if(envelopeIndex >= ENVELOPE_LENGTH)
                     env = releaseEnvelope[ENVELOPE_LENGTH-1];
@@ -119,7 +125,7 @@ layout(std140, set = 1, binding = 13) uniform pitchFactor_buf
               
               
               float increment = noteBaseIncrement[noteNo]*pitchFactor[0];
-              float phase = noteBasePhase[noteNo] + (timeSlice * increment);
+              float64_t phase = noteBasePhase[noteNo] + (timeSlice * increment);
 
               float innersum = 0;
               for (uint partialNo = 0; partialNo<PARTIALS_PER_VOICE; partialNo++)
@@ -131,7 +137,7 @@ layout(std140, set = 1, binding = 13) uniform pitchFactor_buf
                 
                 if(thisIncrement < 3.14){
                     int indexInFilter = int(thisIncrement*(FILTER_STEPS/(3.14)));
-                    innersum += vol * sin(phase*harmonicRatio) * freqFilter[indexInFilter];
+                    innersum += vol * sin(float(phase)*harmonicRatio) * freqFilter[indexInFilter];
                 }
 
               }

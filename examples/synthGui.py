@@ -34,8 +34,8 @@ from kivy.clock import Clock
 
 class LinePlayground(FloatLayout):
 
-    lifespan_controlline = NumericProperty(1.0)
-    lifespan = NumericProperty(0.5)
+    releaseLifespan = NumericProperty(0.5)
+    attackLifespan = NumericProperty(0.5)
     close = BooleanProperty(False)
     joint = StringProperty("round")
     linewidth = NumericProperty(10.0)
@@ -55,7 +55,7 @@ class LinePlayground(FloatLayout):
 <LinePlayground>:
     canvas:
         Color:
-            rgba: .4, .4, 1, root.lifespan
+            rgba: .4, .4, 1, root.attackLifespan
         Line:
             points: self.points
             joint: self.joint
@@ -74,17 +74,17 @@ class LinePlayground(FloatLayout):
             cols: 2
 
             Label:
-                text: 'Lifespan'
+                text: 'attackLifespan'
             Slider:
-                value: root.lifespan
-                on_value: root.lifespan = float(args[1])
+                value: root.attackLifespan
+                on_value: root.attackLifespan = float(args[1])
                 min: 0.
-                max: 20.
+                max: 1.
             Label:
-                text: 'Lifespan Control Line'
+                text: 'releaseLifespan'
             Slider:
-                value: root.lifespan_controlline
-                on_value: root.lifespan_controlline = float(args[1])
+                value: root.releaseLifespan
+                on_value: root.releaseLifespan = float(args[1])
                 min: 0.
                 max: 1.
             Label:
@@ -199,11 +199,15 @@ class LinePlayground(FloatLayout):
         print(self.size)
 
         self.bind(size=self.on_resize)
-        self.bind(lifespan=self.updateLifespan)
+        self.bind(attackLifespan=self.updateattackLifespan)
+        self.bind(releaseLifespan=self.updatereleaseLifespan)
 
         # self.points = [[0,0], [500,500]]
-    def updateLifespan(self, obj, value):
+    def updateattackLifespan(self, obj, value):
         self.q.put(["attackLifespan", value])
+        
+    def updatereleaseLifespan(self, obj, value):
+        self.q.put(["releaseLifespan", value])
         
         
     def points2synth(self):

@@ -100,6 +100,7 @@ class Synth:
             "MAXIMUM_FREQUENCY_HZ": 20000,
             # "SAMPLE_FREQUENCY"     : 48000,
             "SAMPLE_FREQUENCY": 44100,
+            "PARTIALS_PER_HARMONIC": 1,
             "UNDERVOLUME": 3,
             "CHANNELS": 1,
             "SAMPLES_PER_DISPATCH": 64,
@@ -145,12 +146,12 @@ class Synth:
         self.noteBasePhase = Buffer(
             binding=1,
             device=device,
-            type="float",
+            type="float64_t",
             descriptorSet=device.descriptorPool.descSetUniform,
             qualifier="",
             name="noteBasePhase",
             readFromCPU=True,
-            SIZEBYTES=4 * 4 * self.POLYPHONY,
+            SIZEBYTES=8 * 4 * self.POLYPHONY,
             usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
             location=0,
@@ -255,7 +256,7 @@ class Synth:
             qualifier="",
             name="currTime",
             readFromCPU=True,
-            SIZEBYTES=4 * 4 * self.POLYPHONY,
+            SIZEBYTES=4 * 8 * self.POLYPHONY,
             usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
             location=0,
@@ -295,13 +296,13 @@ class Synth:
             format=VK_FORMAT_R32_SFLOAT,
         )
         
-        self.envelopeSpeedMultiplier = Buffer(
+        self.attackSpeedMultiplier = Buffer(
             binding=11,
             device=device,
             type="float",
             descriptorSet=device.descriptorPool.descSetUniform,
             qualifier="",
-            name="envelopeSpeedMultiplier",
+            name="attackSpeedMultiplier",
             readFromCPU=True,
             SIZEBYTES=4 * 4 * self.POLYPHONY,
             usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -312,7 +313,27 @@ class Synth:
         # value of 1 means 1 second attack. 2 means 1/2 second attack
         ENVTIME_SECONDS = 1
         factor = self.ENVELOPE_LENGTH * 4 / ENVTIME_SECONDS
-        self.envelopeSpeedMultiplier.pmap[:] = np.ones((4 * self.POLYPHONY), dtype=np.float32)*factor
+        self.attackSpeedMultiplier.pmap[:] = np.ones((4 * self.POLYPHONY), dtype=np.float32)*factor
+
+        
+        self.releaseSpeedMultiplier = Buffer(
+            binding=14,
+            device=device,
+            type="float",
+            descriptorSet=device.descriptorPool.descSetUniform,
+            qualifier="",
+            name="releaseSpeedMultiplier",
+            readFromCPU=True,
+            SIZEBYTES=4 * 4 * self.POLYPHONY,
+            usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
+            location=0,
+            format=VK_FORMAT_R32_SFLOAT,
+        )
+        # value of 1 means 1 second attack. 2 means 1/2 second attack
+        ENVTIME_SECONDS = 1
+        factor = self.ENVELOPE_LENGTH * 4 / ENVTIME_SECONDS
+        self.releaseSpeedMultiplier.pmap[:] = np.ones((4 * self.POLYPHONY), dtype=np.float32)*factor
 
         
         self.freqFilter = Buffer(
@@ -352,7 +373,7 @@ class Synth:
 
             # here we are creating sub plots
             self.figure, ax = plt.subplots(figsize=(10, 8))
-            self.newVal = np.ones((4 * 256*64))
+            self.newVal = np.ones((4 * self.ENVELOPE_LENGTH * self.POLYPHONY))
             self.plot, = ax.plot(self.newVal)
             plt.ylabel("some numbers")
             plt.show()
@@ -366,76 +387,10 @@ class Synth:
         for k, v in self.replaceDict.items():
             header += "#define " + k + " " + str(v) + "\n"
         header += "layout (local_size_x = 1, local_size_y = PARTIALS_PER_VOICE, local_size_z = 1 ) in;"
-
-        main = """
-        void main() {
-
-          uint polySlice = gl_GlobalInvocationID.x;
-          uint timeSlice = gl_GlobalInvocationID.y;
-
-          float sum = 0;
-          
-          for (uint noteNo = polySlice*POLYPHONY_PER_SHADER; noteNo<(polySlice+1)*POLYPHONY_PER_SHADER; noteNo++){
-          
-              // calculate the envelope 
-              // time is a float holding seconds (since epoch?)
-              // these values are updated in the python loop
-              float env = 0;
-              int envelopeIndex;
-              
-              // attack phase
-              float64_t secondsSinceStrike  = abs(currTime[0] - noteStrikeTime[noteNo] );
-              float64_t secondsSinceRelease = abs(currTime[0] - noteReleaseTime[noteNo]);
-              
-              // attack phase
-              if(noteStrikeTime[noteNo] > noteReleaseTime[noteNo]){
-                envelopeIndex = int(secondsSinceStrike*envelopeSpeedMultiplier[noteNo]); // inverse seconds
-                // if envelope is complete, maintain at the final index
-                if(envelopeIndex >= ENVELOPE_LENGTH)
-                    env = attackEnvelope[ENVELOPE_LENGTH-1];
-                // otherwise, linear interp the envelope
-                else
-                    env = attackEnvelope[envelopeIndex];
-                
-              }
-              // release phase
-              else{
-                envelopeIndex = int(secondsSinceRelease*envelopeSpeedMultiplier[noteNo]); // inverse seconds
-                // if envelope is complete, maintain at the final index
-                if(envelopeIndex >= ENVELOPE_LENGTH)
-                    env = releaseEnvelope[ENVELOPE_LENGTH-1];
-                // otherwise, linear interp the envelope
-                else
-                    env = releaseEnvelope[envelopeIndex];
-              }
-              
-              // the note volume is given, and env is applied as well
-              float noteVol = noteVolume[noteNo] * env;
-              
-              
-              float increment = noteBaseIncrement[noteNo]*pitchFactor[0];
-              float phase = noteBasePhase[noteNo] + (timeSlice * increment);
-
-              float innersum = 0;
-              for (uint partialNo = 0; partialNo<PARTIALS_PER_VOICE; partialNo++)
-              {
-                float vol = partialVolume[partialNo];
-
-                float harmonicRatio   = partialMultiplier[partialNo];
-                float thisIncrement = increment * harmonicRatio;
-                
-                if(thisIncrement < 3.14){
-                    int indexInFilter = int(thisIncrement*(FILTER_STEPS/(3.14)));
-                    innersum += vol * sin(phase*harmonicRatio) * freqFilter[indexInFilter];
-                }
-
-              }
-              sum+=innersum*noteVol;
-          }
-          
-          pcmBufferOut[timeSlice*SHADERS_PER_TIMESLICE + polySlice] = sum/64;//(PARTIALS_PER_VOICE*POLYPHONY);
-        }
-        """
+        
+        with open("synthshader.c", "r") as f:
+            main = f.read()
+        
 
         # Stage
         existingBuffers = []
@@ -460,7 +415,8 @@ class Synth:
                 self.currTime,
                 self.attackEnvelope,
                 self.releaseEnvelope,
-                self.envelopeSpeedMultiplier,
+                self.attackSpeedMultiplier,
+                self.releaseSpeedMultiplier,
                 self.freqFilter,
                 self.pitchFactor,
             ],
@@ -535,8 +491,8 @@ class Synth:
             self.noteBaseIncrement.pmap[
                 note.index * 16 : note.index * 16 + 4
             ] = np.array([0], dtype=np.float32)
-            self.noteBasePhase.pmap[note.index * 16 : note.index * 16 + 4] = np.array(
-                [0], dtype=np.float32
+            self.noteBasePhase.pmap[note.index * 16 : note.index * 16 + 8] = np.array(
+                [0], dtype=np.float64
             )
             self.fullAddArray[note.index * 4] = 0
             self.noteVolume.pmap[note.index * 16 : note.index * 16 + 4] = np.array(
@@ -569,8 +525,8 @@ class Synth:
             self.noteBaseIncrement.pmap[
                 note.index * 16 : note.index * 16 + 4
             ] = np.array([incrementPerSample], dtype=np.float32)
-            self.noteBasePhase.pmap[note.index * 16 : note.index * 16 + 4] = np.array(
-                [0], dtype=np.float32
+            self.noteBasePhase.pmap[note.index * 16 : note.index * 16 + 8] = np.array(
+                [0], dtype=np.float64
             )
             self.noteVolume.pmap[note.index * 16 : note.index * 16 + 4] = np.array(
                 [1], dtype=np.float32
@@ -578,7 +534,7 @@ class Synth:
             self.noteStrikeTime.pmap[note.index * 16 : note.index * 16 + 8] = np.array(
                 time.time(), dtype=np.float64
             )
-            self.fullAddArray[note.index * 4] = (
+            self.fullAddArray[note.index * 2] = (
                 incrementPerSample * self.SAMPLES_PER_DISPATCH
             )
 
@@ -662,36 +618,38 @@ class Synth:
 
         # precompute some arrays
         self.fullAddArray = np.zeros(
-            (int(self.noteBasePhase.size / 4)), dtype=np.float32
+            (4*self.POLYPHONY), dtype=np.float64
         )
 
         if self.PYSOUND:
             self.stream.start()
 
+        # FIX THIS
         hm = np.ones((4 * self.PARTIALS_PER_VOICE), dtype=np.float32)
         pv = np.ones((4 * self.PARTIALS_PER_VOICE), dtype=np.float32)
         # for i in range(int(self.PARTIALS_PER_VOICE/2)):
         #    hm[4*i*2]= 1.5
         np.set_printoptions(threshold=sys.maxsize)
-        PARTIALS_PER_HARMONIC = 7
-        for harmonic in range(int(self.PARTIALS_PER_VOICE / PARTIALS_PER_HARMONIC)):
-            for partial_in_harmonic in range(PARTIALS_PER_HARMONIC):
-                if partial_in_harmonic == 0 or True:
-                    pv[
-                        (harmonic * PARTIALS_PER_HARMONIC + partial_in_harmonic) * 4
-                    ] = 0.7 / pow(harmonic + 1, 1.1)
-                else:
-                    pv[
-                        (harmonic * PARTIALS_PER_HARMONIC + partial_in_harmonic) * 4
-                    ] = 1 / pow(harmonic + 1, 1.1)
-                hm[(harmonic * PARTIALS_PER_HARMONIC + partial_in_harmonic) * 4] = (
-                    1 + harmonic
+        OVERTONE_COUNT = int(self.PARTIALS_PER_VOICE / self.PARTIALS_PER_HARMONIC)
+        for harmonic in range(OVERTONE_COUNT):
+            # simple equation to return value on range (-1,1)
+            harmonic_unity = (harmonic/(OVERTONE_COUNT-1) - 0.5 )*2
+            for partial_in_harmonic in range(self.PARTIALS_PER_HARMONIC):
+                # simple equation to return value on range (-1,1)
+                partial_in_harmonic_unity = (partial_in_harmonic/(self.PARTIALS_PER_HARMONIC) - 0.5 )*2
+                
+                pv[
+                    (harmonic * self.PARTIALS_PER_HARMONIC + partial_in_harmonic) * 4
+                ] = (partial_in_harmonic_unity + 1)/2
+                
+                hm[(harmonic * self.PARTIALS_PER_HARMONIC + partial_in_harmonic) * 4] = (
+                    (1 + harmonic + partial_in_harmonic_unity*0.04*np.log2(harmonic+2)) # i hope log2 of the harmonic is the octave
                 )  # + partial_in_harmonic*0.0001
 
         self.partialMultiplier.setBuffer(hm)
         self.partialVolume.setBuffer(pv)
 
-        newArray = self.fullAddArray.copy()
+        postBendArray = self.fullAddArray.copy()
         self.replaceDict["FENCEADDR"] = hex(eval(str(self.fence).split(" ")[-1][:-1]))
         self.replaceDict["DEVADDR"] = str(self.device.vkDevice).split(" ")[-1][:-1]
         self.replaceDict["SUBMITINFOADDR"] = str(ffi.addressof(self.submitInfo)).split(
@@ -757,10 +715,10 @@ class Synth:
             )
 
             # we do CPU tings simultaneously
-            newArray += self.fullAddArray * self.pitchwheelReal
-            # np.fmod(newArray, 2*np.pi, out=newArray)
+            postBendArray += (self.fullAddArray * self.pitchwheelReal)
+            # np.fmod(postBendArray, 2*np.pi, out=postBendArray)
 
-            self.noteBasePhase.setBuffer(newArray)
+            self.noteBasePhase.pmap[:] = postBendArray
 
             pa = np.frombuffer(self.pcmBufferOut.pmap, np.float32)[::4]
             pa = np.reshape(pa, (self.SAMPLES_PER_DISPATCH, self.SHADERS_PER_TIMESLICE))
@@ -800,11 +758,29 @@ class Synth:
                     #print(recvd)
                     varName, self.newVal = recvd
                     if varName == "attackEnvelope":
-                        self.attackEnvelope.pmap[:] = self.newVal
+                        pass
+                        #self.attackEnvelope.pmap[:] = self.newVal
+                        # also load the release env starting at the final value
+                        #self.releaseEnvelope.pmap[:] = numpy.linspace(start=self.newVal[-1], stop=0, 
+                        #                                              num=4 * self.ENVELOPE_LENGTH, 
+                        #                                              endpoint=True, retstep=False, dtype=np.float32, axis=0)
+                        
                     elif varName == "attackLifespan":
-                        multiplier =  * np.log(1 / self.newVal)
+                        mini = 0.25 # minimum lifespan, seconds
+                        maxi = 5    # maximim lifespan, seconds
+                        self.newVal = mini + (self.newVal*(maxi - mini))
+                        multiplier =  self.ENVELOPE_LENGTH / (self.newVal)
                         print(multiplier)
-                        self.envelopeSpeedMultiplier.pmap[:] = np.ones((4*self.POLYPHONY), dtype=np.float32) * mulitiplier
+                        self.attackSpeedMultiplier.pmap[:] = np.ones((4*self.POLYPHONY), dtype=np.float32) * multiplier
+                        
+                    elif varName == "releaseLifespan":
+                        mini = 0.25 # minimum lifespan, seconds
+                        maxi = 5    # maximim lifespan, seconds
+                        self.newVal = mini + (self.newVal*(maxi - mini))
+                        multiplier =  self.ENVELOPE_LENGTH / (self.newVal)
+                        print(multiplier)
+                        self.releaseSpeedMultiplier.pmap[:] = np.ones((4*self.POLYPHONY), dtype=np.float32) * multiplier
+                        
             if self.GRAPH:
                 self.updatingGraph(self.newVal)
                 #eval("self." + varName + ".pmap[:] = newVal")
