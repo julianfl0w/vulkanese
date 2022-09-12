@@ -771,7 +771,7 @@ class Synth:
                         self.newVal = mini + (self.newVal*(maxi - mini))
                         multiplier =  self.ENVELOPE_LENGTH / (self.newVal)
                         print(multiplier)
-                        self.attackSpeedMultiplier.pmap[:] = np.ones((4*self.POLYPHONY), dtype=np.float32) * multiplier
+                        #self.attackSpeedMultiplier.pmap[:] = np.ones((4*self.POLYPHONY), dtype=np.float32) * multiplier
                         
                     elif varName == "releaseLifespan":
                         mini = 0.25 # minimum lifespan, seconds
@@ -779,7 +779,7 @@ class Synth:
                         self.newVal = mini + (self.newVal*(maxi - mini))
                         multiplier =  self.ENVELOPE_LENGTH / (self.newVal)
                         print(multiplier)
-                        self.releaseSpeedMultiplier.pmap[:] = np.ones((4*self.POLYPHONY), dtype=np.float32) * multiplier
+                        #self.releaseSpeedMultiplier.pmap[:] = np.ones((4*self.POLYPHONY), dtype=np.float32) * multiplier
                         
             if self.GRAPH:
                 self.updatingGraph(self.newVal)
