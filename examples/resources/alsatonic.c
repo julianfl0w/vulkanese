@@ -1,15 +1,20 @@
-#define POLYPHONY 128
-#define SINES_PER_VOICE 128
+#define POLYPHONY 64
+#define POLYPHONY_PER_SHADER 2
+#define SHADERS_PER_TIMESLICE 32
+#define PARTIALS_PER_VOICE 2
 #define MINIMUM_FREQUENCY_HZ 20
 #define MAXIMUM_FREQUENCY_HZ 20000
 #define SAMPLE_FREQUENCY 44100
+#define PARTIALS_PER_HARMONIC 1
 #define UNDERVOLUME 3
 #define CHANNELS 1
-#define SAMPLES_PER_DISPATCH 128
-#define LATENCY_SECONDS 0.1
-#define FENCEADDR 0xcb1c7c000000001b
-#define DEVADDR 0x55af0c208e90
-#define SUBMITINFOADDR 0x55af0c7b2860
+#define SAMPLES_PER_DISPATCH 64
+#define LATENCY_SECONDS 0.01
+#define ENVELOPE_LENGTH 256
+#define FILTER_STEPS 2048
+#define FENCEADDR 0x55eeb7fa3f40
+#define DEVADDR 0x55eeb7f31a60
+#define SUBMITINFOADDR 0x55eeb7e5ac70
 /*
  * File: alsatonic.c
  * Tone generator from alsa audio api
@@ -22,6 +27,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <vulkan.h>
 
 #define BUF_LEN 48000
 #define DEF_FREQ 440

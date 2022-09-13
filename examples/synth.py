@@ -4,6 +4,8 @@ import os
 import time
 import sys
 import numpy as np
+
+# import cupy as cp
 import json
 import cv2 as cv
 
@@ -13,7 +15,7 @@ import sounddevice as sd
 import midiManager
 import zmq
 import pickle as pkl
-
+import re
 from numba import njit
 
 print(sys.path)
@@ -65,13 +67,30 @@ class Note:
 # WORKGROUP_SIZE = 1  # Workgroup size in compute shader.
 # SAMPLES_PER_DISPATCH = 512
 class Synth:
+
+    # random ass fast cpu proc in random ass place
+    # need to remove njit to profile
+    @njit
+    def audioPostProcessAccelerated(pa, SAMPLES_PER_DISPATCH, SHADERS_PER_TIMESLICE):
+        pa = np.ascontiguousarray(pa)
+        pa = np.reshape(pa, (SAMPLES_PER_DISPATCH, SHADERS_PER_TIMESLICE))
+        pa = np.sum(pa, axis=1)
+        # pa2 = pa #np.ascontiguousarray(pa)
+        # pa3 = np.vstack((pa2, pa2))
+        # pa4 = np.swapaxes(pa3, 0, 1)
+        # pa5 = np.ascontiguousarray(pa4)
+        # print(np.shape(pa2))
+        # print(pa2)
+        return pa
+
     def __init__(self, q):
         self.q = q
         self.mm = midiManager.MidiManager()
 
         self.GRAPH = False
-        self.PYSOUND = True
+        self.PYSOUND = False
         self.SOUND = False
+        self.DEBUG = True
 
         context = zmq.Context()
         # recieve work
@@ -92,10 +111,10 @@ class Synth:
         self.device = device
 
         self.replaceDict = {
-            "POLYPHONY": 64,
-            "POLYPHONY_PER_SHADER": 2,
-            "SHADERS_PER_TIMESLICE": int(64/2),
-            "PARTIALS_PER_VOICE": 2,
+            "POLYPHONY": 4,
+            "POLYPHONY_PER_SHADER": 1,
+            "SHADERS_PER_TIMESLICE": int(4 / 1),
+            "PARTIALS_PER_VOICE": 1,
             "MINIMUM_FREQUENCY_HZ": 20,
             "MAXIMUM_FREQUENCY_HZ": 20000,
             # "SAMPLE_FREQUENCY"     : 48000,
@@ -104,9 +123,9 @@ class Synth:
             "UNDERVOLUME": 3,
             "CHANNELS": 1,
             "SAMPLES_PER_DISPATCH": 64,
-            "LATENCY_SECONDS": 0.010,
-            "ENVELOPE_LENGTH": 256,
-            "FILTER_STEPS": 2048,
+            "LATENCY_SECONDS": 0.050,
+            "ENVELOPE_LENGTH": 64,
+            "FILTER_STEPS": 64,
         }
         for k, v in self.replaceDict.items():
             exec("self." + k + " = " + str(v))
@@ -128,243 +147,206 @@ class Synth:
                 prime_output_buffers_using_stream_callback=None,
             )
 
-        self.pcmBufferOut = Buffer(
-            binding=0,
-            device=device,
-            type="float",
-            descriptorSet=device.descriptorPool.descSetGlobal,
-            qualifier="in",
-            name="pcmBufferOut",
-            readFromCPU=True,
-            SIZEBYTES=4 * 4 * self.SAMPLES_PER_DISPATCH * self.SHADERS_PER_TIMESLICE * self.CHANNELS,
-            usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-            location=0,
-            format=VK_FORMAT_R32_SFLOAT,
-        )
+        self.shaderOutputBuffers = [
+            {
+                "name": "pcmBufferOut",
+                "type": "float",
+                "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_TIMESLICE", "CHANNELS"],
+            }
+        ]
 
-        self.noteBasePhase = Buffer(
-            binding=1,
-            device=device,
-            type="float64_t",
-            descriptorSet=device.descriptorPool.descSetUniform,
-            qualifier="",
-            name="noteBasePhase",
-            readFromCPU=True,
-            SIZEBYTES=8 * 4 * self.POLYPHONY,
-            usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-            location=0,
-            format=VK_FORMAT_R32_SFLOAT,
-        )
+        self.debuggableVars = [
+            # per timeslice, per polyslice (per shader)
+            {
+                "name": "currTimeWithSampleOffset",
+                "type": "float",
+                "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_TIMESLICE"],
+            },
+            {
+                "name": "shadersum",
+                "type": "float",
+                "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_TIMESLICE"],
+            },
+            {
+                "name": "envelopeAmplitude",
+                "type": "float",
+                "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_TIMESLICE"],
+            },
+            {
+                "name": "envelopeIndexFloat64",
+                "type": "float",
+                "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_TIMESLICE"],
+            },
+            {
+                "name": "envelopeIndex",
+                "type": "int",
+                "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_TIMESLICE"],
+            },
+            # // per timeslice, per note  # make these vals 64bit if possible
+            {
+                "name": "secondsSinceStrike",
+                "type": "float",
+                "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
+            },
+            {
+                "name": "secondsSinceRelease",
+                "type": "float",
+                "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
+            },
+            {
+                "name": "fractional",
+                "type": "float",
+                "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
+            },
+            {
+                "name": "phase",
+                "type": "float",
+                "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
+            },
+            {
+                "name": "noteVol",
+                "type": "float",
+                "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
+            },
+            {
+                "name": "increment",
+                "type": "float",
+                "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
+            },
+            {
+                "name": "innersum",
+                "type": "float",
+                "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
+            },
+            # // per timeslice, per note, per partial
+            {
+                "name": "thisIncrement",
+                "type": "float",
+                "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY", "PARTIALS_PER_VOICE"],
+            },
+            {
+                "name": "indexInFilter",
+                "type": "int",
+                "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY", "PARTIALS_PER_VOICE"],
+            },
+        ]
 
-        self.noteBaseIncrement = Buffer(
-            binding=2,
-            device=device,
-            type="float",
-            descriptorSet=device.descriptorPool.descSetUniform,
-            qualifier="",
-            name="noteBaseIncrement",
-            readFromCPU=True,
-            SIZEBYTES=4 * 4 * self.POLYPHONY,
-            usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-            location=0,
-            format=VK_FORMAT_R32_SFLOAT,
-        )
+        dim2index = {
+            "SHADERS_PER_TIMESLICE": "polySlice",
+            "SAMPLES_PER_DISPATCH": "timeSlice",
+            "POLYPHONY": "noteNo",
+            "PARTIALS_PER_VOICE": "partialNo",
+        }
 
-        self.partialMultiplier = Buffer(
-            binding=3,
-            device=device,
-            type="float",
-            descriptorSet=device.descriptorPool.descSetUniform,
-            qualifier="",
-            name="partialMultiplier",
-            readFromCPU=True,
-            SIZEBYTES=4 * 4 * self.PARTIALS_PER_VOICE,
-            usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-            location=0,
-            format=VK_FORMAT_R32_SFLOAT,
-        )
+        self.shaderInputBuffers = [
+            {"name": "noteBaseIncrement", "type": "float", "dims": ["POLYPHONY"]},
+            {
+                "name": "partialMultiplier",
+                "type": "float",
+                "dims": ["PARTIALS_PER_VOICE"],
+            },
+            {"name": "partialVolume", "type": "float", "dims": ["PARTIALS_PER_VOICE"]},
+            {"name": "noteVolume", "type": "float", "dims": ["POLYPHONY"]},
+            {
+                "name": "noteStrikeTime",
+                "type": "float",
+                "dims": ["POLYPHONY"],
+            },  # make these vals 64bit if possible
+            {
+                "name": "noteReleaseTime",
+                "type": "float",
+                "dims": ["POLYPHONY"],
+            },  # make these vals 64bit if possible
+            {
+                "name": "currTime",
+                "type": "float",
+                "dims": ["POLYPHONY"],
+            },  # make these vals 64bit if possible
+            {
+                "name": "noteBasePhase",
+                "type": "float",
+                "dims": ["POLYPHONY"],
+            },  # make these vals 64bit if possible
+            {"name": "attackEnvelope", "type": "float", "dims": ["ENVELOPE_LENGTH"]},
+            {"name": "releaseEnvelope", "type": "float", "dims": ["ENVELOPE_LENGTH"]},
+            {"name": "attackSpeedMultiplier", "type": "float", "dims": ["POLYPHONY"]},
+            {"name": "releaseSpeedMultiplier", "type": "float", "dims": ["POLYPHONY"]},
+            {"name": "freqFilter", "type": "float", "dims": ["FILTER_STEPS"]},
+            {"name": "pitchFactor", "type": "float", "dims": ["POLYPHONY"]},
+        ]
 
-        self.partialVolume = Buffer(
-            binding=4,
-            device=device,
-            type="float",
-            descriptorSet=device.descriptorPool.descSetUniform,
-            qualifier="",
-            readFromCPU=True,
-            name="partialVolume",
-            SIZEBYTES=4 * 4 * self.PARTIALS_PER_VOICE,
-            usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-            location=0,
-            format=VK_FORMAT_R32_SFLOAT,
-        )
+        binding = 0
+        allBuffers = []
 
-        self.noteVolume = Buffer(
-            binding=5,
-            device=device,
-            type="float",
-            descriptorSet=device.descriptorPool.descSetUniform,
-            qualifier="",
-            name="noteVolume",
-            readFromCPU=True,
-            SIZEBYTES=4 * 4 * self.POLYPHONY,
-            usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-            location=0,
-            format=VK_FORMAT_R32_SFLOAT,
-        )
+        # if we're debugging, all intermediate variables become output buffers
+        if self.DEBUG:
+            allBufferDescriptions = (
+                self.shaderOutputBuffers + self.debuggableVars + self.shaderInputBuffers
+            )
+        else:
+            allBufferDescriptions = self.shaderOutputBuffers + self.shaderInputBuffers
 
-        self.noteStrikeTime = Buffer(
-            binding=6,
-            device=device,
-            type="float64_t",
-            descriptorSet=device.descriptorPool.descSetUniform,
-            qualifier="",
-            name="noteStrikeTime",
-            readFromCPU=True,
-            SIZEBYTES=4 * 8 * self.POLYPHONY,
-            usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-            location=0,
-            format=VK_FORMAT_R32_SFLOAT,
-        )
+        # create all buffers according to their description
+        for s in allBufferDescriptions:
+            format = VK_FORMAT_R32_SFLOAT
+            if s["type"] == "float64_t":
+                # format = VK_FORMAT_R64_SFLOAT
+                size = 4 * 8
+            else:
+                size = 4 * 4
 
-        self.noteReleaseTime = Buffer(
-            binding=7,
-            device=device,
-            type="float64_t",
-            descriptorSet=device.descriptorPool.descSetUniform,
-            qualifier="",
-            name="noteReleaseTime",
-            readFromCPU=True,
-            SIZEBYTES=4 * 8 * self.POLYPHONY,
-            usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-            location=0,
-            format=VK_FORMAT_R32_SFLOAT,
-        )
+            for d in s["dims"]:
+                size *= eval("self." + d)
 
-        self.currTime = Buffer(
-            binding=8,
-            device=device,
-            type="float64_t",
-            descriptorSet=device.descriptorPool.descSetUniform,
-            qualifier="",
-            name="currTime",
-            readFromCPU=True,
-            SIZEBYTES=4 * 8 * self.POLYPHONY,
-            usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-            location=0,
-            format=VK_FORMAT_R32_SFLOAT,
-        )
+            if s in self.shaderOutputBuffers or s in self.debuggableVars:
+                descriptorSet = device.descriptorPool.descSetGlobal
+                usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            else:
+                descriptorSet = device.descriptorPool.descSetUniform
+                usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
 
-        self.attackEnvelope = Buffer(
-            binding=9,
-            device=device,
-            type="float",
-            descriptorSet=device.descriptorPool.descSetUniform,
-            qualifier="",
-            name="attackEnvelope",
-            readFromCPU=True,
-            SIZEBYTES=4 * 4 * self.ENVELOPE_LENGTH,
-            usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-            location=0,
-            format=VK_FORMAT_R32_SFLOAT,
+            newBuff = Buffer(
+                binding=binding,
+                device=device,
+                type=s["type"],
+                descriptorSet=descriptorSet,
+                qualifier="out",
+                name=s["name"],
+                readFromCPU=True,
+                SIZEBYTES=size,
+                usage=usage,
+                stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
+                location=0,
+                format=format,
+            )
+            binding += 1
+            allBuffers += [newBuff]
+            exec("self." + s["name"] + " = newBuff")
+
+        # initialize some of them
+        self.noteStrikeTime.setBuffer(np.ones((4 * self.POLYPHONY)) * time.time())
+        self.noteReleaseTime.setBuffer(
+            np.ones((4 * self.POLYPHONY)) * (time.time() + 0.1)
         )
+        self.freqFilter.setBuffer(np.ones((4 * self.FILTER_STEPS)))
+
         # "ATTACK_TIME" : 0, ALL TIME AS A FLOAT OF SECONDS
-        self.attackEnvelope.pmap[:] = np.ones((4 * self.ENVELOPE_LENGTH), dtype=np.float32)
-
-
-        self.releaseEnvelope = Buffer(
-            binding=10,
-            device=device,
-            type="float",
-            descriptorSet=device.descriptorPool.descSetUniform,
-            qualifier="",
-            name="releaseEnvelope",
-            readFromCPU=True,
-            SIZEBYTES=4 * 4 * self.ENVELOPE_LENGTH,
-            usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-            location=0,
-            format=VK_FORMAT_R32_SFLOAT,
+        self.attackEnvelope.pmap[:] = np.ones(
+            (4 * self.ENVELOPE_LENGTH), dtype=np.float32
         )
-        
-        self.attackSpeedMultiplier = Buffer(
-            binding=11,
-            device=device,
-            type="float",
-            descriptorSet=device.descriptorPool.descSetUniform,
-            qualifier="",
-            name="attackSpeedMultiplier",
-            readFromCPU=True,
-            SIZEBYTES=4 * 4 * self.POLYPHONY,
-            usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-            location=0,
-            format=VK_FORMAT_R32_SFLOAT,
-        )
+
         # value of 1 means 1 second attack. 2 means 1/2 second attack
         ENVTIME_SECONDS = 1
         factor = self.ENVELOPE_LENGTH * 4 / ENVTIME_SECONDS
-        self.attackSpeedMultiplier.pmap[:] = np.ones((4 * self.POLYPHONY), dtype=np.float32)*factor
-
-        
-        self.releaseSpeedMultiplier = Buffer(
-            binding=14,
-            device=device,
-            type="float",
-            descriptorSet=device.descriptorPool.descSetUniform,
-            qualifier="",
-            name="releaseSpeedMultiplier",
-            readFromCPU=True,
-            SIZEBYTES=4 * 4 * self.POLYPHONY,
-            usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-            location=0,
-            format=VK_FORMAT_R32_SFLOAT,
+        self.attackSpeedMultiplier.pmap[:] = (
+            np.ones((4 * self.POLYPHONY), dtype=np.float32) * factor
         )
+
         # value of 1 means 1 second attack. 2 means 1/2 second attack
         ENVTIME_SECONDS = 1
         factor = self.ENVELOPE_LENGTH * 4 / ENVTIME_SECONDS
-        self.releaseSpeedMultiplier.pmap[:] = np.ones((4 * self.POLYPHONY), dtype=np.float32)*factor
-
-        
-        self.freqFilter = Buffer(
-            binding=12,
-            device=device,
-            type="float",
-            descriptorSet=device.descriptorPool.descSetUniform,
-            qualifier="",
-            name="freqFilter",
-            readFromCPU=True,
-            SIZEBYTES=4 * 4 * self.FILTER_STEPS,
-            usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-            location=0,
-            format=VK_FORMAT_R32_SFLOAT,
-        )
-        self.freqFilter.pmap[:] = np.ones(4 * self.FILTER_STEPS, dtype=np.float32)
-
-        self.pitchFactor = Buffer(
-            binding=13,
-            device=device,
-            type="float",
-            descriptorSet=device.descriptorPool.descSetUniform,
-            qualifier="",
-            name="pitchFactor",
-            readFromCPU=True,
-            SIZEBYTES=4 * 4 * self.POLYPHONY,
-            usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-            location=0,
-            format=VK_FORMAT_R32_SFLOAT,
+        self.releaseSpeedMultiplier.pmap[:] = (
+            np.ones((4 * self.POLYPHONY), dtype=np.float32) * factor
         )
 
         if self.GRAPH:
@@ -387,10 +369,49 @@ class Synth:
         for k, v in self.replaceDict.items():
             header += "#define " + k + " " + str(v) + "\n"
         header += "layout (local_size_x = 1, local_size_y = PARTIALS_PER_VOICE, local_size_z = 1 ) in;"
-        
+
         with open("synthshader.c", "r") as f:
             main = f.read()
-        
+
+        VARSDECL = ""
+        if self.DEBUG:
+            # if this is debug mode, all vars have already been declared as output buffers
+            # intermediate variables must be indexed
+            for var in self.debuggableVars:
+                indexedVarString = var["name"] + "["
+                for i, d in enumerate(var["dims"]):
+                    indexedVarString += dim2index[d]
+                    # since GLSL doesnt allow multidim arrays (kinda, see gl_arb_arrays_of_arrays)
+                    # ok i dont understand Vulkan multidim
+                    for j, rd in enumerate(var["dims"][i + 1 :]):
+                        indexedVarString += "*" + rd
+                    if i < (len(var["dims"]) - 1):
+                        indexedVarString += "+"
+                indexedVarString += "]"
+
+                main2 = ""
+                for line in main.split("\n"):
+                    # replace all non-comments
+                    if not line.strip().startswith("//"):
+                        # whole-word replacement
+                        # main2 += line.replace(var["name"], indexedVarString) + "\n"
+                        main2 += (
+                            re.sub(
+                                r"\b{}\b".format(var["name"]), indexedVarString, line
+                            )
+                            + "\n"
+                        )
+                    # keep the comments
+                    else:
+                        main2 += line + "\n"
+
+                main = main2
+        else:
+            # otherwise, just declare the variable type
+            for var in self.debuggableVars:
+                VARSDECL += var["type"] + " " + var["name"] + ";\n"
+
+        main = main.replace("VARIABLEDECLARATIONS", VARSDECL)
 
         # Stage
         existingBuffers = []
@@ -403,23 +424,7 @@ class Synth:
             outputHeightPixels=700,
             header=header,
             main=main,
-            buffers=[
-                self.pcmBufferOut,
-                self.noteBasePhase,
-                self.noteBaseIncrement,
-                self.partialMultiplier,
-                self.partialVolume,
-                self.noteVolume,
-                self.noteStrikeTime,
-                self.noteReleaseTime,
-                self.currTime,
-                self.attackEnvelope,
-                self.releaseEnvelope,
-                self.attackSpeedMultiplier,
-                self.releaseSpeedMultiplier,
-                self.freqFilter,
-                self.pitchFactor,
-            ],
+            buffers=allBuffers,
         )
 
         #######################################################
@@ -452,6 +457,85 @@ class Synth:
         self.toRelease = []
         self.modWheelReal = 0.25
         self.pitchwheelReal = 1
+
+        # We create a fence.
+        fenceCreateInfo = VkFenceCreateInfo(
+            sType=VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, flags=0
+        )
+        self.fence = vkCreateFence(self.device.vkDevice, fenceCreateInfo, None)
+
+        # precompute some arrays
+        self.fullAddArray = np.zeros((4 * self.POLYPHONY), dtype=np.float64)
+
+        if self.PYSOUND:
+            self.stream.start()
+
+        self.updatePartials()
+
+        self.postBendArray = self.fullAddArray.copy()
+        self.replaceDict["FENCEADDR"] = hex(eval(str(self.fence).split(" ")[-1][:-1]))
+        self.replaceDict["DEVADDR"] = str(self.device.vkDevice).split(" ")[-1][:-1]
+        self.replaceDict["SUBMITINFOADDR"] = str(ffi.addressof(self.submitInfo)).split(
+            " "
+        )[-1][:-1]
+        # compile the C-code
+        if self.SOUND:
+            if os.path.exists("./alsatonic"):
+                os.remove("./alsatonic")
+            header = ""
+            for k, v in self.replaceDict.items():
+                header += "#define " + k + " " + str(v) + "\n"
+            with open(os.path.join(here, "resources", "alsatonic.template"), "r") as f:
+                at = header + f.read()
+            cfilename = os.path.join(here, "resources", "alsatonic.c")
+            with open(cfilename, "w+") as f:
+                f.write(at)
+            os.system("g++ " + cfilename + " -o alsatonic -lm -lasound")
+            for i in range(1):
+                if os.path.exists("./alsatonic"):
+                    os.system("taskset -c 15 ./alsatonic")
+                else:
+                    die
+                break
+
+        sineFilt = 4 + np.sin(
+            3.141592 * 16 * np.arange(4 * self.FILTER_STEPS) / (4 * self.FILTER_STEPS)
+        )
+        sineFilt /= np.max(sineFilt)
+
+    # update the partial scheme according to PARTIALS_PER_HARMONIC
+    def updatePartials(self):
+        hm = np.ones((4 * self.PARTIALS_PER_VOICE), dtype=np.float32)
+        pv = np.ones((4 * self.PARTIALS_PER_VOICE), dtype=np.float32)
+        # for i in range(int(self.PARTIALS_PER_VOICE/2)):
+        #    hm[4*i*2]= 1.5
+        np.set_printoptions(threshold=sys.maxsize)
+        OVERTONE_COUNT = int(self.PARTIALS_PER_VOICE / self.PARTIALS_PER_HARMONIC)
+        for harmonic in range(OVERTONE_COUNT):
+            # simple equation to return value on range (-1,1)
+            harmonic_unity = (
+                harmonic / (OVERTONE_COUNT - (1 - OVERTONE_COUNT % 2)) - 0.5
+            ) * 2
+            for partial_in_harmonic in range(self.PARTIALS_PER_HARMONIC):
+                # simple equation to return value on range (-1,1)
+                partial_in_harmonic_unity = (
+                    partial_in_harmonic / (self.PARTIALS_PER_HARMONIC) - 0.5
+                ) * 2
+
+                pv[
+                    (harmonic * self.PARTIALS_PER_HARMONIC + partial_in_harmonic) * 4
+                ] = (partial_in_harmonic_unity + 1) / 2
+
+                hm[
+                    (harmonic * self.PARTIALS_PER_HARMONIC + partial_in_harmonic) * 4
+                ] = (
+                    1
+                    + harmonic
+                    + partial_in_harmonic_unity * 0.04 * np.log2(harmonic + 2)
+                )  # i hope log2 of the harmonic is the octave  # + partial_in_harmonic*0.0001
+
+        self.partialMultiplier.setBuffer(hm)
+        self.partialVolume.setBuffer(pv)
 
     def spawnVoice(self):
         unheldNotes = []
@@ -522,19 +606,11 @@ class Synth:
             incrementPerSample = (
                 2 * 3.141592 * noteToFreq(msg.note) / self.SAMPLE_FREQUENCY
             )
-            self.noteBaseIncrement.pmap[
-                note.index * 16 : note.index * 16 + 4
-            ] = np.array([incrementPerSample], dtype=np.float32)
-            self.noteBasePhase.pmap[note.index * 16 : note.index * 16 + 8] = np.array(
-                [0], dtype=np.float64
-            )
-            self.noteVolume.pmap[note.index * 16 : note.index * 16 + 4] = np.array(
-                [1], dtype=np.float32
-            )
-            self.noteStrikeTime.pmap[note.index * 16 : note.index * 16 + 8] = np.array(
-                time.time(), dtype=np.float64
-            )
-            self.fullAddArray[note.index * 2] = (
+            self.noteBaseIncrement.setByIndex(note.index, incrementPerSample)
+            self.noteBasePhase.setByIndex(note.index, 0)
+            self.noteBasePhase.setByIndex(note.index, 1)
+            self.noteStrikeTime.setByIndex(note.index, time.time())
+            self.fullAddArray[note.index * 4] = (
                 incrementPerSample * self.SAMPLES_PER_DISPATCH
             )
 
@@ -606,93 +682,79 @@ class Synth:
         # loop until all UI events
         # currently waiting have been processed
         self.figure.canvas.flush_events()
-        
-    #@njit
-    def run(self):
-        timer = 0
-        # We create a fence.
-        fenceCreateInfo = VkFenceCreateInfo(
-            sType=VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, flags=0
-        )
-        self.fence = vkCreateFence(self.device.vkDevice, fenceCreateInfo, None)
 
-        # precompute some arrays
-        self.fullAddArray = np.zeros(
-            (4*self.POLYPHONY), dtype=np.float64
-        )
-
-        if self.PYSOUND:
-            self.stream.start()
-
-        # FIX THIS
-        hm = np.ones((4 * self.PARTIALS_PER_VOICE), dtype=np.float32)
-        pv = np.ones((4 * self.PARTIALS_PER_VOICE), dtype=np.float32)
-        # for i in range(int(self.PARTIALS_PER_VOICE/2)):
-        #    hm[4*i*2]= 1.5
-        np.set_printoptions(threshold=sys.maxsize)
-        OVERTONE_COUNT = int(self.PARTIALS_PER_VOICE / self.PARTIALS_PER_HARMONIC)
-        for harmonic in range(OVERTONE_COUNT):
-            # simple equation to return value on range (-1,1)
-            harmonic_unity = (harmonic/(OVERTONE_COUNT-1) - 0.5 )*2
-            for partial_in_harmonic in range(self.PARTIALS_PER_HARMONIC):
-                # simple equation to return value on range (-1,1)
-                partial_in_harmonic_unity = (partial_in_harmonic/(self.PARTIALS_PER_HARMONIC) - 0.5 )*2
-                
-                pv[
-                    (harmonic * self.PARTIALS_PER_HARMONIC + partial_in_harmonic) * 4
-                ] = (partial_in_harmonic_unity + 1)/2
-                
-                hm[(harmonic * self.PARTIALS_PER_HARMONIC + partial_in_harmonic) * 4] = (
-                    (1 + harmonic + partial_in_harmonic_unity*0.04*np.log2(harmonic+2)) # i hope log2 of the harmonic is the octave
-                )  # + partial_in_harmonic*0.0001
-
-        self.partialMultiplier.setBuffer(hm)
-        self.partialVolume.setBuffer(pv)
-
-        postBendArray = self.fullAddArray.copy()
-        self.replaceDict["FENCEADDR"] = hex(eval(str(self.fence).split(" ")[-1][:-1]))
-        self.replaceDict["DEVADDR"] = str(self.device.vkDevice).split(" ")[-1][:-1]
-        self.replaceDict["SUBMITINFOADDR"] = str(ffi.addressof(self.submitInfo)).split(
-            " "
-        )[-1][:-1]
-        # compile the C-code
-        if self.SOUND:
-            if os.path.exists("./alsatonic"):
-                os.remove("./alsatonic")
-            header = ""
-            for k, v in self.replaceDict.items():
-                header += "#define " + k + " " + str(v) + "\n"
-            with open(os.path.join(here, "resources", "alsatonic.template"), "r") as f:
-                at = header + f.read()
-            cfilename = os.path.join(here, "resources", "alsatonic.c")
-            with open(cfilename, "w+") as f:
-                f.write(at)
-            os.system("g++ " + cfilename + " -o alsatonic -lm -lasound")
-            for i in range(1):
-                if os.path.exists("./alsatonic"):
-                    os.system("taskset -c 15 ./alsatonic")
-                else:
-                    die
-                break
+    def runTest(self):
 
         # start middle A note
-        # self.midi2commands(mido.Message('note_on', note=50, velocity=64, time=6.2))
+        self.midi2commands(mido.Message("note_on", note=50, velocity=64, time=6.2))
+        self.midi2commands(mido.Message("note_on", note=60, velocity=64, time=6.2))
         # print(np.frombuffer(self.partialVolume.pmap   , np.float32)[::4])
         # print(np.frombuffer(self.partialMultiplier.pmap, np.float32)[::4])
         # print(np.frombuffer(self.noteBaseIncrement.pmap     , np.float32)[::4])
 
-        sineFilt = 4 + np.sin(
-            3.141592 * 16 * np.arange(4 * self.FILTER_STEPS) / (4 * self.FILTER_STEPS)
-        )
-        sineFilt /= np.max(sineFilt)
+    def run(self):
 
         # into the loop
         # for i in range(int(1024 * 128 / self.SAMPLES_PER_DISPATCH)):
         while 1:
+            # do all cpu stuff first
+
+            # check the queue (q) for incoming commands
+            if False and self.q is not None:
+                while self.q.qsize():
+                    recvd = self.q.get()
+                    # print(recvd)
+                    varName, self.newVal = recvd
+                    if varName == "attackEnvelope":
+                        pass
+                        # self.attackEnvelope.pmap[:] = self.newVal
+                        # also load the release env starting at the final value
+                        # self.releaseEnvelope.pmap[:] = numpy.linspace(start=self.newVal[-1], stop=0,
+                        #                                              num=4 * self.ENVELOPE_LENGTH,
+                        #                                              endpoint=True, retstep=False, dtype=np.float32, axis=0)
+
+                    elif varName == "attackLifespan":
+                        mini = 0.25  # minimum lifespan, seconds
+                        maxi = 5  # maximim lifespan, seconds
+                        self.newVal = mini + (self.newVal * (maxi - mini))
+                        multiplier = self.ENVELOPE_LENGTH / (self.newVal)
+                        print(multiplier)
+                        # self.attackSpeedMultiplier.pmap[:] = np.ones((4*self.POLYPHONY), dtype=np.float32) * multiplier
+
+                    elif varName == "releaseLifespan":
+                        mini = 0.25  # minimum lifespan, seconds
+                        maxi = 5  # maximim lifespan, seconds
+                        self.newVal = mini + (self.newVal * (maxi - mini))
+                        multiplier = self.ENVELOPE_LENGTH / (self.newVal)
+                        print(multiplier)
+                        # self.releaseSpeedMultiplier.pmap[:] = np.ones((4*self.POLYPHONY), dtype=np.float32) * multiplier
+
+            # read all memory needed for simult postprocess
+            pa = np.frombuffer(self.pcmBufferOut.pmap, np.float32)[::4]
+
+            # UPDATE PMAP MEMORY
+            self.currTime.setBuffer(np.ones((4 * self.POLYPHONY)) * time.time())
+            self.noteBasePhase.setBuffer(self.postBendArray)
+            self.pitchFactor.setBuffer(
+                np.ones((4 * self.POLYPHONY)) * self.pitchwheelReal
+            )
+
+            # process MIDI
+            self.mm.eventLoop(self)
+
             # We submit the command buffer on the queue, at the same time giving a fence.
             vkQueueSubmit(self.device.compute_queue, 1, self.submitInfo, self.fence)
 
-            # do CPU things.
+            # do CPU tings simultaneous with GPU process
+            pa = Synth.audioPostProcessAccelerated(
+                pa, self.SAMPLES_PER_DISPATCH, self.SHADERS_PER_TIMESLICE
+            )
+            if self.PYSOUND:
+                self.stream.write(pa)
+            # we do CPU tings simultaneously
+            # apply pitch bend
+            self.postBendArray += self.fullAddArray * self.pitchwheelReal
+
             # NO MEMORY ACCESS
             # NO PMAP
             # startPoint = int((1 - self.modWheelReal) * 4 * self.FILTER_STEPS)
@@ -714,99 +776,58 @@ class Synth:
                 self.device.vkDevice, 1, [self.fence], VK_TRUE, 100000000000
             )
 
-            # we do CPU tings simultaneously
-            postBendArray += (self.fullAddArray * self.pitchwheelReal)
-            # np.fmod(postBendArray, 2*np.pi, out=postBendArray)
+            if self.DEBUG:
+                outdict = {}
+                for debugVar in (
+                    self.shaderInputBuffers
+                    + self.debuggableVars
+                    + self.shaderOutputBuffers
+                ):
+                    if "64" in debugVar["type"]:
+                        skipindex = 8
+                    else:
+                        skipindex = 4
 
-            self.noteBasePhase.pmap[:] = postBendArray
+                    # glsl to python
+                    newt = debugVar["type"].replace("_t", "")
+                    if newt == "float":
+                        newt = "float32"
 
-            pa = np.frombuffer(self.pcmBufferOut.pmap, np.float32)[::4]
-            pa = np.reshape(pa, (self.SAMPLES_PER_DISPATCH, self.SHADERS_PER_TIMESLICE))
-            pa = np.sum(pa, axis = 1)
-            pa2 = np.ascontiguousarray(pa)
-            # pa2 = pa #np.ascontiguousarray(pa)
-            # pa3 = np.vstack((pa2, pa2))
-            # pa4 = np.swapaxes(pa3, 0, 1)
-            # pa5 = np.ascontiguousarray(pa4)
-            # print(np.shape(pa2))
-            # print(pa2)
-            if self.PYSOUND:
-                self.stream.write(pa2)
-                
-            #if self.GRAPH:
+                    runString = (
+                        "list(np.frombuffer(self."
+                        + debugVar["name"]
+                        + ".pmap, np."
+                        + newt
+                        + ")[::"
+                        + str(skipindex)
+                        + "].astype(np.float))"
+                    )
+                    print(runString)
+                    outdict[debugVar["name"]] = eval(runString)
+                with open("debug.json", "w+") as f:
+                    json.dump(outdict, f, indent=4)
+                sys.exit()
+            # if self.GRAPH:
             #    self.updatingGraph(currFilt)
-
-
-            self.mm.eventLoop(self)
 
             vkResetFences(
                 device=self.device.vkDevice, fenceCount=1, pFences=[self.fence]
             )
 
-            # self.freqFilter.pmap[:] = currFilt
-            self.currTime.pmap[0:8] = np.array(time.time(), dtype=np.float64)
-
-            self.pitchFactor.pmap[0:4] = np.array(
-                [self.pitchwheelReal], dtype=np.float32
-            )
-            
-            #self.getZMQCommands()
-            # get q commands
-            if self.q is not None:
-                while self.q.qsize():
-                    recvd = self.q.get()
-                    #print(recvd)
-                    varName, self.newVal = recvd
-                    if varName == "attackEnvelope":
-                        pass
-                        #self.attackEnvelope.pmap[:] = self.newVal
-                        # also load the release env starting at the final value
-                        #self.releaseEnvelope.pmap[:] = numpy.linspace(start=self.newVal[-1], stop=0, 
-                        #                                              num=4 * self.ENVELOPE_LENGTH, 
-                        #                                              endpoint=True, retstep=False, dtype=np.float32, axis=0)
-                        
-                    elif varName == "attackLifespan":
-                        mini = 0.25 # minimum lifespan, seconds
-                        maxi = 5    # maximim lifespan, seconds
-                        self.newVal = mini + (self.newVal*(maxi - mini))
-                        multiplier =  self.ENVELOPE_LENGTH / (self.newVal)
-                        print(multiplier)
-                        #self.attackSpeedMultiplier.pmap[:] = np.ones((4*self.POLYPHONY), dtype=np.float32) * multiplier
-                        
-                    elif varName == "releaseLifespan":
-                        mini = 0.25 # minimum lifespan, seconds
-                        maxi = 5    # maximim lifespan, seconds
-                        self.newVal = mini + (self.newVal*(maxi - mini))
-                        multiplier =  self.ENVELOPE_LENGTH / (self.newVal)
-                        print(multiplier)
-                        #self.releaseSpeedMultiplier.pmap[:] = np.ones((4*self.POLYPHONY), dtype=np.float32) * multiplier
-                        
             if self.GRAPH:
                 self.updatingGraph(self.newVal)
-                #eval("self." + varName + ".pmap[:] = newVal")
-                
+                # eval("self." + varName + ".pmap[:] = newVal")
 
         vkDestroyFence(self.device.vkDevice, self.fence, None)
         # elegantly free all memory
         self.instance_inst.release()
 
-    #def getZMQCommands(self):
-    #    ## check for control from gui
-    #    try:
-    #        work = self.consumer_receiver.recv(zmq.DONTWAIT)
-    #        if work is not None:
-    #            recvd = pkl.loads(work)
-    #            print(recvd)
-    #            varName, newVal = recvd
-    #            eval("self." + varName + ".pmap[:] = newVal")
-    #    except zmq.error.Again:
-    #        pass
-    #    # print("cycle")
-
 
 def runSynth(q):
-    s = Synth(q).run()
+    s = Synth(q)
+    s.runTest()
+    s.run()
 
 
 if __name__ == "__main__":
-    runSynth(q = None)
+    runSynth(q=None)

@@ -216,7 +216,7 @@ class Device(Sinode):
             "maxPerStageDescriptorUniformBuffers",
             "maxPerStageDescriptorStorageBuffers",
             "maxPerStageDescriptorSampledImages",
-            "maxPerStageDescriptorStorageImages"
+            "maxPerStageDescriptorStorageImages",
         ]:
             val = eval("self.pProperties.limits." + l)
             try:

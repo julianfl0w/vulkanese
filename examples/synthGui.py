@@ -32,6 +32,7 @@ from kivymd.uix.behaviors import TouchBehavior
 from kivy.lang import Builder
 from kivy.clock import Clock
 
+
 class LinePlayground(FloatLayout):
 
     releaseLifespan = NumericProperty(0.5)
@@ -48,10 +49,10 @@ class LinePlayground(FloatLayout):
     _update_points_animation_ev = None
 
     def __init__(self, q):
-        
+
         self.q = q
         Builder.load_string(
-    """
+            """
 <LinePlayground>:
     canvas:
         Color:
@@ -193,7 +194,7 @@ class LinePlayground(FloatLayout):
                     on_state: root.animate(self.state == 'down')
 
 """
-)
+        )
 
         FloatLayout.__init__(self)
         print(self.size)
@@ -203,29 +204,29 @@ class LinePlayground(FloatLayout):
         self.bind(releaseLifespan=self.updatereleaseLifespan)
 
         # self.points = [[0,0], [500,500]]
+
     def updateattackLifespan(self, obj, value):
         self.q.put(["attackLifespan", value])
-        
+
     def updatereleaseLifespan(self, obj, value):
         self.q.put(["releaseLifespan", value])
-        
-        
+
     def points2synth(self):
         # separate xs and ys
         xs = np.array([p[0] for p in self.points])
         ys = np.array([p[1] for p in self.points])
-        xs/=np.max(xs) # normalize on [0,1)
-        ys/=np.max(ys) # normalize on [0,1)
-        
-        f1 = interp1d(xs, ys, kind='linear')
-        #print(f1)
-        #f2 = signal.resample(f1.astype(np.float32), 4*256*64)
-        linspac = np.arange(4*256) / (4*256)
+        xs /= np.max(xs)  # normalize on [0,1)
+        ys /= np.max(ys)  # normalize on [0,1)
+
+        f1 = interp1d(xs, ys, kind="linear")
+        # print(f1)
+        # f2 = signal.resample(f1.astype(np.float32), 4*256*64)
+        linspac = np.arange(4 * 256) / (4 * 256)
         print(linspac)
         f2 = f1(linspac)
         print(f2)
         self.q.put(["attackEnvelope", np.array(f2, dtype=np.float32)])
-        
+
     def on_resize(self, obj, size):
         self.points[-1] = [size[0], size[1] / 2]
 
@@ -319,28 +320,29 @@ class TestLineApp(App):
     def __init__(self, q):
         self.q = q
         App.__init__(self)
-        
+
     def build(self):
         return LinePlayground(self.q)
 
+
 def runGui(q):
     TestLineApp(q).run()
-    
-    #from synth import runSynth
-    #mp.freeze_support()
-    #ctx = mp.get_context('spawn')
-    #q = ctx.Queue()
-    #backendProc = ctx.Process(target=runSynth, args=(q,))
-    #backendProc.start()
-    #print("PID" + str(backendProc.pid))
-    #os.sched_setaffinity(backendProc.pid, {7})
-    #print("CPU affinity mask is modified for process id % s" % backendProc.pid) 
-    #print("Now, process is eligible to run on:", os.sched_getaffinity(backendProc.pid))
-     
 
-    #backendProc.join()
+    # from synth import runSynth
+    # mp.freeze_support()
+    # ctx = mp.get_context('spawn')
+    # q = ctx.Queue()
+    # backendProc = ctx.Process(target=runSynth, args=(q,))
+    # backendProc.start()
+    # print("PID" + str(backendProc.pid))
+    # os.sched_setaffinity(backendProc.pid, {7})
+    # print("CPU affinity mask is modified for process id % s" % backendProc.pid)
+    # print("Now, process is eligible to run on:", os.sched_getaffinity(backendProc.pid))
 
-#if __name__ == "__main__":
+    # backendProc.join()
+
+
+# if __name__ == "__main__":
 #     runGui()
 #    #frontendProc = ctx.Process(target=runGui, args=(q,))
 #    #frontendProc.start()

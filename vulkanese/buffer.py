@@ -56,6 +56,8 @@ class Buffer(Sinode):
         self.size = SIZEBYTES
         self.qualifier = qualifier
         self.type = type
+        self.itemSize = self.glsltype2bytesize(self.type)
+        self.pythonType = self.glsltype2python(self.type)
         self.name = name
         self.descriptorSet = descriptorSet
 
@@ -230,19 +232,56 @@ class Buffer(Sinode):
             + str(int(self.size / 4))
             + "];\n};\n"
         )
+    def glsltype2python(self, glsltype):
+      if glsltype == "float":
+        return np.float32
+      if glsltype == "float32_t":
+        return np.float32
+      elif glsltype == "float64_t":
+        return np.float64
+      elif glsltype == "int":
+        return np.int32
+      elif glsltype == "uint":
+        return np.uint32
+      else:
+        print("type")
+        print(glsltype)
+        die
+        
+    def glsltype2bytesize(self, glsltype):
+      if glsltype == "float":
+        return 4
+      if glsltype == "float32_t":
+        return 4
+      elif glsltype == "float64_t":
+        return 8
+      elif glsltype == "int":
+        return 4
+      elif glsltype == "uint":
+        return 4
+      else:
+        print("type")
+        print(glsltype)
+        die
+      
+    def setByIndex(self, index, data):
+        if self.itemSize == 4:
+          startByte = index*self.itemSize*4
+          endByte   = index*self.itemSize*4 + self.itemSize
+        if self.itemSize == 8:
+          startByte = index*self.itemSize*8
+          endByte   = index*self.itemSize*8 + self.itemSize
+          
+        self.pmap[startByte:endByte] = np.array(data, dtype = self.pythonType)
 
     def setBuffer(self, data):
-        # self.pmap[: data.size * data.itemsize] = data
-        # a = int(len(data))
-        # self.pmap[:a] = data[:int(a/(data.itemsize))]
-        # self.pmap[:a*data.itemsize] = data
-        self.pmap[:] = data
+        self.pmap[:] = data.astype(self.glsltype2python(self.type))
 
     def fill(self, value):
-        # self.pmap[: data.size * data.itemsize] = data
+        # self.pmap[: data.size * data.itemSize] = data
         a = np.array([value])
-        # self.pmap[:a] = data[:int(a/(data.itemsize))]
-        self.pmap[:] = np.tile(a, int(len(self.pmap[:]) / a.itemsize))
+        # self.pmap[:a] = data[:int(a/(data.itemSize))]
+        self.pmap[:] = np.tile(a, int(len(self.pmap[:]) / a.itemSize))
 
     def getSize(self):
         with open(os.path.join(here, "derivedtypes.json"), "r") as f:
