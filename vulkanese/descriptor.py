@@ -106,11 +106,13 @@ class DescriptorPool(Sinode):
             # Next, we need to connect our actual storage buffer with the descrptor.
             # We use vkUpdateDescriptorSets() to update the descriptor set.
 
+            #descCOUNT = max([b.binding for b in d.buffers])+1
             # one descriptor per buffer?
             d.vkWriteDescriptorSet = VkWriteDescriptorSet(
                 sType=VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 dstSet=d.vkDescriptorSet,
-                dstBinding=d.binding,
+                #dstBinding=d.binding,
+                dstBinding=0,
                 descriptorCount=len(d.buffers),
                 descriptorType=d.type,
                 pBufferInfo=[b.descriptorBufferInfo for b in d.buffers],
@@ -131,6 +133,7 @@ class DescriptorPool(Sinode):
                 self.activeDescriptorSets += [d]
 
         print(self.writeDescriptorSets)
+        print("WRITING GLOBAL DESC SET")
         # perform the update of the descriptor set.
         vkUpdateDescriptorSets(
             device=self.vkDevice,
@@ -139,6 +142,7 @@ class DescriptorPool(Sinode):
             descriptorCopyCount=0,
             pDescriptorCopies=None,
         )
+        print("WRITING UNIFORM DESC SET")
         # perform the update of the descriptor set.
         vkUpdateDescriptorSets(
             device=self.vkDevice,

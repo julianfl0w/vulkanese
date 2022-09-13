@@ -122,7 +122,7 @@ class Synth:
             "PARTIALS_PER_HARMONIC": 1,
             "UNDERVOLUME": 3,
             "CHANNELS": 1,
-            "SAMPLES_PER_DISPATCH": 1,
+            "SAMPLES_PER_DISPATCH": 64,
             "LATENCY_SECONDS": 0.050,
             "ENVELOPE_LENGTH": 64,
             "FILTER_STEPS": 64,
@@ -304,12 +304,14 @@ class Synth:
                 descriptorSet = device.descriptorPool.descSetGlobal
                 usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
                 binding = bindingStorage
-                bindingStorage += int(itemsize/16)
+                bindingStorage += 1
+                #bindingUniform += int(itemsize/16)
             else:
                 descriptorSet = device.descriptorPool.descSetUniform
                 usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
                 binding = bindingUniform
-                bindingUniform += int(itemsize/16)
+                #bindingStorage += int(itemsize/16)
+                bindingUniform += 1
 
             newBuff = Buffer(
                 binding=binding,
@@ -800,7 +802,7 @@ class Synth:
                         + newt
                         + ")[::"
                         + str(skipindex)
-                        + "].astype(np.float))"
+                        + "].astype(float))"
                     )
                     print(runString)
                     outdict[debugVar["name"]] = eval(runString)

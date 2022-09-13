@@ -12,70 +12,70 @@
 #define PARTIALS_PER_HARMONIC 1
 #define UNDERVOLUME 3
 #define CHANNELS 1
-#define SAMPLES_PER_DISPATCH 1
+#define SAMPLES_PER_DISPATCH 64
 #define LATENCY_SECONDS 0.05
 #define ENVELOPE_LENGTH 64
 #define FILTER_STEPS 64
 layout (local_size_x = SAMPLES_PER_DISPATCH, local_size_y = SHADERS_PER_TIMESLICE, local_size_z = 1 ) in;
 layout(std140, set = 0, binding = 0) buffer pcmBufferOut_buf
 {
-   float pcmBufferOut[4];
+   float pcmBufferOut[256];
 };
 layout(std140, set = 0, binding = 1) buffer currTimeWithSampleOffset_buf
 {
-   float64_t currTimeWithSampleOffset[8];
+   float64_t currTimeWithSampleOffset[512];
 };
-layout(std140, set = 0, binding = 3) buffer shadersum_buf
+layout(std140, set = 0, binding = 2) buffer shadersum_buf
 {
-   float shadersum[4];
+   float shadersum[256];
 };
-layout(std140, set = 0, binding = 4) buffer envelopeAmplitude_buf
+layout(std140, set = 0, binding = 3) buffer envelopeAmplitude_buf
 {
-   float envelopeAmplitude[4];
+   float envelopeAmplitude[256];
 };
-layout(std140, set = 0, binding = 5) buffer envelopeIndexFloat64_buf
+layout(std140, set = 0, binding = 4) buffer envelopeIndexFloat64_buf
 {
-   float64_t envelopeIndexFloat64[8];
+   float64_t envelopeIndexFloat64[512];
 };
-layout(std140, set = 0, binding = 7) buffer envelopeIndex_buf
+layout(std140, set = 0, binding = 5) buffer envelopeIndex_buf
 {
-   int envelopeIndex[4];
+   int envelopeIndex[256];
 };
-layout(std140, set = 0, binding = 8) buffer secondsSinceStrike_buf
+layout(std140, set = 0, binding = 6) buffer secondsSinceStrike_buf
 {
-   float64_t secondsSinceStrike[8];
+   float64_t secondsSinceStrike[512];
 };
-layout(std140, set = 0, binding = 10) buffer secondsSinceRelease_buf
+layout(std140, set = 0, binding = 7) buffer secondsSinceRelease_buf
 {
-   float64_t secondsSinceRelease[8];
+   float64_t secondsSinceRelease[512];
 };
-layout(std140, set = 0, binding = 12) buffer fractional_buf
+layout(std140, set = 0, binding = 8) buffer fractional_buf
 {
-   float64_t fractional[8];
+   float64_t fractional[512];
 };
-layout(std140, set = 0, binding = 14) buffer phase_buf
+layout(std140, set = 0, binding = 9) buffer phase_buf
 {
-   float phase[4];
+   float phase[256];
 };
-layout(std140, set = 0, binding = 15) buffer noteVol_buf
+layout(std140, set = 0, binding = 10) buffer noteVol_buf
 {
-   float noteVol[4];
+   float noteVol[256];
 };
-layout(std140, set = 0, binding = 16) buffer increment_buf
+layout(std140, set = 0, binding = 11) buffer increment_buf
 {
-   float increment[4];
+   float increment[256];
 };
-layout(std140, set = 0, binding = 17) buffer innersum_buf
+layout(std140, set = 0, binding = 12) buffer innersum_buf
 {
-   float innersum[4];
+   float innersum[256];
 };
-layout(std140, set = 0, binding = 18) buffer thisIncrement_buf
+layout(std140, set = 0, binding = 13) buffer thisIncrement_buf
 {
-   float thisIncrement[4];
+   float thisIncrement[256];
 };
-layout(std140, set = 0, binding = 19) buffer indexInFilter_buf
+layout(std140, set = 0, binding = 14) buffer indexInFilter_buf
 {
-   int indexInFilter[4];
+   int indexInFilter[256];
 };
 layout(std140, set = 1, binding = 0) uniform noteBaseIncrement_buf
 {
@@ -97,39 +97,39 @@ layout(std140, set = 1, binding = 4) uniform noteStrikeTime_buf
 {
    float64_t noteStrikeTime[8];
 };
-layout(std140, set = 1, binding = 6) uniform noteReleaseTime_buf
+layout(std140, set = 1, binding = 5) uniform noteReleaseTime_buf
 {
    float64_t noteReleaseTime[8];
 };
-layout(std140, set = 1, binding = 8) uniform currTime_buf
+layout(std140, set = 1, binding = 6) uniform currTime_buf
 {
    float64_t currTime[8];
 };
-layout(std140, set = 1, binding = 10) uniform noteBasePhase_buf
+layout(std140, set = 1, binding = 7) uniform noteBasePhase_buf
 {
    float noteBasePhase[4];
 };
-layout(std140, set = 1, binding = 11) uniform attackEnvelope_buf
+layout(std140, set = 1, binding = 8) uniform attackEnvelope_buf
 {
    float attackEnvelope[256];
 };
-layout(std140, set = 1, binding = 12) uniform releaseEnvelope_buf
+layout(std140, set = 1, binding = 9) uniform releaseEnvelope_buf
 {
    float releaseEnvelope[256];
 };
-layout(std140, set = 1, binding = 13) uniform attackSpeedMultiplier_buf
+layout(std140, set = 1, binding = 10) uniform attackSpeedMultiplier_buf
 {
    float attackSpeedMultiplier[4];
 };
-layout(std140, set = 1, binding = 14) uniform releaseSpeedMultiplier_buf
+layout(std140, set = 1, binding = 11) uniform releaseSpeedMultiplier_buf
 {
    float releaseSpeedMultiplier[4];
 };
-layout(std140, set = 1, binding = 15) uniform freqFilter_buf
+layout(std140, set = 1, binding = 12) uniform freqFilter_buf
 {
    float freqFilter[256];
 };
-layout(std140, set = 1, binding = 16) uniform pitchFactor_buf
+layout(std140, set = 1, binding = 13) uniform pitchFactor_buf
 {
    float pitchFactor[4];
 };
