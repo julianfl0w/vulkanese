@@ -114,7 +114,7 @@ class Synth:
             "POLYPHONY": 1,
             "POLYPHONY_PER_SHADER": 1,
             "SHADERS_PER_TIMESLICE": int(1 / 1),
-            "PARTIALS_PER_VOICE": 1,
+            "PARTIALS_PER_VOICE": 3,
             "MINIMUM_FREQUENCY_HZ": 20,
             "MAXIMUM_FREQUENCY_HZ": 20000,
             # "SAMPLE_FREQUENCY"     : 48000,
@@ -170,17 +170,17 @@ class Synth:
             {
                 "name": "envelopeAmplitude",
                 "type": "float",
-                "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_TIMESLICE"],
+                "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
             },
             {
                 "name": "envelopeIndexFloat64",
                 "type": "float64_t",
-                "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_TIMESLICE"],
+                "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
             },
             {
                 "name": "envelopeIndex",
                 "type": "int",
-                "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_TIMESLICE"],
+                "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
             },
             # // per timeslice, per note  # make these vals 64bit if possible
             {
@@ -200,7 +200,7 @@ class Synth:
             },
             {
                 "name": "phase",
-                "type": "float",
+                "type": "float64_t",
                 "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
             },
             {
@@ -778,6 +778,10 @@ class Synth:
                 self.device.vkDevice, 1, [self.fence], VK_TRUE, 100000000000
             )
 
+            vkResetFences(
+                device=self.device.vkDevice, fenceCount=1, pFences=[self.fence]
+            )
+
             if self.DEBUG:
                 outdict = {}
                 for debugVar in (
@@ -811,11 +815,7 @@ class Synth:
                 sys.exit()
             # if self.GRAPH:
             #    self.updatingGraph(currFilt)
-
-            vkResetFences(
-                device=self.device.vkDevice, fenceCount=1, pFences=[self.fence]
-            )
-
+            
             if self.GRAPH:
                 self.updatingGraph(self.newVal)
                 # eval("self." + varName + ".pmap[:] = newVal")

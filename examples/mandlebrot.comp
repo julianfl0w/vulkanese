@@ -5,7 +5,7 @@
         #define POLYPHONY 1
 #define POLYPHONY_PER_SHADER 1
 #define SHADERS_PER_TIMESLICE 1
-#define PARTIALS_PER_VOICE 1
+#define PARTIALS_PER_VOICE 3
 #define MINIMUM_FREQUENCY_HZ 20
 #define MAXIMUM_FREQUENCY_HZ 20000
 #define SAMPLE_FREQUENCY 44100
@@ -55,7 +55,7 @@ layout(std140, set = 0, binding = 8) buffer fractional_buf
 };
 layout(std140, set = 0, binding = 9) buffer phase_buf
 {
-   float phase[256];
+   float64_t phase[512];
 };
 layout(std140, set = 0, binding = 10) buffer noteVol_buf
 {
@@ -71,11 +71,11 @@ layout(std140, set = 0, binding = 12) buffer innersum_buf
 };
 layout(std140, set = 0, binding = 13) buffer thisIncrement_buf
 {
-   float thisIncrement[256];
+   float thisIncrement[768];
 };
 layout(std140, set = 0, binding = 14) buffer indexInFilter_buf
 {
-   int indexInFilter[256];
+   int indexInFilter[768];
 };
 layout(std140, set = 1, binding = 0) uniform noteBaseIncrement_buf
 {
@@ -83,11 +83,11 @@ layout(std140, set = 1, binding = 0) uniform noteBaseIncrement_buf
 };
 layout(std140, set = 1, binding = 1) uniform partialMultiplier_buf
 {
-   float partialMultiplier[4];
+   float partialMultiplier[12];
 };
 layout(std140, set = 1, binding = 2) uniform partialVolume_buf
 {
-   float partialVolume[4];
+   float partialVolume[12];
 };
 layout(std140, set = 1, binding = 3) uniform noteVolume_buf
 {
@@ -141,7 +141,7 @@ void main() {
   
   
   // current time depends on the sample offset
-  currTimeWithSampleOffset[timeSlice*SHADERS_PER_TIMESLICE+polySlice] = currTime[0];// + float(timeSlice)/SAMPLE_FREQUENCY;
+  currTimeWithSampleOffset[timeSlice*SHADERS_PER_TIMESLICE+polySlice] = currTime[0] + float(timeSlice)/SAMPLE_FREQUENCY;
         
   for (uint noteNo = polySlice*POLYPHONY_PER_SHADER; noteNo<(polySlice+1)*POLYPHONY_PER_SHADER; noteNo++){
 
@@ -157,35 +157,35 @@ void main() {
 
       // attack phase
       if(noteStrikeTime[noteNo] > noteReleaseTime[noteNo]){
-        envelopeIndexFloat64[timeSlice*SHADERS_PER_TIMESLICE+polySlice] = secondsSinceStrike[timeSlice*POLYPHONY+noteNo]*attackSpeedMultiplier[noteNo];
+        envelopeIndexFloat64[timeSlice*POLYPHONY+noteNo] = secondsSinceStrike[timeSlice*POLYPHONY+noteNo]*attackSpeedMultiplier[noteNo];
         // keep the fractional part, for interp
-        fractional[timeSlice*POLYPHONY+noteNo] = fract(envelopeIndexFloat64[timeSlice*SHADERS_PER_TIMESLICE+polySlice]);
-        envelopeIndex[timeSlice*SHADERS_PER_TIMESLICE+polySlice] = int(envelopeIndexFloat64[timeSlice*SHADERS_PER_TIMESLICE+polySlice]);
+        fractional[timeSlice*POLYPHONY+noteNo] = fract(envelopeIndexFloat64[timeSlice*POLYPHONY+noteNo]);
+        envelopeIndex[timeSlice*POLYPHONY+noteNo] = int(envelopeIndexFloat64[timeSlice*POLYPHONY+noteNo]);
 
         // if envelope is complete, maintain at the final index
-        if(envelopeIndex[timeSlice*SHADERS_PER_TIMESLICE+polySlice] >= ENVELOPE_LENGTH)
-            envelopeAmplitude[timeSlice*SHADERS_PER_TIMESLICE+polySlice] = attackEnvelope[ENVELOPE_LENGTH-1];
+        if(envelopeIndex[timeSlice*POLYPHONY+noteNo] >= ENVELOPE_LENGTH)
+            envelopeAmplitude[timeSlice*POLYPHONY+noteNo] = attackEnvelope[ENVELOPE_LENGTH-1];
         // otherwise, linear interp the envelope
         else
-            envelopeAmplitude[timeSlice*SHADERS_PER_TIMESLICE+polySlice] = attackEnvelope[envelopeIndex[timeSlice*SHADERS_PER_TIMESLICE+polySlice]];
+            envelopeAmplitude[timeSlice*POLYPHONY+noteNo] = attackEnvelope[envelopeIndex[timeSlice*POLYPHONY+noteNo]];
 
       }
       // release phase
       else{
-        envelopeIndexFloat64[timeSlice*SHADERS_PER_TIMESLICE+polySlice] = secondsSinceRelease[timeSlice*POLYPHONY+noteNo]*releaseSpeedMultiplier[noteNo];
+        envelopeIndexFloat64[timeSlice*POLYPHONY+noteNo] = secondsSinceRelease[timeSlice*POLYPHONY+noteNo]*releaseSpeedMultiplier[noteNo];
         // keep the fractional part, for interp
-        fractional[timeSlice*POLYPHONY+noteNo] = fract(envelopeIndexFloat64[timeSlice*SHADERS_PER_TIMESLICE+polySlice]);
-        envelopeIndex[timeSlice*SHADERS_PER_TIMESLICE+polySlice] = int(envelopeIndexFloat64[timeSlice*SHADERS_PER_TIMESLICE+polySlice]);
+        fractional[timeSlice*POLYPHONY+noteNo] = fract(envelopeIndexFloat64[timeSlice*POLYPHONY+noteNo]);
+        envelopeIndex[timeSlice*POLYPHONY+noteNo] = int(envelopeIndexFloat64[timeSlice*POLYPHONY+noteNo]);
         // if envelope is complete, maintain at the final index
-        if(envelopeIndex[timeSlice*SHADERS_PER_TIMESLICE+polySlice] >= ENVELOPE_LENGTH)
-            envelopeAmplitude[timeSlice*SHADERS_PER_TIMESLICE+polySlice] = releaseEnvelope[ENVELOPE_LENGTH-1];
+        if(envelopeIndex[timeSlice*POLYPHONY+noteNo] >= ENVELOPE_LENGTH)
+            envelopeAmplitude[timeSlice*POLYPHONY+noteNo] = releaseEnvelope[ENVELOPE_LENGTH-1];
         // otherwise, linear interp the envelope
         else
-            envelopeAmplitude[timeSlice*SHADERS_PER_TIMESLICE+polySlice] = releaseEnvelope[envelopeIndex[timeSlice*SHADERS_PER_TIMESLICE+polySlice]];
+            envelopeAmplitude[timeSlice*POLYPHONY+noteNo] = releaseEnvelope[envelopeIndex[timeSlice*POLYPHONY+noteNo]];
       }
 
       // the note volume is given, and envelopeAmplitude is applied as well
-      noteVol[timeSlice*POLYPHONY+noteNo] = noteVolume[noteNo] * envelopeAmplitude[timeSlice*SHADERS_PER_TIMESLICE+polySlice];
+      noteVol[timeSlice*POLYPHONY+noteNo] = noteVolume[noteNo] * envelopeAmplitude[timeSlice*POLYPHONY+noteNo];
 
 
       increment[timeSlice*POLYPHONY+noteNo] = noteBaseIncrement[noteNo]*pitchFactor[0];
