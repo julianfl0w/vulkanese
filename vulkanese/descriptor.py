@@ -117,6 +117,8 @@ class DescriptorPool(Sinode):
             )
             print("Buffers")
             print(d.buffers)
+            print("buffbinds")
+            print([b.binding for b in d.buffers])
             print("binding")
             print(d.binding)
             print("type")
@@ -167,7 +169,6 @@ class DescriptorSet(Sinode):
     def finalize(self):
         # Here we specify a descriptor set layout. This allows us to bind our descriptors to
         # resources in the shader.
-        print("finalized desc set " + self.name)
         # Here we specify a binding of type VK_DESCRIPTOR_TYPE_STORAGE_BUFFER to the binding point
         # 0. This binds to
         #   layout(std140, binding = 0) buffer buf
@@ -184,6 +185,7 @@ class DescriptorSet(Sinode):
         self.vkDescriptorSetLayout = vkCreateDescriptorSetLayout(
             self.vkDevice, descriptorSetLayoutCreateInfo, None
         )
+        print("finalized desc set " + self.name)
 
     def release(self):
 

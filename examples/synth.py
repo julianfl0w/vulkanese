@@ -275,7 +275,8 @@ class Synth:
             {"name": "pitchFactor", "type": "float", "dims": ["POLYPHONY"]},
         ]
 
-        binding = 0
+        bindingUniform = 0
+        bindingStorage = 0
         allBuffers = []
 
         # if we're debugging, all intermediate variables become output buffers
@@ -291,19 +292,24 @@ class Synth:
             format = VK_FORMAT_R32_SFLOAT
             if s["type"] == "float64_t":
                 # format = VK_FORMAT_R64_SFLOAT
-                size = 4 * 8
+                itemsize = 4 * 8
             else:
-                size = 4 * 4
+                itemsize = 4 * 4
 
+            TOTALSIZEBYTES = itemsize
             for d in s["dims"]:
-                size *= eval("self." + d)
+                TOTALSIZEBYTES *= eval("self." + d)
 
             if s in self.shaderOutputBuffers or s in self.debuggableVars:
                 descriptorSet = device.descriptorPool.descSetGlobal
                 usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+                binding = bindingStorage
+                bindingStorage += int(itemsize/16)
             else:
                 descriptorSet = device.descriptorPool.descSetUniform
                 usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+                binding = bindingUniform
+                bindingUniform += int(itemsize/16)
 
             newBuff = Buffer(
                 binding=binding,
@@ -313,13 +319,12 @@ class Synth:
                 qualifier="out",
                 name=s["name"],
                 readFromCPU=True,
-                SIZEBYTES=size,
+                SIZEBYTES=TOTALSIZEBYTES,
                 usage=usage,
                 stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
                 location=0,
                 format=format,
             )
-            binding += 1
             allBuffers += [newBuff]
             exec("self." + s["name"] + " = newBuff")
 

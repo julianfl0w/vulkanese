@@ -12,13 +12,13 @@
         1.0
     ],
     "noteStrikeTime": [
-        1663032891.29808
+        1663035583.0633078
     ],
     "noteReleaseTime": [
         0.0
     ],
     "currTime": [
-        1663032891.2980926
+        1663035583.0633166
     ],
     "noteBasePhase": [
         0.0
@@ -231,43 +231,43 @@
         1.0
     ],
     "currTimeWithSampleOffset": [
-        -1.1885959257070704e+148
+        0.0
     ],
     "shadersum": [
         0.0
     ],
     "envelopeAmplitude": [
-        0.0
+        1.0
     ],
     "envelopeIndexFloat64": [
-        -0.0
+        -425737109264.2068
     ],
     "envelopeIndex": [
-        0.0
+        2147483648.0
     ],
     "secondsSinceStrike": [
-        -1.1885959257070704e+148
+        -5.263544247e-315
     ],
     "secondsSinceRelease": [
-        -1.1885959257070704e+148
+        -1663035583.0633078
     ],
     "fractional": [
-        0.0
+        0.793212890625
     ],
     "phase": [
-        0.0
+        3.566169859414714e-10
     ],
     "noteVol": [
-        0.0
+        1.0
     ],
     "increment": [
-        -6.259853398707798e+18
+        0.0
     ],
     "innersum": [
         0.0
     ],
     "thisIncrement": [
-        3.9185764937025854e+37
+        0.0
     ],
     "indexInFilter": [
         0.0
