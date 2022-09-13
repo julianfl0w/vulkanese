@@ -111,9 +111,9 @@ class Synth:
         self.device = device
 
         self.replaceDict = {
-            "POLYPHONY": 4,
+            "POLYPHONY": 1,
             "POLYPHONY_PER_SHADER": 1,
-            "SHADERS_PER_TIMESLICE": int(4 / 1),
+            "SHADERS_PER_TIMESLICE": int(1 / 1),
             "PARTIALS_PER_VOICE": 1,
             "MINIMUM_FREQUENCY_HZ": 20,
             "MAXIMUM_FREQUENCY_HZ": 20000,
@@ -122,7 +122,7 @@ class Synth:
             "PARTIALS_PER_HARMONIC": 1,
             "UNDERVOLUME": 3,
             "CHANNELS": 1,
-            "SAMPLES_PER_DISPATCH": 64,
+            "SAMPLES_PER_DISPATCH": 1,
             "LATENCY_SECONDS": 0.050,
             "ENVELOPE_LENGTH": 64,
             "FILTER_STEPS": 64,
@@ -159,7 +159,7 @@ class Synth:
             # per timeslice, per polyslice (per shader)
             {
                 "name": "currTimeWithSampleOffset",
-                "type": "float",
+                "type": "float64_t",
                 "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_TIMESLICE"],
             },
             {
@@ -174,7 +174,7 @@ class Synth:
             },
             {
                 "name": "envelopeIndexFloat64",
-                "type": "float",
+                "type": "float64_t",
                 "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_TIMESLICE"],
             },
             {
@@ -185,17 +185,17 @@ class Synth:
             # // per timeslice, per note  # make these vals 64bit if possible
             {
                 "name": "secondsSinceStrike",
-                "type": "float",
+                "type": "float64_t",
                 "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
             },
             {
                 "name": "secondsSinceRelease",
-                "type": "float",
+                "type": "float64_t",
                 "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
             },
             {
                 "name": "fractional",
-                "type": "float",
+                "type": "float64_t",
                 "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
             },
             {
@@ -249,17 +249,17 @@ class Synth:
             {"name": "noteVolume", "type": "float", "dims": ["POLYPHONY"]},
             {
                 "name": "noteStrikeTime",
-                "type": "float",
+                "type": "float64_t",
                 "dims": ["POLYPHONY"],
             },  # make these vals 64bit if possible
             {
                 "name": "noteReleaseTime",
-                "type": "float",
+                "type": "float64_t",
                 "dims": ["POLYPHONY"],
             },  # make these vals 64bit if possible
             {
                 "name": "currTime",
-                "type": "float",
+                "type": "float64_t",
                 "dims": ["POLYPHONY"],
             },  # make these vals 64bit if possible
             {
@@ -324,10 +324,10 @@ class Synth:
             exec("self." + s["name"] + " = newBuff")
 
         # initialize some of them
-        self.noteStrikeTime.setBuffer(np.ones((4 * self.POLYPHONY)) * time.time())
-        self.noteReleaseTime.setBuffer(
-            np.ones((4 * self.POLYPHONY)) * (time.time() + 0.1)
-        )
+        #self.noteStrikeTime.setBuffer(np.ones((4 * self.POLYPHONY)) * time.time())
+        #self.noteReleaseTime.setBuffer(
+        #    np.ones((4 * self.POLYPHONY)) * (time.time() + 0.1)
+        #)
         self.freqFilter.setBuffer(np.ones((4 * self.FILTER_STEPS)))
 
         # "ATTACK_TIME" : 0, ALL TIME AS A FLOAT OF SECONDS
@@ -362,13 +362,13 @@ class Synth:
             plt.ylim(-2, 2)
 
         header = """#version 450
-#extension GL_EXT_shader_explicit_arithmetic_types_float64 : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float64 : require
 //#extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
 #extension GL_ARB_separate_shader_objects : enable
         """
         for k, v in self.replaceDict.items():
             header += "#define " + k + " " + str(v) + "\n"
-        header += "layout (local_size_x = 1, local_size_y = PARTIALS_PER_VOICE, local_size_z = 1 ) in;"
+        header += "layout (local_size_x = SAMPLES_PER_DISPATCH, local_size_y = SHADERS_PER_TIMESLICE, local_size_z = 1 ) in;"
 
         with open("synthshader.c", "r") as f:
             main = f.read()
@@ -513,18 +513,22 @@ class Synth:
         OVERTONE_COUNT = int(self.PARTIALS_PER_VOICE / self.PARTIALS_PER_HARMONIC)
         for harmonic in range(OVERTONE_COUNT):
             # simple equation to return value on range (-1,1)
-            harmonic_unity = (
-                harmonic / (OVERTONE_COUNT - (1 - OVERTONE_COUNT % 2)) - 0.5
-            ) * 2
+            if OVERTONE_COUNT == 1:
+                harmonic_unity = 1
+            else:
+                harmonic_unity = (
+                    harmonic / (OVERTONE_COUNT - (1 - OVERTONE_COUNT % 2)) - 0.5
+                ) * 2
             for partial_in_harmonic in range(self.PARTIALS_PER_HARMONIC):
                 # simple equation to return value on range (-1,1)
+                
                 partial_in_harmonic_unity = (
                     partial_in_harmonic / (self.PARTIALS_PER_HARMONIC) - 0.5
                 ) * 2
 
                 pv[
                     (harmonic * self.PARTIALS_PER_HARMONIC + partial_in_harmonic) * 4
-                ] = (partial_in_harmonic_unity + 1) / 2
+                ] = harmonic_unity
 
                 hm[
                     (harmonic * self.PARTIALS_PER_HARMONIC + partial_in_harmonic) * 4
@@ -572,19 +576,10 @@ class Synth:
 
             # we need to mulitiply by 16
             # because it seems minimum GPU read is 16 bytes
-            self.noteBaseIncrement.pmap[
-                note.index * 16 : note.index * 16 + 4
-            ] = np.array([0], dtype=np.float32)
-            self.noteBasePhase.pmap[note.index * 16 : note.index * 16 + 8] = np.array(
-                [0], dtype=np.float64
-            )
+            self.noteBaseIncrement.setByIndex(note.index, 0)
             self.fullAddArray[note.index * 4] = 0
-            self.noteVolume.pmap[note.index * 16 : note.index * 16 + 4] = np.array(
-                [0], dtype=np.float32
-            )
-            self.noteReleaseTime.pmap[note.index * 16 : note.index * 16 + 8] = np.array(
-                time.time(), dtype=np.float64
-            )
+            self.noteReleaseTime.setByIndex(note.index, time.time())
+
             # print("NOTE OFF" + str(note.index))
             # print(str(msg))
         # if note on, spawn voices
@@ -606,9 +601,9 @@ class Synth:
             incrementPerSample = (
                 2 * 3.141592 * noteToFreq(msg.note) / self.SAMPLE_FREQUENCY
             )
+            self.noteVolume.setByIndex(note.index, 1)
             self.noteBaseIncrement.setByIndex(note.index, incrementPerSample)
-            self.noteBasePhase.setByIndex(note.index, 0)
-            self.noteBasePhase.setByIndex(note.index, 1)
+            #self.noteBasePhase.setByIndex(note.index, 0)
             self.noteStrikeTime.setByIndex(note.index, time.time())
             self.fullAddArray[note.index * 4] = (
                 incrementPerSample * self.SAMPLES_PER_DISPATCH

@@ -132,8 +132,8 @@ class Buffer(Sinode):
         # accessed in a shader as an array, except if descriptorType is
         # VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK in which case descriptorCount
         # is the size in bytes of the inline uniform block
-        print("BUFFER DTYPE")
-        print(descriptorSet.type)
+        #print("BUFFER DTYPE")
+        #print(descriptorSet.type)
         self.descriptorSetLayoutBinding = VkDescriptorSetLayoutBinding(
             binding=self.binding,
             descriptorType=descriptorSet.type,
@@ -149,7 +149,7 @@ class Buffer(Sinode):
             buffer=self.vkBuffer, offset=0, range=SIZEBYTES
         )
 
-        print("finished creating buffer")
+        #print("finished creating buffer")
 
     def saveAsImage(self, height, width, path="mandelbrot.png"):
 
@@ -251,7 +251,7 @@ class Buffer(Sinode):
     def glsltype2bytesize(self, glsltype):
       if glsltype == "float":
         return 4
-      if glsltype == "float32_t":
+      elif glsltype == "float32_t":
         return 4
       elif glsltype == "float64_t":
         return 8

@@ -1,10 +1,10 @@
 #version 450
-#extension GL_EXT_shader_explicit_arithmetic_types_float64 : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float64 : require
 //#extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
 #extension GL_ARB_separate_shader_objects : enable
-        #define POLYPHONY 4
+        #define POLYPHONY 1
 #define POLYPHONY_PER_SHADER 1
-#define SHADERS_PER_TIMESLICE 4
+#define SHADERS_PER_TIMESLICE 1
 #define PARTIALS_PER_VOICE 1
 #define MINIMUM_FREQUENCY_HZ 20
 #define MAXIMUM_FREQUENCY_HZ 20000
@@ -12,74 +12,74 @@
 #define PARTIALS_PER_HARMONIC 1
 #define UNDERVOLUME 3
 #define CHANNELS 1
-#define SAMPLES_PER_DISPATCH 64
+#define SAMPLES_PER_DISPATCH 1
 #define LATENCY_SECONDS 0.05
 #define ENVELOPE_LENGTH 64
 #define FILTER_STEPS 64
-layout (local_size_x = 1, local_size_y = PARTIALS_PER_VOICE, local_size_z = 1 ) in;
+layout (local_size_x = SAMPLES_PER_DISPATCH, local_size_y = SHADERS_PER_TIMESLICE, local_size_z = 1 ) in;
 layout(std140, set = 0, binding = 0) buffer pcmBufferOut_buf
 {
-   float pcmBufferOut[1024];
+   float pcmBufferOut[4];
 };
 layout(std140, set = 0, binding = 1) buffer currTimeWithSampleOffset_buf
 {
-   float currTimeWithSampleOffset[1024];
+   float64_t currTimeWithSampleOffset[8];
 };
 layout(std140, set = 0, binding = 2) buffer shadersum_buf
 {
-   float shadersum[1024];
+   float shadersum[4];
 };
 layout(std140, set = 0, binding = 3) buffer envelopeAmplitude_buf
 {
-   float envelopeAmplitude[1024];
+   float envelopeAmplitude[4];
 };
 layout(std140, set = 0, binding = 4) buffer envelopeIndexFloat64_buf
 {
-   float envelopeIndexFloat64[1024];
+   float64_t envelopeIndexFloat64[8];
 };
 layout(std140, set = 0, binding = 5) buffer envelopeIndex_buf
 {
-   int envelopeIndex[1024];
+   int envelopeIndex[4];
 };
 layout(std140, set = 0, binding = 6) buffer secondsSinceStrike_buf
 {
-   float secondsSinceStrike[1024];
+   float64_t secondsSinceStrike[8];
 };
 layout(std140, set = 0, binding = 7) buffer secondsSinceRelease_buf
 {
-   float secondsSinceRelease[1024];
+   float64_t secondsSinceRelease[8];
 };
 layout(std140, set = 0, binding = 8) buffer fractional_buf
 {
-   float fractional[1024];
+   float64_t fractional[8];
 };
 layout(std140, set = 0, binding = 9) buffer phase_buf
 {
-   float phase[1024];
+   float phase[4];
 };
 layout(std140, set = 0, binding = 10) buffer noteVol_buf
 {
-   float noteVol[1024];
+   float noteVol[4];
 };
 layout(std140, set = 0, binding = 11) buffer increment_buf
 {
-   float increment[1024];
+   float increment[4];
 };
 layout(std140, set = 0, binding = 12) buffer innersum_buf
 {
-   float innersum[1024];
+   float innersum[4];
 };
 layout(std140, set = 0, binding = 13) buffer thisIncrement_buf
 {
-   float thisIncrement[1024];
+   float thisIncrement[4];
 };
 layout(std140, set = 0, binding = 14) buffer indexInFilter_buf
 {
-   int indexInFilter[1024];
+   int indexInFilter[4];
 };
 layout(std140, set = 1, binding = 15) uniform noteBaseIncrement_buf
 {
-   float noteBaseIncrement[16];
+   float noteBaseIncrement[4];
 };
 layout(std140, set = 1, binding = 16) uniform partialMultiplier_buf
 {
@@ -91,23 +91,23 @@ layout(std140, set = 1, binding = 17) uniform partialVolume_buf
 };
 layout(std140, set = 1, binding = 18) uniform noteVolume_buf
 {
-   float noteVolume[16];
+   float noteVolume[4];
 };
 layout(std140, set = 1, binding = 19) uniform noteStrikeTime_buf
 {
-   float noteStrikeTime[16];
+   float64_t noteStrikeTime[8];
 };
 layout(std140, set = 1, binding = 20) uniform noteReleaseTime_buf
 {
-   float noteReleaseTime[16];
+   float64_t noteReleaseTime[8];
 };
 layout(std140, set = 1, binding = 21) uniform currTime_buf
 {
-   float currTime[16];
+   float64_t currTime[8];
 };
 layout(std140, set = 1, binding = 22) uniform noteBasePhase_buf
 {
-   float noteBasePhase[16];
+   float noteBasePhase[4];
 };
 layout(std140, set = 1, binding = 23) uniform attackEnvelope_buf
 {
@@ -119,11 +119,11 @@ layout(std140, set = 1, binding = 24) uniform releaseEnvelope_buf
 };
 layout(std140, set = 1, binding = 25) uniform attackSpeedMultiplier_buf
 {
-   float attackSpeedMultiplier[16];
+   float attackSpeedMultiplier[4];
 };
 layout(std140, set = 1, binding = 26) uniform releaseSpeedMultiplier_buf
 {
-   float releaseSpeedMultiplier[16];
+   float releaseSpeedMultiplier[4];
 };
 layout(std140, set = 1, binding = 27) uniform freqFilter_buf
 {
@@ -131,17 +131,17 @@ layout(std140, set = 1, binding = 27) uniform freqFilter_buf
 };
 layout(std140, set = 1, binding = 28) uniform pitchFactor_buf
 {
-   float pitchFactor[16];
+   float pitchFactor[4];
 };
 void main() {
        
-  uint polySlice = gl_GlobalInvocationID.x;
-  uint timeSlice = gl_GlobalInvocationID.y;
+  uint timeSlice = gl_GlobalInvocationID.x;
+  uint polySlice = gl_GlobalInvocationID.y;
 
   
   
   // current time depends on the sample offset
-  currTimeWithSampleOffset[timeSlice*SHADERS_PER_TIMESLICE+polySlice] = currTime[0] + float(timeSlice)/SAMPLE_FREQUENCY;
+  currTimeWithSampleOffset[timeSlice*SHADERS_PER_TIMESLICE+polySlice] = currTime[0];// + float(timeSlice)/SAMPLE_FREQUENCY;
         
   for (uint noteNo = polySlice*POLYPHONY_PER_SHADER; noteNo<(polySlice+1)*POLYPHONY_PER_SHADER; noteNo++){
 
