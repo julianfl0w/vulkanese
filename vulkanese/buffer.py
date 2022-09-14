@@ -7,6 +7,53 @@ import numpy as np
 
 here = os.path.dirname(os.path.abspath(__file__))
 
+def glsltype2python(glsltype):
+  if glsltype == "float":
+    return np.float32
+  if glsltype == "float32_t":
+    return np.float32
+  elif glsltype == "float64_t":
+    return np.float64
+  elif glsltype == "int":
+    return np.int32
+  elif glsltype == "uint":
+    return np.uint32
+  else:
+    print("type")
+    print(glsltype)
+    die
+
+def glsltype2pythonstring(glsltype):
+  if glsltype == "float":
+    return "np.float32"
+  if glsltype == "float32_t":
+    return "np.float32"
+  elif glsltype == "float64_t":
+    return "np.float64"
+  elif glsltype == "int":
+    return "np.int32"
+  elif glsltype == "uint":
+    return "np.uint32"
+  else:
+    print("type")
+    print(glsltype)
+    die
+    
+def glsltype2bytesize(glsltype):
+  if glsltype == "float":
+    return 4
+  elif glsltype == "float32_t":
+    return 4
+  elif glsltype == "float64_t":
+    return 8
+  elif glsltype == "int":
+    return 4
+  elif glsltype == "uint":
+    return 4
+  else:
+    print("type")
+    print(glsltype)
+    die
 
 class Buffer(Sinode):
 
@@ -56,8 +103,8 @@ class Buffer(Sinode):
         self.size = SIZEBYTES
         self.qualifier = qualifier
         self.type = type
-        self.itemSize = self.glsltype2bytesize(self.type)
-        self.pythonType = self.glsltype2python(self.type)
+        self.itemSize = glsltype2bytesize(self.type)
+        self.pythonType = glsltype2python(self.type)
         self.name = name
         self.descriptorSet = descriptorSet
 
@@ -232,37 +279,6 @@ class Buffer(Sinode):
             + str(int(self.size / 4))
             + "];\n};\n"
         )
-    def glsltype2python(self, glsltype):
-      if glsltype == "float":
-        return np.float32
-      if glsltype == "float32_t":
-        return np.float32
-      elif glsltype == "float64_t":
-        return np.float64
-      elif glsltype == "int":
-        return np.int32
-      elif glsltype == "uint":
-        return np.uint32
-      else:
-        print("type")
-        print(glsltype)
-        die
-        
-    def glsltype2bytesize(self, glsltype):
-      if glsltype == "float":
-        return 4
-      elif glsltype == "float32_t":
-        return 4
-      elif glsltype == "float64_t":
-        return 8
-      elif glsltype == "int":
-        return 4
-      elif glsltype == "uint":
-        return 4
-      else:
-        print("type")
-        print(glsltype)
-        die
       
     def setByIndex(self, index, data):
         if self.itemSize == 4:
@@ -275,7 +291,7 @@ class Buffer(Sinode):
         self.pmap[startByte:endByte] = np.array(data, dtype = self.pythonType)
 
     def setBuffer(self, data):
-        self.pmap[:] = data.astype(self.glsltype2python(self.type))
+        self.pmap[:] = data.astype(glsltype2python(self.type))
 
     def fill(self, value):
         # self.pmap[: data.size * data.itemSize] = data

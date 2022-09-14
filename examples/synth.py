@@ -70,10 +70,10 @@ class Synth:
 
     # random ass fast cpu proc in random ass place
     # need to remove njit to profile
-    @njit
-    def audioPostProcessAccelerated(pa, SAMPLES_PER_DISPATCH, SHADERS_PER_TIMESLICE):
+    # @njit
+    def audioPostProcessAccelerated(pa, SAMPLES_PER_DISPATCH, SHADERS_PER_SAMPLE):
         pa = np.ascontiguousarray(pa)
-        pa = np.reshape(pa, (SAMPLES_PER_DISPATCH, SHADERS_PER_TIMESLICE))
+        pa = np.reshape(pa, (SAMPLES_PER_DISPATCH, SHADERS_PER_SAMPLE))
         pa = np.sum(pa, axis=1)
         # pa2 = pa #np.ascontiguousarray(pa)
         # pa3 = np.vstack((pa2, pa2))
@@ -113,13 +113,12 @@ class Synth:
         self.replaceDict = {
             "POLYPHONY": 1,
             "POLYPHONY_PER_SHADER": 1,
-            "SHADERS_PER_TIMESLICE": int(1 / 1),
-            "PARTIALS_PER_VOICE": 3,
+            "PARTIALS_PER_VOICE": 4,
             "MINIMUM_FREQUENCY_HZ": 20,
             "MAXIMUM_FREQUENCY_HZ": 20000,
             # "SAMPLE_FREQUENCY"     : 48000,
             "SAMPLE_FREQUENCY": 44100,
-            "PARTIALS_PER_HARMONIC": 1,
+            "PARTIALS_PER_HARMONIC": 4,
             "UNDERVOLUME": 3,
             "CHANNELS": 1,
             "SAMPLES_PER_DISPATCH": 64,
@@ -127,6 +126,10 @@ class Synth:
             "ENVELOPE_LENGTH": 64,
             "FILTER_STEPS": 64,
         }
+        # derived values
+        self.replaceDict["SHADERS_PER_SAMPLE"] = int(
+            self.replaceDict["POLYPHONY"] / self.replaceDict["POLYPHONY_PER_SHADER"]
+        )
         for k, v in self.replaceDict.items():
             exec("self." + k + " = " + str(v))
 
@@ -151,7 +154,7 @@ class Synth:
             {
                 "name": "pcmBufferOut",
                 "type": "float",
-                "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_TIMESLICE", "CHANNELS"],
+                "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_SAMPLE", "CHANNELS"],
             }
         ]
 
@@ -160,12 +163,12 @@ class Synth:
             {
                 "name": "currTimeWithSampleOffset",
                 "type": "float64_t",
-                "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_TIMESLICE"],
+                "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_SAMPLE"],
             },
             {
                 "name": "shadersum",
                 "type": "float",
-                "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_TIMESLICE"],
+                "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_SAMPLE"],
             },
             {
                 "name": "envelopeAmplitude",
@@ -199,7 +202,7 @@ class Synth:
                 "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
             },
             {
-                "name": "phase",
+                "name": "basePhaseThisNote",
                 "type": "float64_t",
                 "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
             },
@@ -232,8 +235,8 @@ class Synth:
         ]
 
         dim2index = {
-            "SHADERS_PER_TIMESLICE": "polySlice",
-            "SAMPLES_PER_DISPATCH": "timeSlice",
+            "SHADERS_PER_SAMPLE": "shaderIndexInSample",
+            "SAMPLES_PER_DISPATCH": "sampleNo",
             "POLYPHONY": "noteNo",
             "PARTIALS_PER_VOICE": "partialNo",
         }
@@ -305,12 +308,12 @@ class Synth:
                 usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
                 binding = bindingStorage
                 bindingStorage += 1
-                #bindingUniform += int(itemsize/16)
+                # bindingUniform += int(itemsize/16)
             else:
                 descriptorSet = device.descriptorPool.descSetUniform
                 usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
                 binding = bindingUniform
-                #bindingStorage += int(itemsize/16)
+                # bindingStorage += int(itemsize/16)
                 bindingUniform += 1
 
             newBuff = Buffer(
@@ -331,10 +334,10 @@ class Synth:
             exec("self." + s["name"] + " = newBuff")
 
         # initialize some of them
-        #self.noteStrikeTime.setBuffer(np.ones((4 * self.POLYPHONY)) * time.time())
-        #self.noteReleaseTime.setBuffer(
+        # self.noteStrikeTime.setBuffer(np.ones((4 * self.POLYPHONY)) * time.time())
+        # self.noteReleaseTime.setBuffer(
         #    np.ones((4 * self.POLYPHONY)) * (time.time() + 0.1)
-        #)
+        # )
         self.freqFilter.setBuffer(np.ones((4 * self.FILTER_STEPS)))
 
         # "ATTACK_TIME" : 0, ALL TIME AS A FLOAT OF SECONDS
@@ -375,7 +378,7 @@ class Synth:
         """
         for k, v in self.replaceDict.items():
             header += "#define " + k + " " + str(v) + "\n"
-        header += "layout (local_size_x = SAMPLES_PER_DISPATCH, local_size_y = SHADERS_PER_TIMESLICE, local_size_z = 1 ) in;"
+        header += "layout (local_size_x = SAMPLES_PER_DISPATCH, local_size_y = SHADERS_PER_SAMPLE, local_size_z = 1 ) in;"
 
         with open("synthshader.c", "r") as f:
             main = f.read()
@@ -440,7 +443,7 @@ class Synth:
 
         self.computePipeline = ComputePipeline(
             device=device,
-            workgroupShape=[self.SHADERS_PER_TIMESLICE, self.SAMPLES_PER_DISPATCH, 1],
+            workgroupShape=[self.SHADERS_PER_SAMPLE, self.SAMPLES_PER_DISPATCH, 1],
             stages=[mandleStage],
         )
         device.children += [self.computePipeline]
@@ -510,6 +513,15 @@ class Synth:
         )
         sineFilt /= np.max(sineFilt)
 
+    def range2unity(self, maxi):
+        if maxi == 1:
+            unity = [1]
+        else:
+            ar = np.arange(maxi)
+            unity = ar - np.mean(ar)
+            unity /= max(unity)
+        return unity
+
     # update the partial scheme according to PARTIALS_PER_HARMONIC
     def updatePartials(self):
         hm = np.ones((4 * self.PARTIALS_PER_VOICE), dtype=np.float32)
@@ -518,24 +530,18 @@ class Synth:
         #    hm[4*i*2]= 1.5
         np.set_printoptions(threshold=sys.maxsize)
         OVERTONE_COUNT = int(self.PARTIALS_PER_VOICE / self.PARTIALS_PER_HARMONIC)
+        # simple equation to return value on range (-1,1)
         for harmonic in range(OVERTONE_COUNT):
-            # simple equation to return value on range (-1,1)
-            if OVERTONE_COUNT == 1:
-                harmonic_unity = 1
-            else:
-                harmonic_unity = (
-                    harmonic / (OVERTONE_COUNT - (1 - OVERTONE_COUNT % 2)) - 0.5
-                ) * 2
+            harmonic_unity = self.range2unity(OVERTONE_COUNT)[harmonic]
             for partial_in_harmonic in range(self.PARTIALS_PER_HARMONIC):
+                partial_in_harmonic_unity = self.range2unity(
+                    self.PARTIALS_PER_HARMONIC
+                )[partial_in_harmonic]
                 # simple equation to return value on range (-1,1)
-                
-                partial_in_harmonic_unity = (
-                    partial_in_harmonic / (self.PARTIALS_PER_HARMONIC) - 0.5
-                ) * 2
 
                 pv[
                     (harmonic * self.PARTIALS_PER_HARMONIC + partial_in_harmonic) * 4
-                ] = harmonic_unity
+                ] = 1 - abs(partial_in_harmonic_unity)
 
                 hm[
                     (harmonic * self.PARTIALS_PER_HARMONIC + partial_in_harmonic) * 4
@@ -610,7 +616,7 @@ class Synth:
             )
             self.noteVolume.setByIndex(note.index, 1)
             self.noteBaseIncrement.setByIndex(note.index, incrementPerSample)
-            #self.noteBasePhase.setByIndex(note.index, 0)
+            # self.noteBasePhase.setByIndex(note.index, 0)
             self.noteStrikeTime.setByIndex(note.index, time.time())
             self.fullAddArray[note.index * 4] = (
                 incrementPerSample * self.SAMPLES_PER_DISPATCH
@@ -749,7 +755,7 @@ class Synth:
 
             # do CPU tings simultaneous with GPU process
             pa = Synth.audioPostProcessAccelerated(
-                pa, self.SAMPLES_PER_DISPATCH, self.SHADERS_PER_TIMESLICE
+                pa, self.SAMPLES_PER_DISPATCH, self.SHADERS_PER_SAMPLE
             )
             if self.PYSOUND:
                 self.stream.write(pa)
@@ -791,31 +797,45 @@ class Synth:
                 ):
                     if "64" in debugVar["type"]:
                         skipindex = 8
+                        skipindex = 4
                     else:
                         skipindex = 4
 
                     # glsl to python
-                    newt = debugVar["type"].replace("_t", "")
-                    if newt == "float":
-                        newt = "float32"
-
+                    newt = glsltype2pythonstring(debugVar["type"])
+                    print(newt)
                     runString = (
-                        "list(np.frombuffer(self."
+                        "np.frombuffer(self."
                         + debugVar["name"]
-                        + ".pmap, np."
+                        + ".pmap, "
                         + newt
-                        + ")[::"
-                        + str(skipindex)
-                        + "].astype(float))"
+                        + ")"
                     )
                     print(runString)
-                    outdict[debugVar["name"]] = eval(runString)
+
+                    # calculate the dims we need to turn the array into
+                    print(debugVar["dims"])
+                    newDims = []
+                    for d in debugVar["dims"]:
+                        newDims += [eval("self." + d)]
+                        print([eval("self." + d)])
+
+                    # first retrieve the array with a simple eval
+                    rcvdArray = eval(runString)
+                    print(rcvdArray)
+                    rcvdArray = list(rcvdArray.astype(float))[
+                        ::skipindex
+                    ]  # apply the skip index
+                    print(rcvdArray)
+                    rcvdArray = np.array(rcvdArray).reshape(newDims)
+                    print(rcvdArray)
+                    outdict[debugVar["name"]] = list(rcvdArray)
                 with open("debug.json", "w+") as f:
                     json.dump(outdict, f, indent=4)
                 sys.exit()
             # if self.GRAPH:
             #    self.updatingGraph(currFilt)
-            
+
             if self.GRAPH:
                 self.updatingGraph(self.newVal)
                 # eval("self." + varName + ".pmap[:] = newVal")

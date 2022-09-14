@@ -1,14 +1,14 @@
 void main() {
        
-  uint timeSlice = gl_GlobalInvocationID.x;
-  uint polySlice = gl_GlobalInvocationID.y;
+  uint sampleNo = gl_GlobalInvocationID.x;
+  uint shaderIndexInSample = gl_GlobalInvocationID.y;
 
   VARIABLEDECLARATIONS
   
   // current time depends on the sample offset
-  currTimeWithSampleOffset = currTime[0] + float(timeSlice)/SAMPLE_FREQUENCY;
+  currTimeWithSampleOffset = currTime[0] + float(sampleNo)/SAMPLE_FREQUENCY;
         
-  for (uint noteNo = polySlice*POLYPHONY_PER_SHADER; noteNo<(polySlice+1)*POLYPHONY_PER_SHADER; noteNo++){
+  for (uint noteNo = shaderIndexInSample*POLYPHONY_PER_SHADER; noteNo<(shaderIndexInSample+1)*POLYPHONY_PER_SHADER; noteNo++){
 
       // calculate the envelope 
       // time is a float holding seconds (since epoch?)
@@ -36,7 +36,7 @@ void main() {
 
       }
       // release phase
-      else{
+      else if(noteStrikeTime[noteNo] < noteReleaseTime[noteNo]){
         envelopeIndexFloat64 = secondsSinceRelease*releaseSpeedMultiplier[noteNo];
         // keep the fractional part, for interp
         fractional = fract(envelopeIndexFloat64);
@@ -48,13 +48,18 @@ void main() {
         else
             envelopeAmplitude = releaseEnvelope[envelopeIndex];
       }
+    
+      // if both strike- and release-time are 0
+      else{
+          envelopeAmplitude = 0;
+      }
 
       // the note volume is given, and envelopeAmplitude is applied as well
       noteVol = noteVolume[noteNo] * envelopeAmplitude;
 
 
       increment = noteBaseIncrement[noteNo]*pitchFactor[0];
-      phase = noteBasePhase[noteNo] + (timeSlice * increment);
+      basePhaseThisNote = noteBasePhase[noteNo] + (sampleNo * increment);
 
       innersum = 0;
       for (uint partialNo = 0; partialNo<PARTIALS_PER_VOICE; partialNo++)
@@ -65,7 +70,7 @@ void main() {
         if(thisIncrement < 3.14){
             indexInFilter = int(thisIncrement*(FILTER_STEPS/(3.14)));
             innersum += partialVolume[partialNo] * \
-              sin(float(phase)*partialMultiplier[partialNo]) * \
+              sin(float(basePhaseThisNote)*partialMultiplier[partialNo]) * \
               freqFilter[indexInFilter];
         }
 
@@ -73,5 +78,5 @@ void main() {
       shadersum+=innersum*noteVol;
   }
 
-  pcmBufferOut[timeSlice*SHADERS_PER_TIMESLICE + polySlice] = shadersum/(PARTIALS_PER_VOICE*POLYPHONY );
+  pcmBufferOut[sampleNo*SHADERS_PER_SAMPLE + shaderIndexInSample] = shadersum/(PARTIALS_PER_VOICE*POLYPHONY );
 }
