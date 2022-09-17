@@ -6,7 +6,7 @@ void main() {
   VARIABLEDECLARATIONS
   
   // current time depends on the sample offset
-  currTimeWithSampleOffset = currTime[0] + float(sampleNo)/SAMPLE_FREQUENCY;
+  currTimeWithSampleOffset = currTime[0] + float64_t(sampleNo)/SAMPLE_FREQUENCY;
         
   for (uint noteNo = shaderIndexInSample*POLYPHONY_PER_SHADER; noteNo<(shaderIndexInSample+1)*POLYPHONY_PER_SHADER; noteNo++){
 

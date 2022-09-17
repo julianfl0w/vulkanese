@@ -74,7 +74,9 @@ class Synth:
     def audioPostProcessAccelerated(pa, SAMPLES_PER_DISPATCH, SHADERS_PER_SAMPLE):
         pa = np.ascontiguousarray(pa)
         pa = np.reshape(pa, (SAMPLES_PER_DISPATCH, SHADERS_PER_SAMPLE))
+        #print(pa)
         pa = np.sum(pa, axis=1)
+        #print(pa)
         # pa2 = pa #np.ascontiguousarray(pa)
         # pa3 = np.vstack((pa2, pa2))
         # pa4 = np.swapaxes(pa3, 0, 1)
@@ -88,9 +90,9 @@ class Synth:
         self.mm = midiManager.MidiManager()
 
         self.GRAPH = False
-        self.PYSOUND = False
+        self.PYSOUND =  True
         self.SOUND = False
-        self.DEBUG = True
+        self.DEBUG = False
 
         context = zmq.Context()
         # recieve work
@@ -110,22 +112,40 @@ class Synth:
         device = self.instance_inst.getDevice(0)
         self.device = device
 
-        self.replaceDict = {
-            "POLYPHONY": 1,
-            "POLYPHONY_PER_SHADER": 1,
-            "PARTIALS_PER_VOICE": 4,
-            "MINIMUM_FREQUENCY_HZ": 20,
-            "MAXIMUM_FREQUENCY_HZ": 20000,
-            # "SAMPLE_FREQUENCY"     : 48000,
-            "SAMPLE_FREQUENCY": 44100,
-            "PARTIALS_PER_HARMONIC": 4,
-            "UNDERVOLUME": 3,
-            "CHANNELS": 1,
-            "SAMPLES_PER_DISPATCH": 64,
-            "LATENCY_SECONDS": 0.050,
-            "ENVELOPE_LENGTH": 64,
-            "FILTER_STEPS": 64,
-        }
+        if self.DEBUG:
+            self.replaceDict = {
+                "POLYPHONY": 1,
+                "POLYPHONY_PER_SHADER": 1,
+                "PARTIALS_PER_VOICE": 1,
+                "MINIMUM_FREQUENCY_HZ": 20,
+                "MAXIMUM_FREQUENCY_HZ": 20000,
+                # "SAMPLE_FREQUENCY"     : 48000,
+                "SAMPLE_FREQUENCY": 44100,
+                "PARTIALS_PER_HARMONIC": 1,
+                "UNDERVOLUME": 3,
+                "CHANNELS": 1,
+                "SAMPLES_PER_DISPATCH": 64,
+                "LATENCY_SECONDS": 0.100,
+                "ENVELOPE_LENGTH": 16,
+                "FILTER_STEPS": 16,
+            }
+        else:
+            self.replaceDict = {
+                "POLYPHONY": 16,
+                "POLYPHONY_PER_SHADER": 1,
+                "PARTIALS_PER_VOICE": 1,
+                "MINIMUM_FREQUENCY_HZ": 20,
+                "MAXIMUM_FREQUENCY_HZ": 20000,
+                # "SAMPLE_FREQUENCY"     : 48000,
+                "SAMPLE_FREQUENCY": 44100,
+                "PARTIALS_PER_HARMONIC": 1,
+                "UNDERVOLUME": 3,
+                "CHANNELS": 1,
+                "SAMPLES_PER_DISPATCH": 64,
+                "LATENCY_SECONDS": 0.010,
+                "ENVELOPE_LENGTH": 256,
+                "FILTER_STEPS": 256,
+            }
         # derived values
         self.replaceDict["SHADERS_PER_SAMPLE"] = int(
             self.replaceDict["POLYPHONY"] / self.replaceDict["POLYPHONY_PER_SHADER"]
@@ -272,8 +292,8 @@ class Synth:
             },  # make these vals 64bit if possible
             {"name": "attackEnvelope", "type": "float", "dims": ["ENVELOPE_LENGTH"]},
             {"name": "releaseEnvelope", "type": "float", "dims": ["ENVELOPE_LENGTH"]},
-            {"name": "attackSpeedMultiplier", "type": "float", "dims": ["POLYPHONY"]},
-            {"name": "releaseSpeedMultiplier", "type": "float", "dims": ["POLYPHONY"]},
+            {"name": "attackSpeedMultiplier", "type": "float64_t", "dims": ["POLYPHONY"]},
+            {"name": "releaseSpeedMultiplier", "type": "float64_t", "dims": ["POLYPHONY"]},
             {"name": "freqFilter", "type": "float", "dims": ["FILTER_STEPS"]},
             {"name": "pitchFactor", "type": "float", "dims": ["POLYPHONY"]},
         ]
@@ -295,7 +315,8 @@ class Synth:
             format = VK_FORMAT_R32_SFLOAT
             if s["type"] == "float64_t":
                 # format = VK_FORMAT_R64_SFLOAT
-                itemsize = 4 * 8
+                #itemsize = 4 * 8
+                itemsize = 4 * 4
             else:
                 itemsize = 4 * 4
 
@@ -341,23 +362,19 @@ class Synth:
         self.freqFilter.setBuffer(np.ones((4 * self.FILTER_STEPS)))
 
         # "ATTACK_TIME" : 0, ALL TIME AS A FLOAT OF SECONDS
-        self.attackEnvelope.pmap[:] = np.ones(
-            (4 * self.ENVELOPE_LENGTH), dtype=np.float32
-        )
+        self.attackEnvelope.setBuffer(np.ones((4 * self.ENVELOPE_LENGTH)))
 
         # value of 1 means 1 second attack. 2 means 1/2 second attack
         ENVTIME_SECONDS = 1
         factor = self.ENVELOPE_LENGTH * 4 / ENVTIME_SECONDS
-        self.attackSpeedMultiplier.pmap[:] = (
-            np.ones((4 * self.POLYPHONY), dtype=np.float32) * factor
-        )
+        #self.attackSpeedMultiplier.setBuffer(np.ones((4 * self.POLYPHONY)) * factor) ???
+        self.attackSpeedMultiplier.setBuffer(np.ones((2 * self.POLYPHONY)) * factor)
 
         # value of 1 means 1 second attack. 2 means 1/2 second attack
         ENVTIME_SECONDS = 1
         factor = self.ENVELOPE_LENGTH * 4 / ENVTIME_SECONDS
-        self.releaseSpeedMultiplier.pmap[:] = (
-            np.ones((4 * self.POLYPHONY), dtype=np.float32) * factor
-        )
+        #self.releaseSpeedMultiplier.setBuffer(np.ones((4 * self.POLYPHONY)) * factor) ???
+        self.releaseSpeedMultiplier.setBuffer(np.ones((2 * self.POLYPHONY)) * factor)
 
         if self.GRAPH:
             # to run GUI event loop
@@ -418,8 +435,9 @@ class Synth:
                 main = main2
         else:
             # otherwise, just declare the variable type
+            # INITIALIZE TO 0 ! 
             for var in self.debuggableVars:
-                VARSDECL += var["type"] + " " + var["name"] + ";\n"
+                VARSDECL += var["type"] + " " + var["name"] + " = 0;\n"
 
         main = main.replace("VARIABLEDECLARATIONS", VARSDECL)
 
@@ -443,7 +461,7 @@ class Synth:
 
         self.computePipeline = ComputePipeline(
             device=device,
-            workgroupShape=[self.SHADERS_PER_SAMPLE, self.SAMPLES_PER_DISPATCH, 1],
+            workgroupShape=[self.SAMPLES_PER_DISPATCH, self.SHADERS_PER_SAMPLE, 1],
             stages=[mandleStage],
         )
         device.children += [self.computePipeline]
@@ -515,7 +533,7 @@ class Synth:
 
     def range2unity(self, maxi):
         if maxi == 1:
-            unity = [1]
+            unity = [0]
         else:
             ar = np.arange(maxi)
             unity = ar - np.mean(ar)
@@ -695,11 +713,8 @@ class Synth:
 
         # start middle A note
         self.midi2commands(mido.Message("note_on", note=50, velocity=64, time=6.2))
-        self.midi2commands(mido.Message("note_on", note=60, velocity=64, time=6.2))
-        # print(np.frombuffer(self.partialVolume.pmap   , np.float32)[::4])
-        # print(np.frombuffer(self.partialMultiplier.pmap, np.float32)[::4])
-        # print(np.frombuffer(self.noteBaseIncrement.pmap     , np.float32)[::4])
-
+        #self.midi2commands(mido.Message("note_on", note=60, velocity=64, time=6.2))
+                                      
     def run(self):
 
         # into the loop
@@ -737,11 +752,8 @@ class Synth:
                         print(multiplier)
                         # self.releaseSpeedMultiplier.pmap[:] = np.ones((4*self.POLYPHONY), dtype=np.float32) * multiplier
 
-            # read all memory needed for simult postprocess
-            pa = np.frombuffer(self.pcmBufferOut.pmap, np.float32)[::4]
-
             # UPDATE PMAP MEMORY
-            self.currTime.setBuffer(np.ones((4 * self.POLYPHONY)) * time.time())
+            self.currTime.setBuffer(np.ones((2 * self.POLYPHONY)) * time.time()) # ???
             self.noteBasePhase.setBuffer(self.postBendArray)
             self.pitchFactor.setBuffer(
                 np.ones((4 * self.POLYPHONY)) * self.pitchwheelReal
@@ -752,16 +764,6 @@ class Synth:
 
             # We submit the command buffer on the queue, at the same time giving a fence.
             vkQueueSubmit(self.device.compute_queue, 1, self.submitInfo, self.fence)
-
-            # do CPU tings simultaneous with GPU process
-            pa = Synth.audioPostProcessAccelerated(
-                pa, self.SAMPLES_PER_DISPATCH, self.SHADERS_PER_SAMPLE
-            )
-            if self.PYSOUND:
-                self.stream.write(pa)
-            # we do CPU tings simultaneously
-            # apply pitch bend
-            self.postBendArray += self.fullAddArray * self.pitchwheelReal
 
             # NO MEMORY ACCESS
             # NO PMAP
@@ -788,6 +790,21 @@ class Synth:
                 device=self.device.vkDevice, fenceCount=1, pFences=[self.fence]
             )
 
+            # read all memory needed for simult postprocess
+            pa = np.frombuffer(self.pcmBufferOut.pmap, np.float32)[::4]
+
+            # do CPU tings simultaneous with GPU process
+            pa = Synth.audioPostProcessAccelerated(
+                pa, self.SAMPLES_PER_DISPATCH, self.SHADERS_PER_SAMPLE
+            )
+            
+            if self.PYSOUND:
+                self.stream.write(pa)
+            # we do CPU tings simultaneously
+            # apply pitch bend
+            self.postBendArray += self.fullAddArray * self.pitchwheelReal
+
+            
             if self.DEBUG:
                 outdict = {}
                 for debugVar in (
@@ -796,14 +813,13 @@ class Synth:
                     + self.shaderOutputBuffers
                 ):
                     if "64" in debugVar["type"]:
-                        skipindex = 8
-                        skipindex = 4
+                        #skipindex = 8
+                        skipindex = 2
                     else:
                         skipindex = 4
 
                     # glsl to python
                     newt = glsltype2pythonstring(debugVar["type"])
-                    print(newt)
                     runString = (
                         "np.frombuffer(self."
                         + debugVar["name"]
@@ -811,25 +827,21 @@ class Synth:
                         + newt
                         + ")"
                     )
-                    print(runString)
+                    #print(runString)
 
                     # calculate the dims we need to turn the array into
-                    print(debugVar["dims"])
                     newDims = []
                     for d in debugVar["dims"]:
                         newDims += [eval("self." + d)]
-                        print([eval("self." + d)])
+                        #print([eval("self." + d)])
 
                     # first retrieve the array with a simple eval
                     rcvdArray = eval(runString)
-                    print(rcvdArray)
                     rcvdArray = list(rcvdArray.astype(float))[
                         ::skipindex
                     ]  # apply the skip index
-                    print(rcvdArray)
                     rcvdArray = np.array(rcvdArray).reshape(newDims)
-                    print(rcvdArray)
-                    outdict[debugVar["name"]] = list(rcvdArray)
+                    outdict[debugVar["name"]] = rcvdArray.tolist() # nested lists with same data, indices
                 with open("debug.json", "w+") as f:
                     json.dump(outdict, f, indent=4)
                 sys.exit()

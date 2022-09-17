@@ -276,7 +276,7 @@ class Buffer(Sinode):
             + " "
             + self.name
             + "["
-            + str(int(self.size / 4))
+            + str(int(self.size / self.itemSize))
             + "];\n};\n"
         )
       
