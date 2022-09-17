@@ -75,7 +75,7 @@ class Synth:
         #print(pa)
         pa = np.ascontiguousarray(pa)
         pa = np.reshape(pa, (SAMPLES_PER_DISPATCH, SHADERS_PER_SAMPLE))
-        print(pa)
+        #print(pa)
         pa = np.sum(pa, axis=1)
         #print(pa)
         # pa2 = pa #np.ascontiguousarray(pa)
@@ -177,7 +177,8 @@ class Synth:
             {
                 "name": "pcmBufferOut",
                 "type": "float",
-                "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_SAMPLE", "CHANNELS"],
+                #"dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_SAMPLE", "CHANNELS"],
+                "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_SAMPLE"],
             }
         ]
 
@@ -797,7 +798,7 @@ class Synth:
             pa = Synth.audioPostProcessAccelerated(
                 pa, self.SAMPLES_PER_DISPATCH, self.SHADERS_PER_SAMPLE
             )
-            sys.exit()
+            
             if self.PYSOUND:
                 self.stream.write(pa)
             # we do CPU tings simultaneously
