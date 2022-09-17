@@ -195,7 +195,7 @@ class Buffer(Sinode):
         self.descriptorBufferInfo = VkDescriptorBufferInfo(
             buffer=self.vkBuffer, offset=0, range=SIZEBYTES
         )
-
+        self.setBuffer(np.zeros(int(SIZEBYTES/self.itemSize), dtype=self.pythonType))
         #print("finished creating buffer")
 
     def saveAsImage(self, height, width, path="mandelbrot.png"):
@@ -281,13 +281,8 @@ class Buffer(Sinode):
         )
       
     def setByIndex(self, index, data):
-        if self.itemSize == 4:
-          startByte = index*self.itemSize*4
-          endByte   = index*self.itemSize*4 + self.itemSize
-        if self.itemSize == 8:
-          startByte = index*self.itemSize*8
-          endByte   = index*self.itemSize*8 + self.itemSize
-          
+        startByte = index*self.itemSize
+        endByte   = index*self.itemSize + self.itemSize
         self.pmap[startByte:endByte] = np.array(data, dtype = self.pythonType)
 
     def setBuffer(self, data):

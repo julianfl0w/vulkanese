@@ -72,6 +72,7 @@ class Synth:
     # need to remove njit to profile
     # @njit
     def audioPostProcessAccelerated(pa, SAMPLES_PER_DISPATCH, SHADERS_PER_SAMPLE):
+        #print(pa)
         pa = np.ascontiguousarray(pa)
         pa = np.reshape(pa, (SAMPLES_PER_DISPATCH, SHADERS_PER_SAMPLE))
         #print(pa)
@@ -85,14 +86,16 @@ class Synth:
         # print(pa2)
         return pa
 
-    def __init__(self, q):
+    def __init__(self, q, runtype = "PYSOUND"):
         self.q = q
         self.mm = midiManager.MidiManager()
 
         self.GRAPH = False
-        self.PYSOUND =  True
+        self.PYSOUND = False
         self.SOUND = False
         self.DEBUG = False
+        
+        exec("self." + runtype + " = True")
 
         context = zmq.Context()
         # recieve work
@@ -114,25 +117,8 @@ class Synth:
 
         if self.DEBUG:
             self.replaceDict = {
-                "POLYPHONY": 1,
-                "POLYPHONY_PER_SHADER": 1,
-                "PARTIALS_PER_VOICE": 1,
-                "MINIMUM_FREQUENCY_HZ": 20,
-                "MAXIMUM_FREQUENCY_HZ": 20000,
-                # "SAMPLE_FREQUENCY"     : 48000,
-                "SAMPLE_FREQUENCY": 44100,
-                "PARTIALS_PER_HARMONIC": 1,
-                "UNDERVOLUME": 3,
-                "CHANNELS": 1,
-                "SAMPLES_PER_DISPATCH": 64,
-                "LATENCY_SECONDS": 0.100,
-                "ENVELOPE_LENGTH": 16,
-                "FILTER_STEPS": 16,
-            }
-        else:
-            self.replaceDict = {
-                "POLYPHONY": 16,
-                "POLYPHONY_PER_SHADER": 1,
+                "POLYPHONY": 8,
+                "POLYPHONY_PER_SHADER": 2,
                 "PARTIALS_PER_VOICE": 1,
                 "MINIMUM_FREQUENCY_HZ": 20,
                 "MAXIMUM_FREQUENCY_HZ": 20000,
@@ -143,8 +129,25 @@ class Synth:
                 "CHANNELS": 1,
                 "SAMPLES_PER_DISPATCH": 64,
                 "LATENCY_SECONDS": 0.010,
-                "ENVELOPE_LENGTH": 256,
-                "FILTER_STEPS": 256,
+                "ENVELOPE_LENGTH": 16,
+                "FILTER_STEPS": 16,
+            }
+        else:
+            self.replaceDict = {
+                "POLYPHONY": 8,
+                "POLYPHONY_PER_SHADER": 2,
+                "PARTIALS_PER_VOICE": 1,
+                "MINIMUM_FREQUENCY_HZ": 20,
+                "MAXIMUM_FREQUENCY_HZ": 20000,
+                # "SAMPLE_FREQUENCY"     : 48000,
+                "SAMPLE_FREQUENCY": 44100,
+                "PARTIALS_PER_HARMONIC": 1,
+                "UNDERVOLUME": 3,
+                "CHANNELS": 1,
+                "SAMPLES_PER_DISPATCH": 64,
+                "LATENCY_SECONDS": 0.010,
+                "ENVELOPE_LENGTH": 16,
+                "FILTER_STEPS": 16,
             }
         # derived values
         self.replaceDict["SHADERS_PER_SAMPLE"] = int(
@@ -786,9 +789,6 @@ class Synth:
                 self.device.vkDevice, 1, [self.fence], VK_TRUE, 100000000000
             )
 
-            vkResetFences(
-                device=self.device.vkDevice, fenceCount=1, pFences=[self.fence]
-            )
 
             # read all memory needed for simult postprocess
             pa = np.frombuffer(self.pcmBufferOut.pmap, np.float32)[::4]
@@ -804,6 +804,9 @@ class Synth:
             # apply pitch bend
             self.postBendArray += self.fullAddArray * self.pitchwheelReal
 
+            vkResetFences(
+                device=self.device.vkDevice, fenceCount=1, pFences=[self.fence]
+            )
             
             if self.DEBUG:
                 outdict = {}
@@ -857,11 +860,11 @@ class Synth:
         self.instance_inst.release()
 
 
-def runSynth(q):
-    s = Synth(q)
+def runSynth(q, runtype = "PYSOUND"):
+    s = Synth(q, runtype)
     s.runTest()
     s.run()
 
 
 if __name__ == "__main__":
-    runSynth(q=None)
+    runSynth(q=None, runtype = sys.argv[1])
