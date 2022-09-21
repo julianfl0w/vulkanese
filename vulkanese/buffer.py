@@ -7,53 +7,57 @@ import numpy as np
 
 here = os.path.dirname(os.path.abspath(__file__))
 
+
 def glsltype2python(glsltype):
-  if glsltype == "float":
-    return np.float32
-  if glsltype == "float32_t":
-    return np.float32
-  elif glsltype == "float64_t":
-    return np.float64
-  elif glsltype == "int":
-    return np.int32
-  elif glsltype == "uint":
-    return np.uint32
-  else:
-    print("type")
-    print(glsltype)
-    die
+    if glsltype == "float":
+        return np.float32
+    if glsltype == "float32_t":
+        return np.float32
+    elif glsltype == "float64_t":
+        return np.float64
+    elif glsltype == "int":
+        return np.int32
+    elif glsltype == "uint":
+        return np.uint32
+    else:
+        print("type")
+        print(glsltype)
+        die
+
 
 def glsltype2pythonstring(glsltype):
-  if glsltype == "float":
-    return "np.float32"
-  if glsltype == "float32_t":
-    return "np.float32"
-  elif glsltype == "float64_t":
-    return "np.float64"
-  elif glsltype == "int":
-    return "np.int32"
-  elif glsltype == "uint":
-    return "np.uint32"
-  else:
-    print("type")
-    print(glsltype)
-    die
-    
+    if glsltype == "float":
+        return "np.float32"
+    if glsltype == "float32_t":
+        return "np.float32"
+    elif glsltype == "float64_t":
+        return "np.float64"
+    elif glsltype == "int":
+        return "np.int32"
+    elif glsltype == "uint":
+        return "np.uint32"
+    else:
+        print("type")
+        print(glsltype)
+        die
+
+
 def glsltype2bytesize(glsltype):
-  if glsltype == "float":
-    return 4
-  elif glsltype == "float32_t":
-    return 4
-  elif glsltype == "float64_t":
-    return 8
-  elif glsltype == "int":
-    return 4
-  elif glsltype == "uint":
-    return 4
-  else:
-    print("type")
-    print(glsltype)
-    die
+    if glsltype == "float":
+        return 4
+    elif glsltype == "float32_t":
+        return 4
+    elif glsltype == "float64_t":
+        return 8
+    elif glsltype == "int":
+        return 4
+    elif glsltype == "uint":
+        return 4
+    else:
+        print("type")
+        print(glsltype)
+        die
+
 
 class Buffer(Sinode):
 
@@ -179,8 +183,8 @@ class Buffer(Sinode):
         # accessed in a shader as an array, except if descriptorType is
         # VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK in which case descriptorCount
         # is the size in bytes of the inline uniform block
-        #print("BUFFER DTYPE")
-        #print(descriptorSet.type)
+        # print("BUFFER DTYPE")
+        # print(descriptorSet.type)
         self.descriptorSetLayoutBinding = VkDescriptorSetLayoutBinding(
             binding=self.binding,
             descriptorType=descriptorSet.type,
@@ -195,8 +199,8 @@ class Buffer(Sinode):
         self.descriptorBufferInfo = VkDescriptorBufferInfo(
             buffer=self.vkBuffer, offset=0, range=SIZEBYTES
         )
-        self.setBuffer(np.zeros(int(SIZEBYTES/self.itemSize), dtype=self.pythonType))
-        #print("finished creating buffer")
+        self.setBuffer(np.zeros(int(SIZEBYTES / self.itemSize), dtype=self.pythonType))
+        # print("finished creating buffer")
 
     def saveAsImage(self, height, width, path="mandelbrot.png"):
 
@@ -279,11 +283,11 @@ class Buffer(Sinode):
             + str(int(self.size / self.itemSize))
             + "];\n};\n"
         )
-      
+
     def setByIndex(self, index, data):
-        startByte = index*self.itemSize
-        endByte   = index*self.itemSize + self.itemSize
-        self.pmap[startByte:endByte] = np.array(data, dtype = self.pythonType)
+        startByte = index * self.itemSize
+        endByte = index * self.itemSize + self.itemSize
+        self.pmap[startByte:endByte] = np.array(data, dtype=self.pythonType)
 
     def setBuffer(self, data):
         self.pmap[:] = data.astype(glsltype2python(self.type))

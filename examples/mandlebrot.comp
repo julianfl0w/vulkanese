@@ -2,8 +2,8 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float64 : require
 //#extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
 #extension GL_ARB_separate_shader_objects : enable
-        #define POLYPHONY 8
-#define POLYPHONY_PER_SHADER 2
+        #define POLYPHONY 16
+#define POLYPHONY_PER_SHADER 1
 #define PARTIALS_PER_VOICE 1
 #define MINIMUM_FREQUENCY_HZ 20
 #define MAXIMUM_FREQUENCY_HZ 20000
@@ -11,23 +11,23 @@
 #define PARTIALS_PER_HARMONIC 1
 #define UNDERVOLUME 3
 #define CHANNELS 1
-#define SAMPLES_PER_DISPATCH 64
+#define SAMPLES_PER_DISPATCH 32
 #define LATENCY_SECONDS 0.01
 #define ENVELOPE_LENGTH 16
 #define FILTER_STEPS 16
-#define SHADERS_PER_SAMPLE 4
+#define SHADERS_PER_SAMPLE 16
 layout (local_size_x = SAMPLES_PER_DISPATCH, local_size_y = SHADERS_PER_SAMPLE, local_size_z = 1 ) in;
 layout(std140, set = 0, binding = 0) buffer pcmBufferOut_buf
 {
-   float pcmBufferOut[1024];
+   float pcmBufferOut[2048];
 };
 layout(std140, set = 0, binding = 1) buffer currTimeWithSampleOffset_buf
 {
-   float64_t currTimeWithSampleOffset[512];
+   float64_t currTimeWithSampleOffset[1024];
 };
 layout(std140, set = 0, binding = 2) buffer shadersum_buf
 {
-   float shadersum[1024];
+   float shadersum[2048];
 };
 layout(std140, set = 0, binding = 3) buffer envelopeAmplitude_buf
 {
@@ -79,7 +79,7 @@ layout(std140, set = 0, binding = 14) buffer indexInFilter_buf
 };
 layout(std140, set = 1, binding = 0) uniform noteBaseIncrement_buf
 {
-   float noteBaseIncrement[32];
+   float noteBaseIncrement[64];
 };
 layout(std140, set = 1, binding = 1) uniform partialMultiplier_buf
 {
@@ -91,23 +91,23 @@ layout(std140, set = 1, binding = 2) uniform partialVolume_buf
 };
 layout(std140, set = 1, binding = 3) uniform noteVolume_buf
 {
-   float noteVolume[32];
+   float noteVolume[64];
 };
 layout(std140, set = 1, binding = 4) uniform noteStrikeTime_buf
 {
-   float64_t noteStrikeTime[16];
+   float64_t noteStrikeTime[32];
 };
 layout(std140, set = 1, binding = 5) uniform noteReleaseTime_buf
 {
-   float64_t noteReleaseTime[16];
+   float64_t noteReleaseTime[32];
 };
 layout(std140, set = 1, binding = 6) uniform currTime_buf
 {
-   float64_t currTime[16];
+   float64_t currTime[32];
 };
 layout(std140, set = 1, binding = 7) uniform noteBasePhase_buf
 {
-   float noteBasePhase[32];
+   float noteBasePhase[64];
 };
 layout(std140, set = 1, binding = 8) uniform attackEnvelope_buf
 {
@@ -119,11 +119,11 @@ layout(std140, set = 1, binding = 9) uniform releaseEnvelope_buf
 };
 layout(std140, set = 1, binding = 10) uniform attackSpeedMultiplier_buf
 {
-   float64_t attackSpeedMultiplier[16];
+   float64_t attackSpeedMultiplier[32];
 };
 layout(std140, set = 1, binding = 11) uniform releaseSpeedMultiplier_buf
 {
-   float64_t releaseSpeedMultiplier[16];
+   float64_t releaseSpeedMultiplier[32];
 };
 layout(std140, set = 1, binding = 12) uniform freqFilter_buf
 {
@@ -131,17 +131,19 @@ layout(std140, set = 1, binding = 12) uniform freqFilter_buf
 };
 layout(std140, set = 1, binding = 13) uniform pitchFactor_buf
 {
-   float pitchFactor[32];
+   float pitchFactor[64];
 };
 void main() {
        
-  uint sampleNo = gl_GlobalInvocationID.x;
-  uint shaderIndexInSample = gl_GlobalInvocationID.y;
+  uint sampleNo = gl_LocalInvocationID.x;
+  uint shaderIndexInSample = gl_LocalInvocationID.y;
+  uint zindex = gl_LocalInvocationID.z;
 
   
   
   // current time depends on the sample offset
-  currTimeWithSampleOffset[sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample] = currTime[0] + float64_t(sampleNo)/SAMPLE_FREQUENCY;
+  currTimeWithSampleOffset[sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample] = currTime[0] + sampleNo/float(SAMPLE_FREQUENCY);
+  //currTimeWithSampleOffset = shaderIndexInSample; //sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample;
         
   for (uint noteNo = shaderIndexInSample*POLYPHONY_PER_SHADER; noteNo<(shaderIndexInSample+1)*POLYPHONY_PER_SHADER; noteNo++){
 
@@ -150,8 +152,6 @@ void main() {
       // these values are updated in the python loop
 
       // attack phase
-      //secondsSinceStrike  = abs(currTimeWithSampleOffset - noteStrikeTime[noteNo] );
-      //secondsSinceRelease = abs(currTimeWithSampleOffset - noteReleaseTime[noteNo]);
       secondsSinceStrike[sampleNo*POLYPHONY+noteNo]  = currTimeWithSampleOffset[sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample] - noteStrikeTime[noteNo] ;
       secondsSinceRelease[sampleNo*POLYPHONY+noteNo] = currTimeWithSampleOffset[sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample] - noteReleaseTime[noteNo];
 

@@ -72,12 +72,12 @@ class Synth:
     # need to remove njit to profile
     # @njit
     def audioPostProcessAccelerated(pa, SAMPLES_PER_DISPATCH, SHADERS_PER_SAMPLE):
-        #print(pa)
+        # print(pa)
         pa = np.ascontiguousarray(pa)
         pa = np.reshape(pa, (SAMPLES_PER_DISPATCH, SHADERS_PER_SAMPLE))
-        print(pa)
-        pa = np.sum(pa, axis=1)
         #print(pa)
+        pa = np.sum(pa, axis=1)
+        # print(pa)
         # pa2 = pa #np.ascontiguousarray(pa)
         # pa3 = np.vstack((pa2, pa2))
         # pa4 = np.swapaxes(pa3, 0, 1)
@@ -86,7 +86,7 @@ class Synth:
         # print(pa2)
         return pa
 
-    def __init__(self, q, runtype = "PYSOUND"):
+    def __init__(self, q, runtype="PYSOUND"):
         self.q = q
         self.mm = midiManager.MidiManager()
 
@@ -94,7 +94,7 @@ class Synth:
         self.PYSOUND = False
         self.SOUND = False
         self.DEBUG = False
-        
+
         exec("self." + runtype + " = True")
 
         context = zmq.Context()
@@ -117,8 +117,8 @@ class Synth:
 
         if self.DEBUG:
             self.replaceDict = {
-                "POLYPHONY": 8,
-                "POLYPHONY_PER_SHADER": 2,
+                "POLYPHONY": 16,
+                "POLYPHONY_PER_SHADER": 1,
                 "PARTIALS_PER_VOICE": 1,
                 "MINIMUM_FREQUENCY_HZ": 20,
                 "MAXIMUM_FREQUENCY_HZ": 20000,
@@ -127,16 +127,16 @@ class Synth:
                 "PARTIALS_PER_HARMONIC": 1,
                 "UNDERVOLUME": 3,
                 "CHANNELS": 1,
-                "SAMPLES_PER_DISPATCH": 64,
+                "SAMPLES_PER_DISPATCH": 32,
                 "LATENCY_SECONDS": 0.010,
                 "ENVELOPE_LENGTH": 16,
                 "FILTER_STEPS": 16,
             }
         else:
             self.replaceDict = {
-                "POLYPHONY": 8,
+                "POLYPHONY": 32,
                 "POLYPHONY_PER_SHADER": 2,
-                "PARTIALS_PER_VOICE": 1,
+                "PARTIALS_PER_VOICE": 4,
                 "MINIMUM_FREQUENCY_HZ": 20,
                 "MAXIMUM_FREQUENCY_HZ": 20000,
                 # "SAMPLE_FREQUENCY"     : 48000,
@@ -295,8 +295,16 @@ class Synth:
             },  # make these vals 64bit if possible
             {"name": "attackEnvelope", "type": "float", "dims": ["ENVELOPE_LENGTH"]},
             {"name": "releaseEnvelope", "type": "float", "dims": ["ENVELOPE_LENGTH"]},
-            {"name": "attackSpeedMultiplier", "type": "float64_t", "dims": ["POLYPHONY"]},
-            {"name": "releaseSpeedMultiplier", "type": "float64_t", "dims": ["POLYPHONY"]},
+            {
+                "name": "attackSpeedMultiplier",
+                "type": "float64_t",
+                "dims": ["POLYPHONY"],
+            },
+            {
+                "name": "releaseSpeedMultiplier",
+                "type": "float64_t",
+                "dims": ["POLYPHONY"],
+            },
             {"name": "freqFilter", "type": "float", "dims": ["FILTER_STEPS"]},
             {"name": "pitchFactor", "type": "float", "dims": ["POLYPHONY"]},
         ]
@@ -318,7 +326,7 @@ class Synth:
             format = VK_FORMAT_R32_SFLOAT
             if s["type"] == "float64_t":
                 # format = VK_FORMAT_R64_SFLOAT
-                #itemsize = 4 * 8
+                # itemsize = 4 * 8
                 itemsize = 4 * 4
             else:
                 itemsize = 4 * 4
@@ -370,13 +378,13 @@ class Synth:
         # value of 1 means 1 second attack. 2 means 1/2 second attack
         ENVTIME_SECONDS = 1
         factor = self.ENVELOPE_LENGTH * 4 / ENVTIME_SECONDS
-        #self.attackSpeedMultiplier.setBuffer(np.ones((4 * self.POLYPHONY)) * factor) ???
+        # self.attackSpeedMultiplier.setBuffer(np.ones((4 * self.POLYPHONY)) * factor) ???
         self.attackSpeedMultiplier.setBuffer(np.ones((2 * self.POLYPHONY)) * factor)
 
         # value of 1 means 1 second attack. 2 means 1/2 second attack
         ENVTIME_SECONDS = 1
         factor = self.ENVELOPE_LENGTH * 4 / ENVTIME_SECONDS
-        #self.releaseSpeedMultiplier.setBuffer(np.ones((4 * self.POLYPHONY)) * factor) ???
+        # self.releaseSpeedMultiplier.setBuffer(np.ones((4 * self.POLYPHONY)) * factor) ???
         self.releaseSpeedMultiplier.setBuffer(np.ones((2 * self.POLYPHONY)) * factor)
 
         if self.GRAPH:
@@ -438,7 +446,7 @@ class Synth:
                 main = main2
         else:
             # otherwise, just declare the variable type
-            # INITIALIZE TO 0 ! 
+            # INITIALIZE TO 0 !
             for var in self.debuggableVars:
                 VARSDECL += var["type"] + " " + var["name"] + " = 0;\n"
 
@@ -716,8 +724,9 @@ class Synth:
 
         # start middle A note
         self.midi2commands(mido.Message("note_on", note=50, velocity=64, time=6.2))
-        #self.midi2commands(mido.Message("note_on", note=60, velocity=64, time=6.2))
-                                      
+        self.midi2commands(mido.Message("note_on", note=60, velocity=64, time=6.2))
+        #self.midi2commands(mido.Message("note_on", note=70, velocity=64, time=6.2))
+
     def run(self):
 
         # into the loop
@@ -756,7 +765,7 @@ class Synth:
                         # self.releaseSpeedMultiplier.pmap[:] = np.ones((4*self.POLYPHONY), dtype=np.float32) * multiplier
 
             # UPDATE PMAP MEMORY
-            self.currTime.setBuffer(np.ones((2 * self.POLYPHONY)) * time.time()) # ???
+            self.currTime.setByIndex(0,  time.time())
             self.noteBasePhase.setBuffer(self.postBendArray)
             self.pitchFactor.setBuffer(
                 np.ones((4 * self.POLYPHONY)) * self.pitchwheelReal
@@ -765,8 +774,17 @@ class Synth:
             # process MIDI
             self.mm.eventLoop(self)
 
+            vkResetFences(
+                device=self.device.vkDevice, fenceCount=1, pFences=[self.fence]
+            )
+            
             # We submit the command buffer on the queue, at the same time giving a fence.
-            vkQueueSubmit(self.device.compute_queue, 1, self.submitInfo, self.fence)
+            vkQueueSubmit(
+                queue=self.device.compute_queue,
+                submitCount=1,
+                pSubmits=self.submitInfo,
+                fence=self.fence,
+            )
 
             # NO MEMORY ACCESS
             # NO PMAP
@@ -786,10 +804,13 @@ class Synth:
             # and we will not be sure that the command has finished executing unless we wait for the fence.
             # Hence, we use a fence here.
             vkWaitForFences(
-                self.device.vkDevice, 1, [self.fence], VK_TRUE, 100000000000
+                device=self.device.vkDevice,
+                fenceCount=1,
+                pFences=[self.fence],
+                waitAll=VK_TRUE,
+                timeout=10000000,
             )
-
-
+            
             # read all memory needed for simult postprocess
             pa = np.frombuffer(self.pcmBufferOut.pmap, np.float32)[::4]
 
@@ -797,17 +818,14 @@ class Synth:
             pa = Synth.audioPostProcessAccelerated(
                 pa, self.SAMPLES_PER_DISPATCH, self.SHADERS_PER_SAMPLE
             )
-            sys.exit()
+            
             if self.PYSOUND:
                 self.stream.write(pa)
             # we do CPU tings simultaneously
             # apply pitch bend
             self.postBendArray += self.fullAddArray * self.pitchwheelReal
 
-            vkResetFences(
-                device=self.device.vkDevice, fenceCount=1, pFences=[self.fence]
-            )
-            
+
             if self.DEBUG:
                 outdict = {}
                 for debugVar in (
@@ -816,7 +834,7 @@ class Synth:
                     + self.shaderOutputBuffers
                 ):
                     if "64" in debugVar["type"]:
-                        #skipindex = 8
+                        # skipindex = 8
                         skipindex = 2
                     else:
                         skipindex = 4
@@ -830,13 +848,13 @@ class Synth:
                         + newt
                         + ")"
                     )
-                    #print(runString)
+                    # print(runString)
 
                     # calculate the dims we need to turn the array into
                     newDims = []
                     for d in debugVar["dims"]:
                         newDims += [eval("self." + d)]
-                        #print([eval("self." + d)])
+                        # print([eval("self." + d)])
 
                     # first retrieve the array with a simple eval
                     rcvdArray = eval(runString)
@@ -844,7 +862,9 @@ class Synth:
                         ::skipindex
                     ]  # apply the skip index
                     rcvdArray = np.array(rcvdArray).reshape(newDims)
-                    outdict[debugVar["name"]] = rcvdArray.tolist() # nested lists with same data, indices
+                    outdict[
+                        debugVar["name"]
+                    ] = rcvdArray.tolist()  # nested lists with same data, indices
                 with open("debug.json", "w+") as f:
                     json.dump(outdict, f, indent=4)
                 sys.exit()
@@ -860,11 +880,11 @@ class Synth:
         self.instance_inst.release()
 
 
-def runSynth(q, runtype = "PYSOUND"):
+def runSynth(q, runtype="PYSOUND"):
     s = Synth(q, runtype)
     s.runTest()
     s.run()
 
 
 if __name__ == "__main__":
-    runSynth(q=None, runtype = sys.argv[1])
+    runSynth(q=None, runtype=sys.argv[1])

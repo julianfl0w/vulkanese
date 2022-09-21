@@ -1,12 +1,14 @@
 void main() {
        
-  uint sampleNo = gl_GlobalInvocationID.x;
-  uint shaderIndexInSample = gl_GlobalInvocationID.y;
+  uint sampleNo = gl_LocalInvocationID.x;
+  uint shaderIndexInSample = gl_LocalInvocationID.y;
+  uint zindex = gl_LocalInvocationID.z;
 
   VARIABLEDECLARATIONS
   
   // current time depends on the sample offset
-  currTimeWithSampleOffset = currTime[0] + float64_t(sampleNo)/SAMPLE_FREQUENCY;
+  currTimeWithSampleOffset = currTime[0] + sampleNo/float(SAMPLE_FREQUENCY);
+  //currTimeWithSampleOffset = shaderIndexInSample; //sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample;
         
   for (uint noteNo = shaderIndexInSample*POLYPHONY_PER_SHADER; noteNo<(shaderIndexInSample+1)*POLYPHONY_PER_SHADER; noteNo++){
 
@@ -15,8 +17,6 @@ void main() {
       // these values are updated in the python loop
 
       // attack phase
-      //secondsSinceStrike  = abs(currTimeWithSampleOffset - noteStrikeTime[noteNo] );
-      //secondsSinceRelease = abs(currTimeWithSampleOffset - noteReleaseTime[noteNo]);
       secondsSinceStrike  = currTimeWithSampleOffset - noteStrikeTime[noteNo] ;
       secondsSinceRelease = currTimeWithSampleOffset - noteReleaseTime[noteNo];
 
