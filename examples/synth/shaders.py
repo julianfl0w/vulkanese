@@ -71,6 +71,11 @@ class SynthShader:
                 for d in s["dims"]:
                     TOTALSIZEBYTES *= eval("self." + d)
                 s["SIZEBYTES"] = TOTALSIZEBYTES
+
+                # optional: convert everything to float
+                #if s["type"] == "float64_t":
+                #    s["type"] = "float"
+
         # generate a compute cmd buffer
         self.computeShader = ComputeShader(
             main=main,
@@ -100,28 +105,32 @@ class SynthShader:
         self.computeShader.attackEnvelope.setBuffer(np.ones((4 * self.ENVELOPE_LENGTH)))
 
         # initialize the Sine LookUp Table
+        skipval = self.computeShader.SLUT.skipval
         self.computeShader.SLUT.setBuffer(
-            np.sin(2 * 3.1415926 * np.arange(2 * self.SLUTLEN) / (2 * self.SLUTLEN))
+            np.sin(2 * 3.1415926 * np.arange(skipval * self.SLUTLEN) / (skipval * self.SLUTLEN))
         )
 
         # value of 1 means 1 second attack. 2 means 1/2 second attack
         ENVTIME_SECONDS = 1
         factor = self.ENVELOPE_LENGTH * 4 / ENVTIME_SECONDS
         # self.attackSpeedMultiplier.setBuffer(np.ones((4 * self.POLYPHONY)) * factor) ???
+        skipval = self.computeShader.attackSpeedMultiplier.skipval
         self.computeShader.attackSpeedMultiplier.setBuffer(
-            np.ones((2 * self.POLYPHONY)) * factor
+            np.ones((skipval * self.POLYPHONY)) * factor
         )
 
         # value of 1 means 1 second attack. 2 means 1/2 second attack
         ENVTIME_SECONDS = 1
         factor = self.ENVELOPE_LENGTH * 4 / ENVTIME_SECONDS
         # self.releaseSpeedMultiplier.setBuffer(np.ones((4 * self.POLYPHONY)) * factor) ???
+        skipval = self.computeShader.releaseSpeedMultiplier.skipval
         self.computeShader.releaseSpeedMultiplier.setBuffer(
-            np.ones((2 * self.POLYPHONY)) * factor
+            np.ones((skipval * self.POLYPHONY)) * factor
         )
 
         # precompute some arrays
-        self.fullAddArray = np.zeros((2 * self.POLYPHONY), dtype=np.float64)
+        skipval = self.computeShader.noteBasePhase.skipval
+        self.fullAddArray = np.zeros((skipval * self.POLYPHONY), dtype=np.float64)
 
         self.updatePartials()
 
@@ -187,7 +196,7 @@ class SynthShader:
 
     # random ass fast cpu proc in random ass place
     # need to remove njit to profile
-    @njit
+    #@njit
     def audioPostProcessAccelerated(buffaddr, SAMPLES_PER_DISPATCH, SHADERS_PER_SAMPLE):
         # print(pa)
 

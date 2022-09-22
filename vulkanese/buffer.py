@@ -109,6 +109,7 @@ class Buffer(Sinode):
         self.type = type
         self.itemSize = glsltype2bytesize(self.type)
         self.pythonType = glsltype2python(self.type)
+        self.skipval = int(16/self.itemSize)
         self.name = name
         self.descriptorSet = descriptorSet
 

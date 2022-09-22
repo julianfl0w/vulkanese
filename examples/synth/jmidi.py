@@ -180,9 +180,10 @@ class MidiManager:
                 else:
                     self.sustain = False
                     for note in self.toRelease:
-                        self.midi2commands(
-                            mido.Message("note_off", note=note, velocity=0, time=6.2)
-                        )
+                        for dev, patches in self.allMidiDevicesAndPatches:
+                            for patch in patches:
+                                patch.midi2commands(mido.Message("note_off", note=note, velocity=0, time=6.2)
+                                )
                     self.toRelease = []
 
             # mod wheel
@@ -253,10 +254,10 @@ class MidiManager:
                         continue
                     else:
                         processedAT = True
-
-                logger.debug(msg)
-                for p in processors:
-                    p.midi2commands(msg)
+                if msg is not None:
+                    logger.debug(msg)
+                    for p in processors:
+                        p.midi2commands(msg)
 
     def eventLoop(self, processor):
 
