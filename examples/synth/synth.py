@@ -52,6 +52,7 @@ class Synth:
                 "PARTIALS_PER_VOICE": 1,
                 "SAMPLE_FREQUENCY": 44100,
                 "PARTIALS_PER_HARMONIC": 1,
+                "PARTIAL_SPREAD": 0.02,
                 "UNDERVOLUME": 3,
                 "CHANNELS": 1,
                 "SAMPLES_PER_DISPATCH": 32,
@@ -62,17 +63,18 @@ class Synth:
         else:
             self.paramsDict = {
                 "POLYPHONY": 32,
-                "POLYPHONY_PER_SHADER": 2,
+                "POLYPHONY_PER_SHADER": 32,
                 "SLUTLEN": 2 ** 18,
-                "PARTIALS_PER_VOICE": 16,
+                "PARTIALS_PER_VOICE": 128,
                 "SAMPLE_FREQUENCY": 44100,
-                "PARTIALS_PER_HARMONIC": 4,
+                "PARTIALS_PER_HARMONIC": 3,
+                "PARTIAL_SPREAD": 0.001,
                 "UNDERVOLUME": 3,
                 "CHANNELS": 1,
                 "SAMPLES_PER_DISPATCH": 64,
-                "LATENCY_SECONDS": 0.100,
-                "ENVELOPE_LENGTH": 16,
-                "FILTER_STEPS": 16,
+                "LATENCY_SECONDS": 0.070,
+                "ENVELOPE_LENGTH": 512,
+                "FILTER_STEPS": 512,
             }
 
         # derived values
@@ -214,14 +216,14 @@ class Synth:
                 # print(recvd)
                 varName, self.newVal = recvd
                 if varName == "attackEnvelope":
-                    self.attackEnvelope.setBuffer(self.newVal)
+                    self.synthShader.computeShader.attackEnvelope.setBuffer(self.newVal)
                 elif varName == "attackLifespan":
                     mini = 0.25  # minimum lifespan, seconds
                     maxi = 5  # maximim lifespan, seconds
                     self.newVal = mini + (self.newVal * (maxi - mini))
                     multiplier = self.ENVELOPE_LENGTH / (self.newVal)
                     print(multiplier)
-                    self.attackSpeedMultiplier.setBuffer(
+                    self.synthShader.computeShader.attackSpeedMultiplier.setBuffer(
                         self.POLYLEN_ONES64 * multiplier
                     )
 
@@ -231,9 +233,16 @@ class Synth:
                     self.newVal = mini + (self.newVal * (maxi - mini))
                     multiplier = self.ENVELOPE_LENGTH / (self.newVal)
                     print(multiplier)
-                    self.releaseSpeedMultiplier.setBuffer(
+                    self.synthShader.computeShader.releaseSpeedMultiplier.setBuffer(
                         self.POLYLEN_ONES64 * multiplier
                     )
+                    
+                elif varName == "partialSpread":
+                    mini = 0.001  # minimum
+                    maxi = 0.1   # maximim
+                    self.newVal = mini + (self.newVal * (maxi - mini))
+                    self.synthShader.PARTIAL_SPREAD = self.newVal
+                    self.synthShader.updatePartials()
 
     def run(self):
 

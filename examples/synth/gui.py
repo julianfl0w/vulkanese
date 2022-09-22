@@ -35,6 +35,7 @@ from kivy.clock import Clock
 
 class LinePlayground(FloatLayout):
 
+    partialSpread = NumericProperty(0.5)
     releaseLifespan = NumericProperty(0.5)
     attackLifespan = NumericProperty(0.5)
     close = BooleanProperty(False)
@@ -89,12 +90,12 @@ class LinePlayground(FloatLayout):
                 min: 0.
                 max: 1.
             Label:
-                text: 'Width'
+                text: 'PARTIAL_SPREAD'
             Slider:
-                value: root.linewidth
-                on_value: root.linewidth = args[1]
-                min: 1
-                max: 40
+                value: root.partialSpread
+                on_value: root.partialSpread = float(args[1])
+                min: 0.
+                max: 1.
 
             Label:
                 text: 'Close'
@@ -202,9 +203,14 @@ class LinePlayground(FloatLayout):
         self.bind(size=self.on_resize)
         self.bind(attackLifespan=self.updateattackLifespan)
         self.bind(releaseLifespan=self.updatereleaseLifespan)
+        self.bind(partialSpread=self.updatepartialSpread)
 
+        
         # self.points = [[0,0], [500,500]]
 
+    def updatepartialSpread(self, obj, value):
+        self.q.put(["partialSpread", value])
+        
     def updateattackLifespan(self, obj, value):
         self.q.put(["attackLifespan", value])
 

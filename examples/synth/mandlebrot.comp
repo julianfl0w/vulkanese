@@ -3,22 +3,23 @@
 //#extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
 #extension GL_ARB_separate_shader_objects : enable
 #define POLYPHONY 32
-#define POLYPHONY_PER_SHADER 2
+#define POLYPHONY_PER_SHADER 32
 #define SLUTLEN 262144
-#define PARTIALS_PER_VOICE 16
+#define PARTIALS_PER_VOICE 128
 #define SAMPLE_FREQUENCY 44100
-#define PARTIALS_PER_HARMONIC 4
+#define PARTIALS_PER_HARMONIC 3
+#define PARTIAL_SPREAD 0.001
 #define UNDERVOLUME 3
 #define CHANNELS 1
 #define SAMPLES_PER_DISPATCH 64
-#define LATENCY_SECONDS 0.1
-#define ENVELOPE_LENGTH 16
-#define FILTER_STEPS 16
-#define SHADERS_PER_SAMPLE 16
+#define LATENCY_SECONDS 0.07
+#define ENVELOPE_LENGTH 512
+#define FILTER_STEPS 512
+#define SHADERS_PER_SAMPLE 1
 layout (local_size_x = SAMPLES_PER_DISPATCH, local_size_y = SHADERS_PER_SAMPLE, local_size_z = 1 ) in;
 layout(std140, set = 0, binding = 0) buffer pcmBufferOut_buf
 {
-   float pcmBufferOut[4096];
+   float pcmBufferOut[256];
 };
 layout(std140, set = 1, binding = 0) uniform noteBaseIncrement_buf
 {
@@ -26,11 +27,11 @@ layout(std140, set = 1, binding = 0) uniform noteBaseIncrement_buf
 };
 layout(std140, set = 1, binding = 1) uniform partialMultiplier_buf
 {
-   float partialMultiplier[64];
+   float partialMultiplier[512];
 };
 layout(std140, set = 1, binding = 2) uniform partialVolume_buf
 {
-   float partialVolume[64];
+   float partialVolume[512];
 };
 layout(std140, set = 1, binding = 3) uniform noteVolume_buf
 {
@@ -50,11 +51,11 @@ layout(std140, set = 1, binding = 6) uniform currTime_buf
 };
 layout(std140, set = 1, binding = 7) uniform attackEnvelope_buf
 {
-   float attackEnvelope[64];
+   float attackEnvelope[2048];
 };
 layout(std140, set = 1, binding = 8) uniform releaseEnvelope_buf
 {
-   float releaseEnvelope[64];
+   float releaseEnvelope[2048];
 };
 layout(std140, set = 1, binding = 9) uniform attackSpeedMultiplier_buf
 {
@@ -66,7 +67,7 @@ layout(std140, set = 1, binding = 10) uniform releaseSpeedMultiplier_buf
 };
 layout(std140, set = 1, binding = 11) uniform freqFilter_buf
 {
-   float freqFilter[64];
+   float freqFilter[2048];
 };
 layout(std140, set = 1, binding = 12) uniform pitchFactor_buf
 {
