@@ -13,7 +13,7 @@ if __name__ == "__main__":
     print("Now, process is eligible to run on:", os.sched_getaffinity(backendProc.pid))
 
     # mp.freeze_support()
-    from synthGui import runGui
+    from gui import runGui
 
     frontendProc = ctx.Process(target=runGui, args=(q,))
     frontendProc.start()

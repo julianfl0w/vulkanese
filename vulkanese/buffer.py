@@ -285,9 +285,26 @@ class Buffer(Sinode):
         )
 
     def setByIndex(self, index, data):
-        startByte = index * self.itemSize
-        endByte = index * self.itemSize + self.itemSize
+        if self.itemSize > 4:
+            skipindex = 2
+        else:
+            skipindex = 4
+
+        # print(self.name + " setting " + str(index) + " to " + str(data))
+        startByte = index * self.itemSize * skipindex
+        endByte = index * self.itemSize * skipindex + self.itemSize
         self.pmap[startByte:endByte] = np.array(data, dtype=self.pythonType)
+
+    def getByIndex(self, index):
+        if self.itemSize > 4:
+            skipindex = 2
+        else:
+            skipindex = 4
+
+        # print(self.name + " setting " + str(index) + " to " + str(data))
+        startByte = index * self.itemSize * skipindex
+        endByte = index * self.itemSize * skipindex + self.itemSize
+        return np.frombuffer(self.pmap[startByte:endByte], dtype=self.pythonType)
 
     def setBuffer(self, data):
         self.pmap[:] = data.astype(glsltype2python(self.type))

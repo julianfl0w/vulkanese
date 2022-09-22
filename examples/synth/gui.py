@@ -221,7 +221,8 @@ class LinePlayground(FloatLayout):
         f1 = interp1d(xs, ys, kind="linear")
         # print(f1)
         # f2 = signal.resample(f1.astype(np.float32), 4*256*64)
-        linspac = np.arange(4 * 256) / (4 * 256)
+        ENVLEN = 512
+        linspac = np.arange(4 * ENVLEN) / (4 * ENVLEN)
         print(linspac)
         f2 = f1(linspac)
         print(f2)
