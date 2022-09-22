@@ -67,7 +67,7 @@ class SynthShader:
             shaderInputBuffersNoDebug,
         ]:
             for s in buffList:
-                TOTALSIZEBYTES = 4*4
+                TOTALSIZEBYTES = 4 * 4
                 for d in s["dims"]:
                     TOTALSIZEBYTES *= eval("self." + d)
                 s["SIZEBYTES"] = TOTALSIZEBYTES
@@ -81,7 +81,6 @@ class SynthShader:
             shaderInputBuffers=shaderInputBuffers,
             shaderInputBuffersNoDebug=shaderInputBuffersNoDebug,
             DEBUG=self.DEBUG,
-            paramsDict=paramsDict
         )
 
         # print the object hierarchy
@@ -109,13 +108,17 @@ class SynthShader:
         ENVTIME_SECONDS = 1
         factor = self.ENVELOPE_LENGTH * 4 / ENVTIME_SECONDS
         # self.attackSpeedMultiplier.setBuffer(np.ones((4 * self.POLYPHONY)) * factor) ???
-        self.computeShader.attackSpeedMultiplier.setBuffer(np.ones((2 * self.POLYPHONY)) * factor)
+        self.computeShader.attackSpeedMultiplier.setBuffer(
+            np.ones((2 * self.POLYPHONY)) * factor
+        )
 
         # value of 1 means 1 second attack. 2 means 1/2 second attack
         ENVTIME_SECONDS = 1
         factor = self.ENVELOPE_LENGTH * 4 / ENVTIME_SECONDS
         # self.releaseSpeedMultiplier.setBuffer(np.ones((4 * self.POLYPHONY)) * factor) ???
-        self.computeShader.releaseSpeedMultiplier.setBuffer(np.ones((2 * self.POLYPHONY)) * factor)
+        self.computeShader.releaseSpeedMultiplier.setBuffer(
+            np.ones((2 * self.POLYPHONY)) * factor
+        )
 
         # precompute some arrays
         self.fullAddArray = np.zeros((2 * self.POLYPHONY), dtype=np.float64)
@@ -202,23 +205,25 @@ class SynthShader:
         # print(np.shape(pa2))
         # print(pa2)
         return pa
-      
+
     def run(self):
 
         # UPDATE PMAP MEMORY
         self.postBendArray += self.fullAddArray * self.parent.mm.pitchwheelReal
         self.computeShader.currTime.setByIndex(0, time.time())
         self.computeShader.noteBasePhase.setBuffer(self.postBendArray)
-        self.computeShader.pitchFactor.setBuffer(self.parent.POLYLEN_ONES * self.parent.mm.pitchwheelReal)
+        self.computeShader.pitchFactor.setBuffer(
+            self.parent.POLYLEN_ONES * self.parent.mm.pitchwheelReal
+        )
         self.computeShader.run()
-        
+
         # do CPU tings NOT simultaneous with GPU process
         pa = SynthShader.audioPostProcessAccelerated(
             self.computeShader.pcmBufferOut.pmap,
             self.SAMPLES_PER_DISPATCH,
             self.SHADERS_PER_SAMPLE,
         )
-        
+
         return pa
 
     def dumpMemory(self):
@@ -234,7 +239,11 @@ class SynthShader:
             # glsl to python
             newt = glsltype2pythonstring(debugVar["type"])
             runString = (
-                "np.frombuffer(self.computeShader." + debugVar["name"] + ".pmap, " + newt + ")"
+                "np.frombuffer(self.computeShader."
+                + debugVar["name"]
+                + ".pmap, "
+                + newt
+                + ")"
             )
             # print(runString)
 

@@ -34,8 +34,6 @@ here = os.path.dirname(os.path.abspath(__file__))
 # WORKGROUP_SIZE = 1  # Workgroup size in compute shader.
 # SAMPLES_PER_DISPATCH = 512
 class Synth:
-
-
     def __init__(self, q, runtype="PYSOUND"):
         self.q = q
 
@@ -89,7 +87,6 @@ class Synth:
         # preallocate
         self.POLYLEN_ONES = np.ones((4 * self.POLYPHONY), dtype=np.float32)
         self.POLYLEN_ONES64 = np.ones((2 * self.POLYPHONY), dtype=np.float64)
-        
 
         # Start the sound server
         if self.PYSOUND:
@@ -135,18 +132,27 @@ class Synth:
             # because it seems minimum GPU read is 16 bytes
             # self.noteBaseIncrement.setByIndex(note.index, 0)
             # self.fullAddArray[note.index * 4] = 0
-            self.synthShader.computeShader.noteReleaseTime.setByIndex(index, time.time())
+            self.synthShader.computeShader.noteReleaseTime.setByIndex(
+                index, time.time()
+            )
 
             if hasattr(self, "envelopeAmplitude"):
-                currVol = self.synthShader.computeShader.envelopeAmplitude.getByIndex(index)
+                currVol = self.synthShader.computeShader.envelopeAmplitude.getByIndex(
+                    index
+                )
             # compute what current volume is
             else:
                 secondsSinceStrike = time.time() - note.strikeTime
                 currVolIndex = (
-                    secondsSinceStrike * self.synthShader.computeShader.attackSpeedMultiplier.getByIndex(index)
+                    secondsSinceStrike
+                    * self.synthShader.computeShader.attackSpeedMultiplier.getByIndex(
+                        index
+                    )
                 )
                 currVolIndex = min(currVolIndex, self.ENVELOPE_LENGTH - 1)
-                currVol = self.synthShader.computeShader.attackEnvelope.getByIndex(int(currVolIndex))
+                currVol = self.synthShader.computeShader.attackEnvelope.getByIndex(
+                    int(currVolIndex)
+                )
 
             self.synthShader.computeShader.noteVolume.setByIndex(index, currVol)
 
@@ -162,9 +168,13 @@ class Synth:
                 / self.SAMPLE_FREQUENCY
             )
             self.synthShader.computeShader.noteVolume.setByIndex(newIndex, 1)
-            self.synthShader.computeShader.noteBaseIncrement.setByIndex(newIndex, incrementPerSample)
+            self.synthShader.computeShader.noteBaseIncrement.setByIndex(
+                newIndex, incrementPerSample
+            )
             self.synthShader.computeShader.noteBasePhase.setByIndex(newIndex, 0)
-            self.synthShader.computeShader.noteStrikeTime.setByIndex(newIndex, time.time())
+            self.synthShader.computeShader.noteStrikeTime.setByIndex(
+                newIndex, time.time()
+            )
             self.synthShader.fullAddArray[newIndex * 2] = (
                 incrementPerSample * self.SAMPLES_PER_DISPATCH
             )
@@ -197,7 +207,7 @@ class Synth:
     def checkQ(self):
         # check the queue (q) for incoming commands
         if self.q is not None:
-            while self.q.qsize():
+            if self.q.qsize():
                 recvd = self.q.get()
                 # print(recvd)
                 varName, self.newVal = recvd
@@ -209,7 +219,9 @@ class Synth:
                     self.newVal = mini + (self.newVal * (maxi - mini))
                     multiplier = self.ENVELOPE_LENGTH / (self.newVal)
                     print(multiplier)
-                    self.attackSpeedMultiplier.setBuffer(self.POLYLEN_ONES64 * multiplier)
+                    self.attackSpeedMultiplier.setBuffer(
+                        self.POLYLEN_ONES64 * multiplier
+                    )
 
                 elif varName == "releaseLifespan":
                     mini = 0.25  # minimum lifespan, seconds
@@ -217,7 +229,9 @@ class Synth:
                     self.newVal = mini + (self.newVal * (maxi - mini))
                     multiplier = self.ENVELOPE_LENGTH / (self.newVal)
                     print(multiplier)
-                    self.releaseSpeedMultiplier.setBuffer(self.POLYLEN_ONES64 * multiplier)
+                    self.releaseSpeedMultiplier.setBuffer(
+                        self.POLYLEN_ONES64 * multiplier
+                    )
 
     def run(self):
 
@@ -231,7 +245,6 @@ class Synth:
             self.mm.eventLoop(self)
 
             pa = self.synthShader.run()
-
 
             if self.PYSOUND:
                 self.stream.write(pa)

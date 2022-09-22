@@ -82,13 +82,9 @@ class ComputeShader:
         shaderInputBuffers,
         shaderInputBuffersNoDebug,
         DEBUG,
-        workgroupShape = [1,1,1],
-        paramsDict = {}
+        workgroupShape=[1, 1, 1],
     ):
 
-        for k, v in paramsDict.items():
-            exec("self." + k + " = " + str(v))
-            
         bindingUniform = 0
         bindingStorage = 0
         allBuffers = []
@@ -239,11 +235,11 @@ class ComputeShader:
         addrDict = {}
         addrDict["FENCEADDR"] = hex(eval(str(self.fence).split(" ")[-1][:-1]))
         addrDict["DEVADDR"] = str(self.device.vkDevice).split(" ")[-1][:-1]
-        addrDict["SUBMITINFOADDR"] = str(ffi.addressof(self.submitInfo)).split(
-            " "
-        )[-1][:-1]
+        addrDict["SUBMITINFOADDR"] = str(ffi.addressof(self.submitInfo)).split(" ")[-1][
+            :-1
+        ]
         return addrDict
-    
+
     def run(self):
 
         # We submit the command buffer on the queue, at the same time giving a fence.
