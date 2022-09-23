@@ -2,6 +2,7 @@
 import ctypes
 import os
 import time
+import gc
 import sys
 import numpy as np
 
@@ -63,7 +64,7 @@ class Synth:
         else:
             self.paramsDict = {
                 "POLYPHONY": 32,
-                "POLYPHONY_PER_SHADER": 32,
+                "POLYPHONY_PER_SHADER": 1,
                 "SLUTLEN": 2 ** 18,
                 "PARTIALS_PER_VOICE": 128,
                 "SAMPLE_FREQUENCY": 44100,
@@ -72,7 +73,7 @@ class Synth:
                 "UNDERVOLUME": 3,
                 "CHANNELS": 1,
                 "SAMPLES_PER_DISPATCH": 64,
-                "LATENCY_SECONDS": 0.070,
+                "LATENCY_SECONDS": 0.025,
                 "ENVELOPE_LENGTH": 512,
                 "FILTER_STEPS": 512,
             }
@@ -83,9 +84,9 @@ class Synth:
         )
         for k, v in self.paramsDict.items():
             exec("self." + k + " = " + str(v))
-        self.mm = jmidi.MidiManager(polyphony=self.POLYPHONY)
         self.synthShader = shaders.SynthShader(self, self.paramsDict, runtype)
-        print(self.mm.unheldNotes)
+        self.mm = jmidi.MidiManager(polyphony=self.POLYPHONY, synthInterface=self)
+
         # preallocate
         self.POLYLEN_ONES = np.ones((4 * self.POLYPHONY), dtype=np.float32)
         self.POLYLEN_ONES64 = np.ones((2 * self.POLYPHONY), dtype=np.float64)
@@ -123,70 +124,60 @@ class Synth:
         if self.PYSOUND:
             self.stream.start()
 
-    def midi2commands(self, msg):
-        note = self.mm.midiCatchall(msg)
-        
-        if note is not None:
-          index = note.index
-          newIndex = index
+    def noteOff(self, note):
 
-          if msg.type == "note_off" or (msg.type == "note_on" and msg.velocity == 0):
+        # we need to mulitiply by 16
+        # because it seems minimum GPU read is 16 bytes
+        # self.noteBaseIncrement.setByIndex(note.index, 0)
+        # self.fullAddArray[note.index * 4] = 0
+        index = note.index
+        self.synthShader.computeShader.noteReleaseTime.setByIndex(index, time.time())
 
-              # we need to mulitiply by 16
-              # because it seems minimum GPU read is 16 bytes
-              # self.noteBaseIncrement.setByIndex(note.index, 0)
-              # self.fullAddArray[note.index * 4] = 0
-              self.synthShader.computeShader.noteReleaseTime.setByIndex(
-                  index, time.time()
-              )
+        if hasattr(self, "envelopeAmplitude"):
+            currVol = self.synthShader.computeShader.envelopeAmplitude.getByIndex(index)
+        # compute what current volume is
+        else:
+            secondsSinceStrike = time.time() - note.strikeTime
+            currVolIndex = (
+                secondsSinceStrike
+                * self.synthShader.computeShader.attackSpeedMultiplier.getByIndex(index)
+            )
+            currVolIndex = min(currVolIndex, self.ENVELOPE_LENGTH - 1)
+            currVol = self.synthShader.computeShader.attackEnvelope.getByIndex(
+                int(currVolIndex)
+            )
 
-              if hasattr(self, "envelopeAmplitude"):
-                  currVol = self.synthShader.computeShader.envelopeAmplitude.getByIndex(
-                      index
-                  )
-              # compute what current volume is
-              else:
-                  secondsSinceStrike = time.time() - note.strikeTime
-                  currVolIndex = (
-                      secondsSinceStrike
-                      * self.synthShader.computeShader.attackSpeedMultiplier.getByIndex(
-                          index
-                      )
-                  )
-                  currVolIndex = min(currVolIndex, self.ENVELOPE_LENGTH - 1)
-                  currVol = self.synthShader.computeShader.attackEnvelope.getByIndex(
-                      int(currVolIndex)
-                  )
+        self.synthShader.computeShader.noteVolume.setByIndex(index, currVol)
 
-              self.synthShader.computeShader.noteVolume.setByIndex(index, currVol)
+    def noteOn(self, note):
 
-              # print("NOTE OFF" + str(note.index))
-              # print(str(msg))
-          # if note on, spawn voices
-          elif msg.type == "note_on":
+        # UNITY FREQS! (Phase on range [0,1) )
+        incrementPerSample = (
+            # 2 * 3.141592 * noteToFreq(msg.note) / self.SAMPLE_FREQUENCY
+            jmidi.noteToFreq(note.midiIndex)
+            / self.SAMPLE_FREQUENCY
+        )
+        newIndex = note.index
+        self.synthShader.computeShader.noteVolume.setByIndex(newIndex, 1)
+        self.synthShader.computeShader.noteBaseIncrement.setByIndex(
+            newIndex, incrementPerSample
+        )
+        self.synthShader.computeShader.noteBasePhase.setByIndex(newIndex, 0)
+        self.synthShader.computeShader.noteStrikeTime.setByIndex(newIndex, time.time())
+        self.synthShader.fullAddArray[newIndex * 2] = (
+            incrementPerSample * self.SAMPLES_PER_DISPATCH
+        )
 
-              # UNITY FREQS! (Phase on range [0,1) )
-              incrementPerSample = (
-                  # 2 * 3.141592 * noteToFreq(msg.note) / self.SAMPLE_FREQUENCY
-                  jmidi.noteToFreq(msg.note)
-                  / self.SAMPLE_FREQUENCY
-              )
-              self.synthShader.computeShader.noteVolume.setByIndex(newIndex, 1)
-              self.synthShader.computeShader.noteBaseIncrement.setByIndex(
-                  newIndex, incrementPerSample
-              )
-              self.synthShader.computeShader.noteBasePhase.setByIndex(newIndex, 0)
-              self.synthShader.computeShader.noteStrikeTime.setByIndex(
-                  newIndex, time.time()
-              )
-              self.synthShader.fullAddArray[newIndex * 2] = (
-                  incrementPerSample * self.SAMPLES_PER_DISPATCH
-              )
+        print("NOTE ON" + str(newIndex) + ", " + str(incrementPerSample) + ", " + str(note.midiIndex))
+        # print(str(msg))
+        # print(note.index)
+        # print(incrementPerSample)
 
-              print("NOTE ON" + str(index))
-              # print(str(msg))
-              # print(note.index)
-              # print(incrementPerSample)
+    def pitchWheel(self, val):
+        pass
+
+    def modWheel(self, val):
+        pass
 
     def updatingGraph(self, data):
         # print(pa2)
@@ -204,8 +195,8 @@ class Synth:
     def runTest(self):
 
         # start middle A note
-        self.midi2commands(mido.Message("note_on", note=50, velocity=64, time=6.2))
-        self.midi2commands(mido.Message("note_on", note=60, velocity=64, time=6.2))
+        self.mm.processMidi(mido.Message("note_on", note=50, velocity=64, time=6.2))
+        self.mm.processMidi(mido.Message("note_on", note=60, velocity=64, time=6.2))
         # self.midi2commands(mido.Message("note_on", note=70, velocity=64, time=6.2))
 
     def checkQ(self):
@@ -236,15 +227,18 @@ class Synth:
                     self.synthShader.computeShader.releaseSpeedMultiplier.setBuffer(
                         self.POLYLEN_ONES64 * multiplier
                     )
-                    
+
                 elif varName == "partialSpread":
                     mini = 0.001  # minimum
-                    maxi = 0.1   # maximim
+                    maxi = 0.1  # maximim
                     self.newVal = mini + (self.newVal * (maxi - mini))
                     self.synthShader.PARTIAL_SPREAD = self.newVal
                     self.synthShader.updatePartials()
 
     def run(self):
+
+        # here we go
+        # gc.disable()
 
         # into the loop
         # for i in range(int(1024 * 128 / self.SAMPLES_PER_DISPATCH)):

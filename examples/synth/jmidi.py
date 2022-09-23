@@ -49,29 +49,9 @@ class Note:
 
 
 class MidiManager:
-    def __init__(self, polyphony):
-
+    def __init__(self, synthInterface, polyphony):
+        self.synthInterface = synthInterface
         PID = os.getpid()
-
-        useKeyboard = False
-        if useKeyboard:
-            logger.debug("setting up keyboard")
-            keyQueue = queue.Queue()
-            keyState = {}
-
-            def print_event_json(event):
-                keyDict = json.loads(
-                    event.to_json(ensure_ascii=sys.stdout.encoding != "utf-8")
-                )
-                # protect against repeat delay, for simplicity
-                # "xset r off" not working
-                if keyState.get(keyDict["name"]) != keyDict["event_type"]:
-                    keyState[keyDict["name"]] = keyDict["event_type"]
-                    # keyQueue.put(json.dumps(keyDict))
-                    keyQueue.put(keyDict)
-                # sys.stdout.flush()
-
-            keyboard.hook(print_event_json)
 
         logger.setLevel(0)
         if len(sys.argv) > 1:
@@ -82,7 +62,7 @@ class MidiManager:
 
         # loop related variables
         self.midi_ports_last = []
-        self.allMidiDevicesAndPatches = []
+        self.allMidiDevices = []
         self.lastDevCheck = 0
 
         # self.flushMidi()
@@ -124,26 +104,25 @@ class MidiManager:
                 except (EOFError, KeyboardInterrupt):
                     sys.exit()
 
-                midiDevAndPatches = (mididev, None)
-                self.allMidiDevicesAndPatches += [midiDevAndPatches]
+                self.allMidiDevices += [mididev]
         self.midi_ports_last = midi_ports
 
-    def midiCatchall(self, msg):
-
+    def processMidi(self, msg):
+        print(msg)
         if msg.type == "note_off" or (msg.type == "note_on" and msg.velocity == 0):
 
-            if self.sustain:
-                self.toRelease += [msg.note]
-                return
 
             note = self.getNoteFromMidi(msg.note)
             self.unheldNotes += [note]
+            if self.sustain:
+                self.toRelease += [note]
+                return
             note.velocity = 0
             note.velocityReal = 0
             note.midiIndex = -1
             note.held = False
             note.releaseTime = time.time()
-            return note
+            self.synthInterface.noteOff(note)
 
         elif msg.type == "note_on":
             note = self.spawnVoice()
@@ -153,7 +132,7 @@ class MidiManager:
             note.held = True
             note.msg = msg
             note.midiIndex = msg.note
-            return note
+            self.synthInterface.noteOn(note)
 
         elif msg.type == "pitchwheel":
             # print("PW: " + str(msg.pitch))
@@ -166,6 +145,7 @@ class MidiManager:
             self.pitchwheelReal = pow(2, amountchange * octavecount)
             # print("PWREAL " + str(self.pitchwheelReal))
             # self.setAllIncrements()
+            self.synthInterface.pitchWheel(self.pitchwheelReal)
 
         elif msg.type == "control_change":
 
@@ -180,10 +160,7 @@ class MidiManager:
                 else:
                     self.sustain = False
                     for note in self.toRelease:
-                        for dev, patches in self.allMidiDevicesAndPatches:
-                            for patch in patches:
-                                patch.midi2commands(mido.Message("note_off", note=note, velocity=0, time=6.2)
-                                )
+                        self.synthInterface.noteOff(note)
                     self.toRelease = []
 
             # mod wheel
@@ -191,6 +168,7 @@ class MidiManager:
                 valReal = msg.value / 127.0
                 print(valReal)
                 self.modWheelReal = valReal
+                self.synthInterface.modWheel(self.modWheelReal)
 
         elif msg.type == "polytouch":
             self.polytouch = msg.value
@@ -207,57 +185,8 @@ class MidiManager:
         #            self.midi2commands(heldnote.msg)
         #            break
 
-    def checkKeyboard(self):
-        if not keyQueue.empty():
-            keyDict = keyQueue.get()
-            key = keyDict["name"]
-            if key in qwerty2midi.keys():
-                if keyDict["event_type"] == "down":
-                    msg = mido.Message("note_on", note=qwerty2midi[key], velocity=120)
-                else:
-                    msg = mido.Message("note_off", note=qwerty2midi[key], velocity=0)
-
-                for dev, patches in self.allMidiDevicesAndPatches:
-                    for patch in patches:
-                        patch.midi2commands(msg)
-
     def flushMidi(self):
-        for dev, patches in self.allMidiDevicesAndPatches:
-            while 1:
-                msg = dev.get_message()
-                if msg is None:
-                    break
-
-    def checkMidi(self, processors):
-
-        for dev, patches in self.allMidiDevicesAndPatches:
-            msg = dev.get_message()
-            msgs = []
-            while msg is not None:
-                msgs += [msg]
-                msg = dev.get_message()
-
-            processedPW = False
-            processedAT = False
-            for msg in reversed(msgs):  # most recent first
-
-                msg, dtime = msg
-                msg = mido.Message.from_bytes(msg)
-                if msg.type == "pitchwheel":
-                    if processedPW:
-                        continue
-                    else:
-                        processedPW = True
-
-                if msg.type == "aftertouch":
-                    if processedAT:
-                        continue
-                    else:
-                        processedAT = True
-                if msg is not None:
-                    logger.debug(msg)
-                    for p in processors:
-                        p.midi2commands(msg)
+        self.getNewMidi()
 
     def eventLoop(self, processor):
 
@@ -266,35 +195,18 @@ class MidiManager:
             self.lastDevCheck = time.time()
             self.checkForNewDevices()
 
+        for msg in self.getNewMidi():
+            self.processMidi(msg)
+
+    def getNewMidi(self):
         # c = sys.stdin.read(1)
         # if c == 'd':
         # 	dtfm_inst.dumpState()
-        self.checkMidi([processor])
-        useKeyboard = False
-        if useKeyboard:
-            self.checkKeyboard()
-
-        if useMouse:
-            print("CHECKING MOUSE")
-            mouseX, mouseY = mouse.get_position()
-            # mouseX /= pyautogui.size()[0]
-            # mouseY /= pyautogui.size()[1]
-            mouseX /= 480
-            mouseY /= 360
-            if (mouseX, mouseY) != mousePosLast:
-                mousePosLast = (mouseX, mouseY)
-                self.GLOBAL_DEFAULT_PATCH.midi2commands(
-                    mido.Message(
-                        "control_change",
-                        control=dtfm.ctrl_tremolo_env,
-                        value=int(mouseX * 127),
-                    )
-                )
-                self.GLOBAL_DEFAULT_PATCH.midi2commands(
-                    mido.Message(
-                        "control_change",
-                        control=dtfm.ctrl_vibrato_env,
-                        value=int(mouseY * 127),
-                    )
-                )
-                # logger.debug((mouseX, mouseY))
+        msgs = []
+        for dev in self.allMidiDevices:
+            msg = dev.get_message()
+            while msg is not None:
+                msg = mido.Message.from_bytes(msg[0])
+                msgs += [msg]
+                msg = dev.get_message()
+        return msgs

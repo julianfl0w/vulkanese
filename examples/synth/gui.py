@@ -205,12 +205,11 @@ class LinePlayground(FloatLayout):
         self.bind(releaseLifespan=self.updatereleaseLifespan)
         self.bind(partialSpread=self.updatepartialSpread)
 
-        
         # self.points = [[0,0], [500,500]]
 
     def updatepartialSpread(self, obj, value):
         self.q.put(["partialSpread", value])
-        
+
     def updateattackLifespan(self, obj, value):
         self.q.put(["attackLifespan", value])
 

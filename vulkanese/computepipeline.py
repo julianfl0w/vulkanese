@@ -71,6 +71,11 @@ class ComputePipeline(Pipeline):
 
 
 # THIS CONTAINS EVERYTHING YOU NEED!
+# kind of a misnomer, because it includes 
+# command buffer
+# pipeline,
+# shader
+# All in one
 class ComputeShader:
     def __init__(
         self,

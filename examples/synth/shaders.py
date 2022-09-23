@@ -73,7 +73,7 @@ class SynthShader:
                 s["SIZEBYTES"] = TOTALSIZEBYTES
 
                 # optional: convert everything to float
-                #if s["type"] == "float64_t":
+                # if s["type"] == "float64_t":
                 #    s["type"] = "float"
 
         # generate a compute cmd buffer
@@ -107,7 +107,12 @@ class SynthShader:
         # initialize the Sine LookUp Table
         skipval = self.computeShader.SLUT.skipval
         self.computeShader.SLUT.setBuffer(
-            np.sin(2 * 3.1415926 * np.arange(skipval * self.SLUTLEN) / (skipval * self.SLUTLEN))
+            np.sin(
+                2
+                * 3.1415926
+                * np.arange(skipval * self.SLUTLEN)
+                / (skipval * self.SLUTLEN)
+            )
         )
 
         # value of 1 means 1 second attack. 2 means 1/2 second attack
@@ -153,6 +158,11 @@ class SynthShader:
         )
         self.computeShader.releaseEnvelope.setBuffer(releaseEnv)
 
+        # read all memory needed for simult postprocess
+        self.buffView = np.frombuffer(self.computeShader.pcmBufferOut.pmap, np.float32)[
+            ::4
+        ]
+
     def range2unity(self, maxi):
         if maxi == 1:
             unity = [0]
@@ -188,32 +198,13 @@ class SynthShader:
                 ] = (
                     1
                     + harmonic
-                    + partial_in_harmonic_unity * self.PARTIAL_SPREAD * np.log2(harmonic + 2)
+                    + partial_in_harmonic_unity
+                    * self.PARTIAL_SPREAD
+                    * np.log2(harmonic + 2)
                 )  # i hope log2 of the harmonic is the octave  # + partial_in_harmonic*0.0001
 
         self.computeShader.partialMultiplier.setBuffer(hm)
         self.computeShader.partialVolume.setBuffer(pv)
-
-    # random ass fast cpu proc in random ass place
-    # need to remove njit to profile
-    #@njit
-    def audioPostProcessAccelerated(buffaddr, SAMPLES_PER_DISPATCH, SHADERS_PER_SAMPLE):
-        # print(pa)
-
-        # read all memory needed for simult postprocess
-        pa = np.frombuffer(buffaddr, np.float32)[::4]
-        pa = np.ascontiguousarray(pa)
-        pa = np.reshape(pa, (SAMPLES_PER_DISPATCH, SHADERS_PER_SAMPLE))
-        # print(pa)
-        pa = np.sum(pa, axis=1)
-        # print(pa)
-        # pa2 = pa #np.ascontiguousarray(pa)
-        # pa3 = np.vstack((pa2, pa2))
-        # pa4 = np.swapaxes(pa3, 0, 1)
-        # pa5 = np.ascontiguousarray(pa4)
-        # print(np.shape(pa2))
-        # print(pa2)
-        return pa
 
     def run(self):
 
@@ -227,12 +218,10 @@ class SynthShader:
         self.computeShader.run()
 
         # do CPU tings NOT simultaneous with GPU process
-        pa = SynthShader.audioPostProcessAccelerated(
-            self.computeShader.pcmBufferOut.pmap,
-            self.SAMPLES_PER_DISPATCH,
-            self.SHADERS_PER_SAMPLE,
-        )
 
+        pa = np.ascontiguousarray(self.buffView)
+        pa = np.reshape(pa, (self.SAMPLES_PER_DISPATCH, self.SHADERS_PER_SAMPLE))
+        pa = np.sum(pa, axis=1)
         return pa
 
     def dumpMemory(self):
