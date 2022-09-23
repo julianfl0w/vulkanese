@@ -3,23 +3,23 @@
 //#extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
 #extension GL_ARB_separate_shader_objects : enable
 #define POLYPHONY 32
-#define POLYPHONY_PER_SHADER 1
+#define POLYPHONY_PER_SHADER 2
 #define SLUTLEN 262144
 #define PARTIALS_PER_VOICE 128
 #define SAMPLE_FREQUENCY 44100
 #define PARTIALS_PER_HARMONIC 3
 #define PARTIAL_SPREAD 0.001
-#define UNDERVOLUME 3
+#define OVERVOLUME 8
 #define CHANNELS 1
 #define SAMPLES_PER_DISPATCH 64
 #define LATENCY_SECONDS 0.007
 #define ENVELOPE_LENGTH 512
 #define FILTER_STEPS 512
-#define SHADERS_PER_SAMPLE 32
+#define SHADERS_PER_SAMPLE 16
 layout (local_size_x = SAMPLES_PER_DISPATCH, local_size_y = SHADERS_PER_SAMPLE, local_size_z = 1 ) in;
 layout(std140, set = 0, binding = 0) buffer pcmBufferOut_buf
 {
-   float pcmBufferOut[8192];
+   float pcmBufferOut[4096];
 };
 layout(std140, set = 1, binding = 0) uniform noteBaseIncrement_buf
 {
@@ -181,6 +181,6 @@ float envelopeAmplitude = 0;
     shadersum += innersum * noteVol;
   }
 
-  pcmBufferOut[sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample] = shadersum / (PARTIALS_PER_VOICE * POLYPHONY);
+  pcmBufferOut[sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample] = shadersum / (PARTIALS_PER_VOICE * POLYPHONY / OVERVOLUME);
 }
 

@@ -29,11 +29,6 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 
 
-def noteToFreq(note):
-    a = 440.0  # frequency of A (coomon value is 440Hz)
-    return (a / 32) * (2 ** ((note - 9) / 12.0))
-
-
 class Note:
     def __init__(self, index):
         self.index = index
@@ -108,7 +103,7 @@ class MidiManager:
         self.midi_ports_last = midi_ports
 
     def processMidi(self, msg):
-        print(msg)
+        #print(msg)
         if msg.type == "note_off" or (msg.type == "note_on" and msg.velocity == 0):
 
 

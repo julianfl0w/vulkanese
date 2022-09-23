@@ -83,5 +83,5 @@ void main() {
     shadersum += innersum * noteVol;
   }
 
-  pcmBufferOut = shadersum / (PARTIALS_PER_VOICE * POLYPHONY);
+  pcmBufferOut = shadersum / (PARTIALS_PER_VOICE * POLYPHONY / OVERVOLUME);
 }

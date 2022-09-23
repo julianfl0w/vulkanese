@@ -265,6 +265,6 @@ class ComputeShader:
             fenceCount=1,
             pFences=[self.fence],
             waitAll=VK_TRUE,
-            timeout=10000000,
+            timeout=1000000000,
         )
         vkResetFences(device=self.device.vkDevice, fenceCount=1, pFences=[self.fence])

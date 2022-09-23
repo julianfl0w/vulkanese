@@ -16,7 +16,7 @@ import sounddevice as sd
 import jmidi
 import pickle as pkl
 import re
-import shaders
+import engineSpectral
 
 print(sys.path)
 
@@ -54,7 +54,7 @@ class Synth:
                 "SAMPLE_FREQUENCY": 44100,
                 "PARTIALS_PER_HARMONIC": 1,
                 "PARTIAL_SPREAD": 0.02,
-                "UNDERVOLUME": 3,
+                "OVERVOLUME": 1,
                 "CHANNELS": 1,
                 "SAMPLES_PER_DISPATCH": 32,
                 "LATENCY_SECONDS": 0.010,
@@ -64,13 +64,13 @@ class Synth:
         else:
             self.paramsDict = {
                 "POLYPHONY": 32,
-                "POLYPHONY_PER_SHADER": 1,
+                "POLYPHONY_PER_SHADER": 2,
                 "SLUTLEN": 2 ** 18,
                 "PARTIALS_PER_VOICE": 128,
                 "SAMPLE_FREQUENCY": 44100,
                 "PARTIALS_PER_HARMONIC": 3,
                 "PARTIAL_SPREAD": 0.001,
-                "UNDERVOLUME": 3,
+                "OVERVOLUME": 8,
                 "CHANNELS": 1,
                 "SAMPLES_PER_DISPATCH": 64,
                 "LATENCY_SECONDS": 0.007,
@@ -84,8 +84,8 @@ class Synth:
         )
         for k, v in self.paramsDict.items():
             exec("self." + k + " = " + str(v))
-        self.synthShader = shaders.SynthShader(self, self.paramsDict, runtype)
-        self.mm = jmidi.MidiManager(polyphony=self.POLYPHONY, synthInterface=self)
+        self.spectralInterface = engineSpectral.Interface(self, self.paramsDict, runtype)
+        self.mm = jmidi.MidiManager(polyphony=self.POLYPHONY, synthInterface=self.spectralInterface)
 
         # preallocate
         self.POLYLEN_ONES = np.ones((4 * self.POLYPHONY), dtype=np.float32)
@@ -124,61 +124,6 @@ class Synth:
         if self.PYSOUND:
             self.stream.start()
 
-    def noteOff(self, note):
-
-        # we need to mulitiply by 16
-        # because it seems minimum GPU read is 16 bytes
-        # self.noteBaseIncrement.setByIndex(note.index, 0)
-        # self.fullAddArray[note.index * 4] = 0
-        index = note.index
-        self.synthShader.computeShader.noteReleaseTime.setByIndex(index, time.time())
-
-        if hasattr(self, "envelopeAmplitude"):
-            currVol = self.synthShader.computeShader.envelopeAmplitude.getByIndex(index)
-        # compute what current volume is
-        else:
-            secondsSinceStrike = time.time() - note.strikeTime
-            currVolIndex = (
-                secondsSinceStrike
-                * self.synthShader.computeShader.attackSpeedMultiplier.getByIndex(index)
-            )
-            currVolIndex = min(currVolIndex, self.ENVELOPE_LENGTH - 1)
-            currVol = self.synthShader.computeShader.attackEnvelope.getByIndex(
-                int(currVolIndex)
-            )
-
-        self.synthShader.computeShader.noteVolume.setByIndex(index, currVol)
-
-    def noteOn(self, note):
-
-        # UNITY FREQS! (Phase on range [0,1) )
-        incrementPerSample = (
-            # 2 * 3.141592 * noteToFreq(msg.note) / self.SAMPLE_FREQUENCY
-            jmidi.noteToFreq(note.midiIndex)
-            / self.SAMPLE_FREQUENCY
-        )
-        newIndex = note.index
-        self.synthShader.computeShader.noteVolume.setByIndex(newIndex, 1)
-        self.synthShader.computeShader.noteBaseIncrement.setByIndex(
-            newIndex, incrementPerSample
-        )
-        self.synthShader.computeShader.noteBasePhase.setByIndex(newIndex, 0)
-        self.synthShader.computeShader.noteStrikeTime.setByIndex(newIndex, time.time())
-        self.synthShader.fullAddArray[newIndex * 2] = (
-            incrementPerSample * self.SAMPLES_PER_DISPATCH
-        )
-
-        print("NOTE ON" + str(newIndex) + ", " + str(incrementPerSample) + ", " + str(note.midiIndex))
-        # print(str(msg))
-        # print(note.index)
-        # print(incrementPerSample)
-
-    def pitchWheel(self, val):
-        pass
-
-    def modWheel(self, val):
-        pass
-
     def updatingGraph(self, data):
         # print(pa2)
         # updating data values
@@ -207,14 +152,14 @@ class Synth:
                 # print(recvd)
                 varName, self.newVal = recvd
                 if varName == "attackEnvelope":
-                    self.synthShader.computeShader.attackEnvelope.setBuffer(self.newVal)
+                    self.spectralInterface.computeShader.attackEnvelope.setBuffer(self.newVal)
                 elif varName == "attackLifespan":
                     mini = 0.25  # minimum lifespan, seconds
                     maxi = 5  # maximim lifespan, seconds
                     self.newVal = mini + (self.newVal * (maxi - mini))
                     multiplier = self.ENVELOPE_LENGTH / (self.newVal)
                     print(multiplier)
-                    self.synthShader.computeShader.attackSpeedMultiplier.setBuffer(
+                    self.spectralInterface.computeShader.attackSpeedMultiplier.setBuffer(
                         self.POLYLEN_ONES64 * multiplier
                     )
 
@@ -224,7 +169,7 @@ class Synth:
                     self.newVal = mini + (self.newVal * (maxi - mini))
                     multiplier = self.ENVELOPE_LENGTH / (self.newVal)
                     print(multiplier)
-                    self.synthShader.computeShader.releaseSpeedMultiplier.setBuffer(
+                    self.spectralInterface.computeShader.releaseSpeedMultiplier.setBuffer(
                         self.POLYLEN_ONES64 * multiplier
                     )
 
@@ -232,8 +177,15 @@ class Synth:
                     mini = 0.001  # minimum
                     maxi = 0.1  # maximim
                     self.newVal = mini + (self.newVal * (maxi - mini))
-                    self.synthShader.PARTIAL_SPREAD = self.newVal
-                    self.synthShader.updatePartials()
+                    self.spectralInterface.PARTIAL_SPREAD = self.newVal
+                    self.spectralInterface.updatePartials()
+
+                elif varName == "partialCount":
+                    mini = 1  # minimum
+                    maxi = 15  # maximim
+                    self.newVal = mini + (self.newVal * (maxi - mini))
+                    self.spectralInterface.PARTIALS_PER_HARMONIC = int(self.newVal)
+                    self.spectralInterface.updatePartials()
 
     def run(self):
 
@@ -249,7 +201,7 @@ class Synth:
             # process MIDI
             self.mm.eventLoop(self)
 
-            pa = self.synthShader.run()
+            pa = self.spectralInterface.run()
 
             if self.PYSOUND:
                 self.stream.write(pa)
@@ -269,12 +221,12 @@ class Synth:
             #    currFilt /= cfm
 
             if self.DEBUG:
-                self.synthShader.dumpMemory()
+                self.spectralInterface.dumpMemory()
             if self.GRAPH:
                 self.updatingGraph(self.newVal)
                 # eval("self." + varName + ".pmap[:] = newVal")
 
-        self.synthShader.release()
+        self.spectralInterface.release()
         # elegantly free all memory
         self.instance_inst.release()
 

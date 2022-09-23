@@ -7,6 +7,10 @@ from numba import njit
 
 here = os.path.dirname(os.path.abspath(__file__))
 
+def noteToFreq(note):
+    a = 440.0  # frequency of A (coomon value is 440Hz)
+    return (a / 32) * (2 ** ((note - 9) / 12.0))
+
 localtest = True
 if localtest == True:
     vkpath = os.path.join(here, "..", "..", "vulkanese")
@@ -20,7 +24,7 @@ else:
     from vulkanese.vulkanese import *
 
 
-class SynthShader:
+class Interface:
     def __init__(self, parent, paramsDict, runtype):
         self.parent = parent
         # Runtime Parameters
@@ -56,7 +60,7 @@ class SynthShader:
             header += "#define " + k + " " + str(v) + "\n"
         header += "layout (local_size_x = SAMPLES_PER_DISPATCH, local_size_y = SHADERS_PER_SAMPLE, local_size_z = 1 ) in;"
 
-        with open("synthshader.c", "r") as f:
+        with open("shaderSpectral.c", "r") as f:
             main = f.read()
 
         # compute the size of each shader
@@ -174,6 +178,7 @@ class SynthShader:
 
     # update the partial scheme according to PARTIALS_PER_HARMONIC
     def updatePartials(self):
+        print("Updateing Partials")
         hm = np.ones((4 * self.PARTIALS_PER_VOICE), dtype=np.float32)
         pv = np.ones((4 * self.PARTIALS_PER_VOICE), dtype=np.float32)
         # for i in range(int(self.PARTIALS_PER_VOICE/2)):
@@ -223,6 +228,61 @@ class SynthShader:
         pa = np.reshape(pa, (self.SAMPLES_PER_DISPATCH, self.SHADERS_PER_SAMPLE))
         pa = np.sum(pa, axis=1)
         return pa
+
+    def noteOff(self, note):
+
+        # we need to mulitiply by 16
+        # because it seems minimum GPU read is 16 bytes
+        # self.noteBaseIncrement.setByIndex(note.index, 0)
+        # self.fullAddArray[note.index * 4] = 0
+        index = note.index
+        self.computeShader.noteReleaseTime.setByIndex(index, time.time())
+
+        if hasattr(self, "envelopeAmplitude"):
+            currVol = self.computeShader.envelopeAmplitude.getByIndex(index)
+        # compute what current volume is
+        else:
+            secondsSinceStrike = time.time() - note.strikeTime
+            currVolIndex = (
+                secondsSinceStrike
+                * self.computeShader.attackSpeedMultiplier.getByIndex(index)
+            )
+            currVolIndex = min(currVolIndex, self.ENVELOPE_LENGTH - 1)
+            currVol = self.computeShader.attackEnvelope.getByIndex(
+                int(currVolIndex)
+            )
+
+        self.computeShader.noteVolume.setByIndex(index, currVol)
+
+    def noteOn(self, note):
+
+        # UNITY FREQS! (Phase on range [0,1) )
+        incrementPerSample = (
+            # 2 * 3.141592 * noteToFreq(msg.note) / self.SAMPLE_FREQUENCY
+            noteToFreq(note.midiIndex)
+            / self.SAMPLE_FREQUENCY
+        )
+        newIndex = note.index
+        self.computeShader.noteVolume.setByIndex(newIndex, 1)
+        self.computeShader.noteBaseIncrement.setByIndex(
+            newIndex, incrementPerSample
+        )
+        self.computeShader.noteBasePhase.setByIndex(newIndex, 0)
+        self.computeShader.noteStrikeTime.setByIndex(newIndex, time.time())
+        self.fullAddArray[newIndex * 2] = (
+            incrementPerSample * self.SAMPLES_PER_DISPATCH
+        )
+
+        #print("NOTE ON" + str(newIndex) + ", " + str(incrementPerSample) + ", " + str(note.midiIndex))
+        # print(str(msg))
+        # print(note.index)
+        # print(incrementPerSample)
+
+    def pitchWheel(self, val):
+        pass
+
+    def modWheel(self, val):
+        pass
 
     def dumpMemory(self):
 
