@@ -73,7 +73,7 @@ class Synth:
                 "UNDERVOLUME": 3,
                 "CHANNELS": 1,
                 "SAMPLES_PER_DISPATCH": 64,
-                "LATENCY_SECONDS": 0.025,
+                "LATENCY_SECONDS": 0.007,
                 "ENVELOPE_LENGTH": 512,
                 "FILTER_STEPS": 512,
             }
@@ -238,7 +238,7 @@ class Synth:
     def run(self):
 
         # here we go
-        # gc.disable()
+        gc.disable()
 
         # into the loop
         # for i in range(int(1024 * 128 / self.SAMPLES_PER_DISPATCH)):

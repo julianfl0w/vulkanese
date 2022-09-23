@@ -137,9 +137,9 @@ class MidiManager:
         elif msg.type == "pitchwheel":
             # print("PW: " + str(msg.pitch))
             self.pitchwheel = msg.pitch
-            ARTIPHON = 0
+            ARTIPHON = 1
             if ARTIPHON:
-                self.pitchwheel *= 2
+                self.pitchwheel *= 12
             amountchange = self.pitchwheel / 8192.0
             octavecount = 2 / 12
             self.pitchwheelReal = pow(2, amountchange * octavecount)

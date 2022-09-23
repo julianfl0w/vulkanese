@@ -200,7 +200,7 @@ class SynthShader:
                     + harmonic
                     + partial_in_harmonic_unity
                     * self.PARTIAL_SPREAD
-                    * np.log2(harmonic + 2)
+                    #* np.log2(harmonic + 2)
                 )  # i hope log2 of the harmonic is the octave  # + partial_in_harmonic*0.0001
 
         self.computeShader.partialMultiplier.setBuffer(hm)
