@@ -11,7 +11,7 @@ shaderInputBuffers = [
     {"name": "attackSpeedMultiplier", "type": "float64_t", "dims": ["POLYPHONY"]},
     {"name": "releaseSpeedMultiplier", "type": "float64_t", "dims": ["POLYPHONY"]},
     {"name": "freqFilter", "type": "float", "dims": ["FILTER_STEPS"]},
-    {"name": "pitchFactor", "type": "float", "dims": ["POLYPHONY"]},
+    {"name": "pitchFactor", "type": "float64_t", "dims": ["POLYPHONY"]},
     {"name": "noteBasePhase", "type": "float64_t", "dims": ["POLYPHONY"]},
 ]
 shaderInputBuffersNoDebug = [{"name": "SLUT", "type": "float64_t", "dims": ["SLUTLEN"]}]

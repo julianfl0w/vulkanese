@@ -68,6 +68,7 @@ class MidiManager:
         self.toRelease = []
         self.modWheelReal = 0.25
         self.pitchwheelReal = 1
+        self.mostRecentlyStruckNoteIndex = 0
 
     def spawnVoice(self):
         # try to pick an unheld note first
@@ -103,9 +104,8 @@ class MidiManager:
         self.midi_ports_last = midi_ports
 
     def processMidi(self, msg):
-        #print(msg)
+        # print(msg)
         if msg.type == "note_off" or (msg.type == "note_on" and msg.velocity == 0):
-
 
             note = self.getNoteFromMidi(msg.note)
             self.unheldNotes += [note]
@@ -121,6 +121,7 @@ class MidiManager:
 
         elif msg.type == "note_on":
             note = self.spawnVoice()
+            self.mostRecentlyStruckNoteIndex = note.index
             note.strikeTime = time.time()
             note.velocity = msg.velocity
             note.velocityReal = (msg.velocity / 127.0) ** 2

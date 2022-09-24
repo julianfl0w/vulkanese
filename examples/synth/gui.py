@@ -36,7 +36,7 @@ from kivy.clock import Clock
 class LinePlayground(FloatLayout):
 
     partialSpread = NumericProperty(0.5)
-    partialCount  = NumericProperty(0.5)
+    partialCount = NumericProperty(0.5)
     releaseLifespan = NumericProperty(0.5)
     attackLifespan = NumericProperty(0.5)
     close = BooleanProperty(False)

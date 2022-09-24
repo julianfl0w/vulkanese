@@ -60,7 +60,7 @@ void main() {
     if(noteVol < 0.01)
       continue;
     
-    increment = noteBaseIncrement[noteNo] * pitchFactor[0];
+    increment = noteBaseIncrement[noteNo] * pitchFactor[noteNo];
     basePhaseThisNote = noteBasePhase[noteNo] + (sampleNo * increment);
 
     innersum = 0;

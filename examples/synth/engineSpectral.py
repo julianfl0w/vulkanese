@@ -7,9 +7,11 @@ from numba import njit
 
 here = os.path.dirname(os.path.abspath(__file__))
 
+
 def noteToFreq(note):
     a = 440.0  # frequency of A (coomon value is 440Hz)
     return (a / 32) * (2 ** ((note - 9) / 12.0))
+
 
 localtest = True
 if localtest == True:
@@ -203,9 +205,8 @@ class Interface:
                 ] = (
                     1
                     + harmonic
-                    + partial_in_harmonic_unity
-                    * self.PARTIAL_SPREAD
-                    #* np.log2(harmonic + 2)
+                    + partial_in_harmonic_unity * self.PARTIAL_SPREAD
+                    # * np.log2(harmonic + 2)
                 )  # i hope log2 of the harmonic is the octave  # + partial_in_harmonic*0.0001
 
         self.computeShader.partialMultiplier.setBuffer(hm)
@@ -214,12 +215,34 @@ class Interface:
     def run(self):
 
         # UPDATE PMAP MEMORY
-        self.postBendArray += self.fullAddArray * self.parent.mm.pitchwheelReal
         self.computeShader.currTime.setByIndex(0, time.time())
         self.computeShader.noteBasePhase.setBuffer(self.postBendArray)
-        self.computeShader.pitchFactor.setBuffer(
-            self.parent.POLYLEN_ONES * self.parent.mm.pitchwheelReal
-        )
+
+        # with artiphon, only bend recent note
+        ARTIPHON = True
+        if ARTIPHON:
+            self.parent.POLYLEN_ONES_POST64[:] = self.fullAddArray[:]
+            self.parent.POLYLEN_ONES_POST64[
+                self.parent.mm.mostRecentlyStruckNoteIndex * 2
+            ] = (
+                self.parent.POLYLEN_ONES_POST64[
+                    self.parent.mm.mostRecentlyStruckNoteIndex * 2
+                ]
+                * self.parent.mm.pitchwheelReal
+            )
+            self.postBendArray += self.parent.POLYLEN_ONES_POST64
+
+            self.parent.POLYLEN_ONES_POST64[:] = self.parent.POLYLEN_ONES64[:]
+            self.parent.POLYLEN_ONES_POST64[
+                self.parent.mm.mostRecentlyStruckNoteIndex * 2
+            ] = self.parent.mm.pitchwheelReal
+            self.computeShader.pitchFactor.setBuffer(self.parent.POLYLEN_ONES_POST64)
+
+        else:
+            self.postBendArray += self.fullAddArray * self.parent.mm.pitchwheelReal
+            self.computeShader.pitchFactor.setBuffer(
+                self.parent.POLYLEN_ONES64 * self.parent.mm.pitchwheelReal
+            )
         self.computeShader.run()
 
         # do CPU tings NOT simultaneous with GPU process
@@ -248,9 +271,7 @@ class Interface:
                 * self.computeShader.attackSpeedMultiplier.getByIndex(index)
             )
             currVolIndex = min(currVolIndex, self.ENVELOPE_LENGTH - 1)
-            currVol = self.computeShader.attackEnvelope.getByIndex(
-                int(currVolIndex)
-            )
+            currVol = self.computeShader.attackEnvelope.getByIndex(int(currVolIndex))
 
         self.computeShader.noteVolume.setByIndex(index, currVol)
 
@@ -264,16 +285,12 @@ class Interface:
         )
         newIndex = note.index
         self.computeShader.noteVolume.setByIndex(newIndex, 1)
-        self.computeShader.noteBaseIncrement.setByIndex(
-            newIndex, incrementPerSample
-        )
+        self.computeShader.noteBaseIncrement.setByIndex(newIndex, incrementPerSample)
         self.computeShader.noteBasePhase.setByIndex(newIndex, 0)
         self.computeShader.noteStrikeTime.setByIndex(newIndex, time.time())
-        self.fullAddArray[newIndex * 2] = (
-            incrementPerSample * self.SAMPLES_PER_DISPATCH
-        )
+        self.fullAddArray[newIndex * 2] = incrementPerSample * self.SAMPLES_PER_DISPATCH
 
-        #print("NOTE ON" + str(newIndex) + ", " + str(incrementPerSample) + ", " + str(note.midiIndex))
+        # print("NOTE ON" + str(newIndex) + ", " + str(incrementPerSample) + ", " + str(note.midiIndex))
         # print(str(msg))
         # print(note.index)
         # print(incrementPerSample)

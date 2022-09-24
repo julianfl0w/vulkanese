@@ -84,12 +84,18 @@ class Synth:
         )
         for k, v in self.paramsDict.items():
             exec("self." + k + " = " + str(v))
-        self.spectralInterface = engineSpectral.Interface(self, self.paramsDict, runtype)
-        self.mm = jmidi.MidiManager(polyphony=self.POLYPHONY, synthInterface=self.spectralInterface)
+        self.spectralInterface = engineSpectral.Interface(
+            self, self.paramsDict, runtype
+        )
+        self.mm = jmidi.MidiManager(
+            polyphony=self.POLYPHONY, synthInterface=self.spectralInterface
+        )
 
         # preallocate
         self.POLYLEN_ONES = np.ones((4 * self.POLYPHONY), dtype=np.float32)
+        self.POLYLEN_ONES_POST = np.ones((4 * self.POLYPHONY), dtype=np.float32)
         self.POLYLEN_ONES64 = np.ones((2 * self.POLYPHONY), dtype=np.float64)
+        self.POLYLEN_ONES_POST64 = np.ones((2 * self.POLYPHONY), dtype=np.float64)
 
         # Start the sound server
         if self.PYSOUND:
@@ -152,7 +158,9 @@ class Synth:
                 # print(recvd)
                 varName, self.newVal = recvd
                 if varName == "attackEnvelope":
-                    self.spectralInterface.computeShader.attackEnvelope.setBuffer(self.newVal)
+                    self.spectralInterface.computeShader.attackEnvelope.setBuffer(
+                        self.newVal
+                    )
                 elif varName == "attackLifespan":
                     mini = 0.25  # minimum lifespan, seconds
                     maxi = 5  # maximim lifespan, seconds
@@ -174,8 +182,8 @@ class Synth:
                     )
 
                 elif varName == "partialSpread":
-                    mini = 0.001  # minimum
-                    maxi = 0.1  # maximim
+                    mini = 0.0001  # minimum
+                    maxi = 0.001  # maximim
                     self.newVal = mini + (self.newVal * (maxi - mini))
                     self.spectralInterface.PARTIAL_SPREAD = self.newVal
                     self.spectralInterface.updatePartials()
