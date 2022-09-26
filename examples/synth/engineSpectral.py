@@ -36,6 +36,14 @@ class Interface:
         self.DEBUG = False
         exec("self." + runtype + " = True")
 
+        # given dimension A, return index
+        self.dim2index = {
+            "SHADERS_PER_SAMPLE": "shaderIndexInSample",
+            "SAMPLES_PER_DISPATCH": "sampleNo",
+            "POLYPHONY": "noteNo",
+            "PARTIALS_PER_VOICE": "partialNo",
+        }
+
         self.constantsDict = constantsDict
         # device selection and instantiation
         self.instance_inst = Instance()
@@ -89,6 +97,7 @@ class Interface:
             shaderInputBuffers=shaderInputBuffers,
             shaderInputBuffersNoDebug=shaderInputBuffersNoDebug,
             DEBUG=self.DEBUG,
+            dim2index=self.dim2index,
         )
 
         # print the object hierarchy

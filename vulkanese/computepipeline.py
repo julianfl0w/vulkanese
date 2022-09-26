@@ -35,10 +35,12 @@ class ComputePipeline(Pipeline):
         debuggableVars,
         shaderInputBuffers,
         shaderInputBuffersNoDebug,
+        dim2index,
         DEBUG,
         constantsDict,
         workgroupShape=[1, 1, 1],
     ):
+        self.dim2index = dim2index
         self.constantsDict = constantsDict
         bindingUniform = 0
         bindingStorage = 0
@@ -98,6 +100,8 @@ class ComputePipeline(Pipeline):
                 format=format,
             )
             allBuffers += [newBuff]
+                           
+            # make the buffer accessable as a local attribute
             exec("self." + s["name"] + " = newBuff")
 
             # save these buffers for reading later
@@ -193,6 +197,7 @@ class ComputePipeline(Pipeline):
         )
 
         # We create a fence.
+        # So the CPU can know when processing is done
         fenceCreateInfo = VkFenceCreateInfo(
             sType=VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, flags=0
         )
@@ -202,13 +207,6 @@ class ComputePipeline(Pipeline):
     # and add output indices
     # mostly for debugging
     def addIndicesToOutputs(self, outvars, shaderGLSL):
-        # given dimension A, return index
-        self.dim2index = {
-            "SHADERS_PER_SAMPLE": "shaderIndexInSample",
-            "SAMPLES_PER_DISPATCH": "sampleNo",
-            "POLYPHONY": "noteNo",
-            "PARTIALS_PER_VOICE": "partialNo",
-        }
         indexedVarStrings = []
         # if this is debug mode, all vars have already been declared as output buffers
         # intermediate variables must be indexed
