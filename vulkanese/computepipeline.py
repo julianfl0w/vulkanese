@@ -18,6 +18,7 @@ here = os.path.dirname(os.path.abspath(__file__))
 def getVulkanesePath():
     return here
 
+
 # THIS CONTAINS EVERYTHING YOU NEED!
 # The Vulkanese Compute Pipeline includes the following componenets
 # command buffer
@@ -35,14 +36,22 @@ class ComputePipeline(Pipeline):
         shaderInputBuffers,
         shaderInputBuffersNoDebug,
         DEBUG,
+        constantsDict,
         workgroupShape=[1, 1, 1],
     ):
-
+        self.constantsDict = constantsDict
         bindingUniform = 0
         bindingStorage = 0
         allBuffers = []
         self.DEBUG = DEBUG
         self.device = device
+
+        self.shaderOutputBuffers = shaderOutputBuffers
+        self.debuggableVars = debuggableVars
+        self.shaderInputBuffers = shaderInputBuffers
+        self.shaderInputBuffersNoDebug = shaderInputBuffersNoDebug
+
+        self.debugBuffers = []
 
         # if we're debugging, all intermediate variables become output buffers
         if self.DEBUG:
@@ -81,6 +90,8 @@ class ComputePipeline(Pipeline):
                 name=s["name"],
                 readFromCPU=True,
                 SIZEBYTES=s["SIZEBYTES"],
+                dimensionNames=s["dims"],
+                dimensionVals=[constantsDict[d] for d in s["dims"]],
                 usage=usage,
                 stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
                 location=0,
@@ -88,6 +99,10 @@ class ComputePipeline(Pipeline):
             )
             allBuffers += [newBuff]
             exec("self." + s["name"] + " = newBuff")
+
+            # save these buffers for reading later
+            if s not in self.shaderInputBuffersNoDebug:
+                self.debugBuffers += [newBuff]
 
         VARSDECL = ""
         if self.DEBUG:
@@ -166,7 +181,6 @@ class ComputePipeline(Pipeline):
         # wrap it all up into a command buffer
         self.commandBuffer = ComputeCommandBuffer(self, workgroupShape=workgroupShape)
 
-        
         device.children += [self]
 
         # Now we shall finally submit the recorded command buffer to a queue.
@@ -223,7 +237,8 @@ class ComputePipeline(Pipeline):
 
         return outShaderGLSL
 
-    # might help when you run the main loop in C/C++
+    # this help if you run the main loop in C/C++
+    # just use the Vulkan addresses!
     def getVulkanAddresses(self):
         addrDict = {}
         addrDict["FENCEADDR"] = hex(eval(str(self.fence).split(" ")[-1][:-1]))
@@ -233,6 +248,7 @@ class ComputePipeline(Pipeline):
         ]
         return addrDict
 
+    # the main loop
     def run(self):
 
         # We submit the command buffer on the queue, at the same time giving a fence.
@@ -256,3 +272,13 @@ class ComputePipeline(Pipeline):
             timeout=1000000000,
         )
         vkResetFences(device=self.device.vkDevice, fenceCount=1, pFences=[self.fence])
+
+    def dumpMemory(self):
+
+        outdict = {}
+        for b in self.debugBuffers:
+            rcvdArray = b.getAsNumpyArray()
+            # convert to list to make it JSON serializable
+            outdict[b.name] = rcvdArray.tolist()  # nested lists with same data, indices
+        with open("debug.json", "w+") as f:
+            json.dump(outdict, f, indent=4)

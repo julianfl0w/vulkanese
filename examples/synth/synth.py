@@ -46,7 +46,7 @@ class Synth:
         exec("self." + runtype + " = True")
 
         if self.DEBUG:
-            self.paramsDict = {
+            self.constantsDict = {
                 "POLYPHONY": 16,
                 "POLYPHONY_PER_SHADER": 1,
                 "SLUTLEN": 2 ** 18,
@@ -62,7 +62,7 @@ class Synth:
                 "FILTER_STEPS": 16,
             }
         else:
-            self.paramsDict = {
+            self.constantsDict = {
                 "POLYPHONY": 32,
                 "POLYPHONY_PER_SHADER": 2,
                 "SLUTLEN": 2 ** 18,
@@ -79,13 +79,13 @@ class Synth:
             }
 
         # derived values
-        self.paramsDict["SHADERS_PER_SAMPLE"] = int(
-            self.paramsDict["POLYPHONY"] / self.paramsDict["POLYPHONY_PER_SHADER"]
+        self.constantsDict["SHADERS_PER_SAMPLE"] = int(
+            self.constantsDict["POLYPHONY"] / self.constantsDict["POLYPHONY_PER_SHADER"]
         )
-        for k, v in self.paramsDict.items():
+        for k, v in self.constantsDict.items():
             exec("self." + k + " = " + str(v))
         self.spectralInterface = engineSpectral.Interface(
-            self, self.paramsDict, runtype
+            self, self.constantsDict, runtype
         )
         self.mm = jmidi.MidiManager(
             polyphony=self.POLYPHONY, synthInterface=self.spectralInterface
@@ -229,7 +229,8 @@ class Synth:
             #    currFilt /= cfm
 
             if self.DEBUG:
-                self.spectralInterface.dumpMemory()
+                self.spectralInterface.computePipeline.dumpMemory()
+                sys.exit()
             if self.GRAPH:
                 self.updatingGraph(self.newVal)
                 # eval("self." + varName + ".pmap[:] = newVal")

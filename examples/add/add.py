@@ -7,72 +7,60 @@ from numba import njit
 
 here = os.path.dirname(os.path.abspath(__file__))
 
-
-def noteToFreq(note):
-    a = 440.0  # frequency of A (coomon value is 440Hz)
-    return (a / 32) * (2 ** ((note - 9) / 12.0))
-
-
 localtest = True
 if localtest == True:
     vkpath = os.path.join(here, "..", "..", "vulkanese")
     # sys.path.append(vkpath)
     sys.path = [vkpath] + sys.path
-    print(vkpath)
-    print(sys.path)
-    from vulkanese import Instance
     from vulkanese import *
 else:
     from vulkanese.vulkanese import *
 
 
 class Add:
-    def __init__(self, parent, paramsDict, runtype):
-      
-        if self.DEBUG:
-            self.paramsDict = {
-                "POLYPHONY": 16,
-                "POLYPHONY_PER_SHADER": 1,
-                "SLUTLEN": 2 ** 18,
-                "PARTIALS_PER_VOICE": 1,
-                "SAMPLE_FREQUENCY": 44100,
-                "PARTIALS_PER_HARMONIC": 1,
-                "PARTIAL_SPREAD": 0.02,
-                "OVERVOLUME": 1,
-                "CHANNELS": 1,
-                "SAMPLES_PER_DISPATCH": 32,
-                "LATENCY_SECONDS": 0.010,
-                "ENVELOPE_LENGTH": 16,
-                "FILTER_STEPS": 16,
+    def __init__(self, parent, constantsDict, runtype):
+
+        # any parameters set here will be available as
+        # self.param within this Python class
+        # and as a defined value within the shader
+        self.constantsDict = {"NUMBERS_TO_SUM": 2 ** 28}
+
+        # Input buffers to the shader
+        # These are Uniform Buffers normally,
+        # Storage Buffers in DEBUG Mode
+        shaderInputBuffers = [
+            {"name": "bufferToSum", "type": "float64_t", "dims": ["NUMBERS_TO_SUM"]}
+        ]
+
+        # any input buffers you want to exclude from debug
+        # for example, a sine lookup table
+        shaderInputBuffersNoDebug = [{}]
+
+        # variables that are usually intermediate variables in the shader
+        # but in DEBUG mode they are made visible to the CPU (as Storage Buffers)
+        # so that you can view shader intermediate values :)
+        debuggableVars = [{}]
+
+        # the output of the compute shader,
+        # which in our case is always a Storage Buffer
+        shaderOutputBuffers = [
+            {
+                "name": "sumOut",
+                "type": "float64",
+                # "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_SAMPLE", "CHANNELS"],
+                "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_SAMPLE"],
             }
-        else:
-            self.paramsDict = {
-                "POLYPHONY": 32,
-                "POLYPHONY_PER_SHADER": 2,
-                "SLUTLEN": 2 ** 18,
-                "PARTIALS_PER_VOICE": 128,
-                "SAMPLE_FREQUENCY": 44100,
-                "PARTIALS_PER_HARMONIC": 3,
-                "PARTIAL_SPREAD": 0.001,
-                "OVERVOLUME": 8,
-                "CHANNELS": 1,
-                "SAMPLES_PER_DISPATCH": 64,
-                "LATENCY_SECONDS": 0.007,
-                "ENVELOPE_LENGTH": 512,
-                "FILTER_STEPS": 512,
-            }
+        ]
 
         # derived values
-        self.paramsDict["SHADERS_PER_SAMPLE"] = int(
-            self.paramsDict["POLYPHONY"] / self.paramsDict["POLYPHONY_PER_SHADER"]
+        self.constantsDict["SHADERS_PER_SAMPLE"] = int(
+            self.constantsDict["POLYPHONY"] / self.constantsDict["POLYPHONY_PER_SHADER"]
         )
-        for k, v in self.paramsDict.items():
+        for k, v in self.constantsDict.items():
             exec("self." + k + " = " + str(v))
-            
-        self.spectralAdd = engineSpectral.Add(
-            self, self.paramsDict, runtype
-        )
-        
+
+        self.spectralAdd = engineSpectral.Add(self, self.constantsDict, runtype)
+
         self.parent = parent
         # Runtime Parameters
         self.GRAPH = False
@@ -81,7 +69,7 @@ class Add:
         self.DEBUG = False
         exec("self." + runtype + " = True")
 
-        self.paramsDict = paramsDict
+        self.constantsDict = constantsDict
         # device selection and instantiation
         self.instance_inst = Instance()
         print("available Devices:")
@@ -95,7 +83,7 @@ class Add:
         device = self.instance_inst.getDevice(0)
         self.device = device
 
-        for k, v in self.paramsDict.items():
+        for k, v in self.constantsDict.items():
             exec("self." + k + " = " + str(v))
 
         header = """#version 450
@@ -103,7 +91,7 @@ class Add:
 //#extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
 #extension GL_ARB_separate_shader_objects : enable
 """
-        for k, v in self.paramsDict.items():
+        for k, v in self.constantsDict.items():
             header += "#define " + k + " " + str(v) + "\n"
         header += "layout (local_size_x = SAMPLES_PER_DISPATCH, local_size_y = SHADERS_PER_SAMPLE, local_size_z = 1 ) in;"
 
@@ -214,49 +202,6 @@ class Add:
             ::4
         ]
 
-    def range2unity(self, maxi):
-        if maxi == 1:
-            unity = [0]
-        else:
-            ar = np.arange(maxi)
-            unity = ar - np.mean(ar)
-            unity /= max(unity)
-        return unity
-
-    # update the partial scheme according to PARTIALS_PER_HARMONIC
-    def updatePartials(self):
-        print("Updateing Partials")
-        hm = np.ones((4 * self.PARTIALS_PER_VOICE), dtype=np.float32)
-        pv = np.ones((4 * self.PARTIALS_PER_VOICE), dtype=np.float32)
-        # for i in range(int(self.PARTIALS_PER_VOICE/2)):
-        #    hm[4*i*2]= 1.5
-        np.set_printoptions(threshold=sys.maxsize)
-        OVERTONE_COUNT = int(self.PARTIALS_PER_VOICE / self.PARTIALS_PER_HARMONIC)
-        # simple equation to return value on range (-1,1)
-        for harmonic in range(OVERTONE_COUNT):
-            harmonic_unity = self.range2unity(OVERTONE_COUNT)[harmonic]
-            for partial_in_harmonic in range(self.PARTIALS_PER_HARMONIC):
-                partial_in_harmonic_unity = self.range2unity(
-                    self.PARTIALS_PER_HARMONIC
-                )[partial_in_harmonic]
-                # simple equation to return value on range (-1,1)
-
-                pv[
-                    (harmonic * self.PARTIALS_PER_HARMONIC + partial_in_harmonic) * 4
-                ] = 1 - abs(partial_in_harmonic_unity)
-
-                hm[
-                    (harmonic * self.PARTIALS_PER_HARMONIC + partial_in_harmonic) * 4
-                ] = (
-                    1
-                    + harmonic
-                    + partial_in_harmonic_unity * self.PARTIAL_SPREAD
-                    # * np.log2(harmonic + 2)
-                )  # i hope log2 of the harmonic is the octave  # + partial_in_harmonic*0.0001
-
-        self.computeShader.partialMultiplier.setBuffer(hm)
-        self.computeShader.partialVolume.setBuffer(pv)
-
     def run(self):
 
         # UPDATE PMAP MEMORY
@@ -296,95 +241,6 @@ class Add:
         pa = np.reshape(pa, (self.SAMPLES_PER_DISPATCH, self.SHADERS_PER_SAMPLE))
         pa = np.sum(pa, axis=1)
         return pa
-
-    def noteOff(self, note):
-
-        # we need to mulitiply by 16
-        # because it seems minimum GPU read is 16 bytes
-        # self.noteBaseIncrement.setByIndex(note.index, 0)
-        # self.fullAddArray[note.index * 4] = 0
-        index = note.index
-        self.computeShader.noteReleaseTime.setByIndex(index, time.time())
-
-        if hasattr(self, "envelopeAmplitude"):
-            currVol = self.computeShader.envelopeAmplitude.getByIndex(index)
-        # compute what current volume is
-        else:
-            secondsSinceStrike = time.time() - note.strikeTime
-            currVolIndex = (
-                secondsSinceStrike
-                * self.computeShader.attackSpeedMultiplier.getByIndex(index)
-            )
-            currVolIndex = min(currVolIndex, self.ENVELOPE_LENGTH - 1)
-            currVol = self.computeShader.attackEnvelope.getByIndex(int(currVolIndex))
-
-        self.computeShader.noteVolume.setByIndex(index, currVol)
-
-    def noteOn(self, note):
-
-        # UNITY FREQS! (Phase on range [0,1) )
-        incrementPerSample = (
-            # 2 * 3.141592 * noteToFreq(msg.note) / self.SAMPLE_FREQUENCY
-            noteToFreq(note.midiIndex)
-            / self.SAMPLE_FREQUENCY
-        )
-        newIndex = note.index
-        self.computeShader.noteVolume.setByIndex(newIndex, 1)
-        self.computeShader.noteBaseIncrement.setByIndex(newIndex, incrementPerSample)
-        self.computeShader.noteBasePhase.setByIndex(newIndex, 0)
-        self.computeShader.noteStrikeTime.setByIndex(newIndex, time.time())
-        self.fullAddArray[newIndex * 2] = incrementPerSample * self.SAMPLES_PER_DISPATCH
-
-        # print("NOTE ON" + str(newIndex) + ", " + str(incrementPerSample) + ", " + str(note.midiIndex))
-        # print(str(msg))
-        # print(note.index)
-        # print(incrementPerSample)
-
-    def pitchWheel(self, val):
-        pass
-
-    def modWheel(self, val):
-        pass
-
-    def dumpMemory(self):
-
-        outdict = {}
-        for debugVar in shaderInputBuffers + debuggableVars + shaderOutputBuffers:
-            if "64" in debugVar["type"]:
-                # skipindex = 8
-                skipindex = 2
-            else:
-                skipindex = 4
-
-            # glsl to python
-            newt = glsltype2pythonstring(debugVar["type"])
-            runString = (
-                "np.frombuffer(self.computeShader."
-                + debugVar["name"]
-                + ".pmap, "
-                + newt
-                + ")"
-            )
-            # print(runString)
-
-            # calculate the dims we need to turn the array into
-            newDims = []
-            for d in debugVar["dims"]:
-                newDims += [eval("self." + d)]
-                # print([eval("self." + d)])
-
-            # first retrieve the array with a simple eval
-            rcvdArray = eval(runString)
-            rcvdArray = list(rcvdArray.astype(float))[
-                ::skipindex
-            ]  # apply the skip index
-            rcvdArray = np.array(rcvdArray).reshape(newDims)
-            outdict[
-                debugVar["name"]
-            ] = rcvdArray.tolist()  # nested lists with same data, indices
-        with open("debug.json", "w+") as f:
-            json.dump(outdict, f, indent=4)
-        sys.exit()
 
     # if self.GRAPH:
     #    self.updatingGraph(currFilt)

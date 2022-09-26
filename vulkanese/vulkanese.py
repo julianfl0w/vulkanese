@@ -60,7 +60,7 @@ class Instance(Sinode):
         # print("available layers:")
         # for l in self.layers:
         #    print("    " + l)
-        print("all layers " + str(self.layers))
+        print("Available layers " + json.dumps(self.layers, indent=2))
 
         if "VK_LAYER_KHRONOS_validation" in self.layers:
             self.layers = ["VK_LAYER_KHRONOS_validation"]
@@ -203,27 +203,7 @@ class Device(Sinode):
         # print("pFeatures2")
         # print(self.pFeatures2)
 
-        self.pProperties = vkGetPhysicalDeviceProperties(self.physical_device)
-        print("pProperties")
-        print(self.pProperties.deviceName)
-        for l in [
-            "maxComputeWorkGroupCount",
-            "maxComputeWorkGroupInvocations",
-            "maxComputeWorkGroupSize",
-            "maxImageDimension1D",
-            "maxImageDimension2D",
-            "maxImageDimension3D",
-            "maxUniformBufferRange",
-            "maxPerStageDescriptorUniformBuffers",
-            "maxPerStageDescriptorStorageBuffers",
-            "maxPerStageDescriptorSampledImages",
-            "maxPerStageDescriptorStorageImages",
-        ]:
-            val = eval("self.pProperties.limits." + l)
-            try:
-                print(l + ": " + str(list(val)))
-            except:
-                print(l + ": " + str(val))
+        self.propertiesDict = self.getPhysicalProperties()
 
         # self.pProperties2 = vkGetPhysicalDeviceProperties2(self.physical_device)
         # print("pProperties2")
@@ -352,6 +332,38 @@ class Device(Sinode):
 
         self.descriptorPool = DescriptorPool(self)
         self.children += [self.descriptorPool]
+
+    def getPhysicalProperties(self):
+        self.pProperties = vkGetPhysicalDeviceProperties(self.physical_device)
+        print("pProperties")
+        print("Device Name: " + self.pProperties.deviceName)
+
+        self.deviceType = self.pProperties.deviceType
+        if self.deviceType == 0:
+            self.deviceTypeStr = "VK_PHYSICAL_DEVICE_TYPE_OTHER"
+        elif self.deviceType == 1:
+            self.deviceTypeStr = "VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU"
+        elif self.deviceType == 2:
+            self.deviceTypeStr = "VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU"
+        elif self.deviceType == 3:
+            self.deviceTypeStr = "VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU"
+        elif self.deviceType == 4:
+            self.deviceTypeStr = "VK_PHYSICAL_DEVICE_TYPE_CPU"
+
+        print("Device Type: " + self.deviceTypeStr)
+        limitsDict = {}
+        type = ffi.typeof(self.pProperties.limits)
+        for fieldName, fieldType in type.fields:
+            if fieldType.type.kind == "primitive":
+                fieldValue = eval("self.pProperties.limits." + fieldName)
+            else:
+                lfieldValue = str(eval("self.pProperties.limits." + fieldName))
+
+            limitsDict[fieldName] = fieldValue
+            # make all these available as device attributes
+            exec("self." + fieldName + " = fieldValue")
+
+        return limitsDict
 
     def getFeatures(self):
 

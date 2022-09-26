@@ -89,6 +89,8 @@ class Buffer(Sinode):
         location,
         descriptorSet,
         format,
+        dimensionNames,
+        dimensionVals,
         readFromCPU=False,
         binding=0,
         usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
@@ -100,6 +102,8 @@ class Buffer(Sinode):
         qualifier="in",
         type="vec3",
     ):
+        self.dimensionNames = dimensionNames
+        self.dimensionVals  = dimensionVals
         self.binding = binding
         # this should be fixed in vulkan wrapper
         self.released = False
@@ -113,7 +117,8 @@ class Buffer(Sinode):
         self.type = type
         self.itemSize = glsltype2bytesize(self.type)
         self.pythonType = glsltype2python(self.type)
-        self.skipval = int(16/self.itemSize)
+        self.skipval = int(16 / self.itemSize)
+
         self.name = name
         self.descriptorSet = descriptorSet
 
@@ -207,6 +212,16 @@ class Buffer(Sinode):
         self.setBuffer(np.zeros(int(SIZEBYTES / self.itemSize), dtype=self.pythonType))
         # print("finished creating buffer")
 
+    def getAsNumpyArray(self):
+        # glsl to python
+        flatArray = np.frombuffer(self.pmap, self.pythonType)
+        # because GLSL only allows 16-byte access,
+        # we need to skip a few values in the memory
+        rcvdArray = list(flatArray.astype(float))[:: self.skipval]
+        # finally, reshape according to the expected dims
+        rcvdArray = np.array(rcvdArray).reshape(self.dimensionVals)
+        return rcvdArray
+
     def saveAsImage(self, height, width, path="mandelbrot.png"):
 
         # Get the color data from the buffer, and cast it to bytes.
@@ -290,25 +305,15 @@ class Buffer(Sinode):
         )
 
     def setByIndex(self, index, data):
-        if self.itemSize > 4:
-            skipindex = 2
-        else:
-            skipindex = 4
-
         # print(self.name + " setting " + str(index) + " to " + str(data))
-        startByte = index * self.itemSize * skipindex
-        endByte = index * self.itemSize * skipindex + self.itemSize
+        startByte = index * self.itemSize * self.skipval
+        endByte = index * self.itemSize * self.skipval + self.itemSize
         self.pmap[startByte:endByte] = np.array(data, dtype=self.pythonType)
 
     def getByIndex(self, index):
-        if self.itemSize > 4:
-            skipindex = 2
-        else:
-            skipindex = 4
-
         # print(self.name + " setting " + str(index) + " to " + str(data))
-        startByte = index * self.itemSize * skipindex
-        endByte = index * self.itemSize * skipindex + self.itemSize
+        startByte = index * self.itemSize * self.skipval
+        endByte = index * self.itemSize * self.skipval + self.itemSize
         return np.frombuffer(self.pmap[startByte:endByte], dtype=self.pythonType)
 
     def setBuffer(self, data):

@@ -27,7 +27,7 @@ else:
 
 
 class Interface:
-    def __init__(self, parent, paramsDict, runtype):
+    def __init__(self, parent, constantsDict, runtype):
         self.parent = parent
         # Runtime Parameters
         self.GRAPH = False
@@ -36,7 +36,7 @@ class Interface:
         self.DEBUG = False
         exec("self." + runtype + " = True")
 
-        self.paramsDict = paramsDict
+        self.constantsDict = constantsDict
         # device selection and instantiation
         self.instance_inst = Instance()
         print("available Devices:")
@@ -50,7 +50,7 @@ class Interface:
         device = self.instance_inst.getDevice(0)
         self.device = device
 
-        for k, v in self.paramsDict.items():
+        for k, v in self.constantsDict.items():
             exec("self." + k + " = " + str(v))
 
         header = """#version 450
@@ -58,7 +58,7 @@ class Interface:
 //#extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
 #extension GL_ARB_separate_shader_objects : enable
 """
-        for k, v in self.paramsDict.items():
+        for k, v in self.constantsDict.items():
             header += "#define " + k + " " + str(v) + "\n"
         header += "layout (local_size_x = SAMPLES_PER_DISPATCH, local_size_y = SHADERS_PER_SAMPLE, local_size_z = 1 ) in;"
 
@@ -78,15 +78,12 @@ class Interface:
                     TOTALSIZEBYTES *= eval("self." + d)
                 s["SIZEBYTES"] = TOTALSIZEBYTES
 
-                # optional: convert everything to float
-                # if s["type"] == "float64_t":
-                #    s["type"] = "float"
-
         # generate a compute cmd buffer
         self.computePipeline = ComputePipeline(
             main=main,
             header=header,
             device=device,
+            constantsDict=constantsDict,
             shaderOutputBuffers=shaderOutputBuffers,
             debuggableVars=debuggableVars,
             shaderInputBuffers=shaderInputBuffers,
@@ -108,7 +105,9 @@ class Interface:
         self.computePipeline.freqFilter.setBuffer(np.ones((4 * self.FILTER_STEPS)))
 
         # "ATTACK_TIME" : 0, ALL TIME AS A FLOAT OF SECONDS
-        self.computePipeline.attackEnvelope.setBuffer(np.ones((4 * self.ENVELOPE_LENGTH)))
+        self.computePipeline.attackEnvelope.setBuffer(
+            np.ones((4 * self.ENVELOPE_LENGTH))
+        )
 
         # initialize the Sine LookUp Table
         skipval = self.computePipeline.SLUT.skipval
@@ -165,9 +164,9 @@ class Interface:
         self.computePipeline.releaseEnvelope.setBuffer(releaseEnv)
 
         # read all memory needed for simult postprocess
-        self.buffView = np.frombuffer(self.computePipeline.pcmBufferOut.pmap, np.float32)[
-            ::4
-        ]
+        self.buffView = np.frombuffer(
+            self.computePipeline.pcmBufferOut.pmap, np.float32
+        )[::4]
 
     def range2unity(self, maxi):
         if maxi == 1:
