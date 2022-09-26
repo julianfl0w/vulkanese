@@ -1,108 +1,10 @@
-#version 450
-#extension GL_EXT_shader_explicit_arithmetic_types_float64 : require
-//#extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
-#extension GL_ARB_separate_shader_objects : enable
-#define POLYPHONY 32
-#define POLYPHONY_PER_SHADER 2
-#define SLUTLEN 262144
-#define PARTIALS_PER_VOICE 128
-#define SAMPLE_FREQUENCY 44100
-#define PARTIALS_PER_HARMONIC 3
-#define PARTIAL_SPREAD 0.001
-#define OVERVOLUME 8
-#define CHANNELS 1
-#define SAMPLES_PER_DISPATCH 64
-#define LATENCY_SECONDS 0.107
-#define ENVELOPE_LENGTH 512
-#define FILTER_STEPS 512
-#define SHADERS_PER_SAMPLE 16
-layout (local_size_x = SAMPLES_PER_DISPATCH, local_size_y = SHADERS_PER_SAMPLE, local_size_z = 1 ) in;
-layout(std140, set = 0, binding = 0) buffer pcmBufferOut_buf
-{
-   float pcmBufferOut[4096];
-};
-layout(std140, set = 1, binding = 0) uniform noteBaseIncrement_buf
-{
-   float64_t noteBaseIncrement[64];
-};
-layout(std140, set = 1, binding = 1) uniform partialMultiplier_buf
-{
-   float partialMultiplier[512];
-};
-layout(std140, set = 1, binding = 2) uniform partialVolume_buf
-{
-   float partialVolume[512];
-};
-layout(std140, set = 1, binding = 3) uniform noteVolume_buf
-{
-   float noteVolume[128];
-};
-layout(std140, set = 1, binding = 4) uniform noteStrikeTime_buf
-{
-   float64_t noteStrikeTime[64];
-};
-layout(std140, set = 1, binding = 5) uniform noteReleaseTime_buf
-{
-   float64_t noteReleaseTime[64];
-};
-layout(std140, set = 1, binding = 6) uniform currTime_buf
-{
-   float64_t currTime[64];
-};
-layout(std140, set = 1, binding = 7) uniform attackEnvelope_buf
-{
-   float attackEnvelope[2048];
-};
-layout(std140, set = 1, binding = 8) uniform releaseEnvelope_buf
-{
-   float releaseEnvelope[2048];
-};
-layout(std140, set = 1, binding = 9) uniform attackSpeedMultiplier_buf
-{
-   float64_t attackSpeedMultiplier[64];
-};
-layout(std140, set = 1, binding = 10) uniform releaseSpeedMultiplier_buf
-{
-   float64_t releaseSpeedMultiplier[64];
-};
-layout(std140, set = 1, binding = 11) uniform freqFilter_buf
-{
-   float freqFilter[2048];
-};
-layout(std140, set = 1, binding = 12) uniform pitchFactor_buf
-{
-   float64_t pitchFactor[64];
-};
-layout(std140, set = 1, binding = 13) uniform noteBasePhase_buf
-{
-   float64_t noteBasePhase[64];
-};
-layout(std140, set = 1, binding = 14) uniform SLUT_buf
-{
-   float64_t SLUT[524288];
-};
 void main() {
   //precision mediump float;
   //precision mediump float64_t;
   uint sampleNo = gl_LocalInvocationID.x;
   uint shaderIndexInSample = gl_LocalInvocationID.y;
   uint zindex = gl_LocalInvocationID.z;
-  float64_t currTimeWithSampleOffset = 0;
-float shadersum = 0;
-float64_t envelopeIndexFloat64 = 0;
-uint slutIndex = 0;
-int envelopeIndex = 0;
-float64_t secondsSinceStrike = 0;
-float64_t secondsSinceRelease = 0;
-float64_t fractional = 0;
-float64_t basePhaseThisNote = 0;
-float noteVol = 0;
-float64_t increment = 0;
-float innersum = 0;
-float64_t thisIncrement = 0;
-int indexInFilter = 0;
-float envelopeAmplitude = 0;
-
+  VARIABLEDECLARATIONS
 
   // current time depends on the sample offset
   currTimeWithSampleOffset = currTime[0] + sampleNo / float(SAMPLE_FREQUENCY);
@@ -181,6 +83,5 @@ float envelopeAmplitude = 0;
     shadersum += innersum * noteVol;
   }
 
-  pcmBufferOut[sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample] = shadersum / (PARTIALS_PER_VOICE * POLYPHONY / OVERVOLUME);
+  pcmBufferOut = shadersum / (PARTIALS_PER_VOICE * POLYPHONY / OVERVOLUME);
 }
-

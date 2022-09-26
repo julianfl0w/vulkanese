@@ -19,6 +19,8 @@ def glsltype2python(glsltype):
         return np.int32
     elif glsltype == "uint":
         return np.uint32
+    elif "vec" in glsltype:
+        return np.float32
     else:
         print("type")
         print(glsltype)
@@ -53,6 +55,8 @@ def glsltype2bytesize(glsltype):
         return 4
     elif glsltype == "uint":
         return 4
+    elif glsltype == "vec3":
+        return 12
     else:
         print("type")
         print(glsltype)

@@ -73,7 +73,7 @@ class Synth:
                 "OVERVOLUME": 8,
                 "CHANNELS": 1,
                 "SAMPLES_PER_DISPATCH": 64,
-                "LATENCY_SECONDS": 0.007,
+                "LATENCY_SECONDS": 0.107,
                 "ENVELOPE_LENGTH": 512,
                 "FILTER_STEPS": 512,
             }

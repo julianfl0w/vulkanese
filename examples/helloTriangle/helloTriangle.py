@@ -16,7 +16,7 @@ print(sys.path)
 
 localtest = True
 if localtest == True:
-    vkpath = os.path.join(here, "..", "vulkanese")
+    vkpath = os.path.join(here, "..", "..", "vulkanese")
     sys.path.append(vkpath)
     from vulkanese import *
 else:
@@ -219,10 +219,11 @@ while running:
             vkDeviceWaitIdle(device.vkDevice)
             break
 
+
+    # rotate the pyrimid
     R = pyramidMesh.get_rotation_matrix_from_xyz((0, -np.pi / max(6 * fps_last, 1), 0))
     pyramidMesh.rotate(R, center=(0, 0, TRANSLATION[2]))
     meshVert = np.asarray(pyramidMesh.vertices, dtype="f4")
-    # print(np.asarray(pyramidMesh.vertices).flatten())
     index.setBuffer(np.asarray(pyramidMesh.triangles, dtype="u4").flatten())
 
     position.setBuffer(meshVert)

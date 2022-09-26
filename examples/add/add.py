@@ -26,8 +26,53 @@ else:
     from vulkanese.vulkanese import *
 
 
-class Interface:
+class Add:
     def __init__(self, parent, paramsDict, runtype):
+      
+        if self.DEBUG:
+            self.paramsDict = {
+                "POLYPHONY": 16,
+                "POLYPHONY_PER_SHADER": 1,
+                "SLUTLEN": 2 ** 18,
+                "PARTIALS_PER_VOICE": 1,
+                "SAMPLE_FREQUENCY": 44100,
+                "PARTIALS_PER_HARMONIC": 1,
+                "PARTIAL_SPREAD": 0.02,
+                "OVERVOLUME": 1,
+                "CHANNELS": 1,
+                "SAMPLES_PER_DISPATCH": 32,
+                "LATENCY_SECONDS": 0.010,
+                "ENVELOPE_LENGTH": 16,
+                "FILTER_STEPS": 16,
+            }
+        else:
+            self.paramsDict = {
+                "POLYPHONY": 32,
+                "POLYPHONY_PER_SHADER": 2,
+                "SLUTLEN": 2 ** 18,
+                "PARTIALS_PER_VOICE": 128,
+                "SAMPLE_FREQUENCY": 44100,
+                "PARTIALS_PER_HARMONIC": 3,
+                "PARTIAL_SPREAD": 0.001,
+                "OVERVOLUME": 8,
+                "CHANNELS": 1,
+                "SAMPLES_PER_DISPATCH": 64,
+                "LATENCY_SECONDS": 0.007,
+                "ENVELOPE_LENGTH": 512,
+                "FILTER_STEPS": 512,
+            }
+
+        # derived values
+        self.paramsDict["SHADERS_PER_SAMPLE"] = int(
+            self.paramsDict["POLYPHONY"] / self.paramsDict["POLYPHONY_PER_SHADER"]
+        )
+        for k, v in self.paramsDict.items():
+            exec("self." + k + " = " + str(v))
+            
+        self.spectralAdd = engineSpectral.Add(
+            self, self.paramsDict, runtype
+        )
+        
         self.parent = parent
         # Runtime Parameters
         self.GRAPH = False
@@ -83,7 +128,7 @@ class Interface:
                 #    s["type"] = "float"
 
         # generate a compute cmd buffer
-        self.computePipeline = ComputePipeline(
+        self.computeShader = ComputeShader(
             main=main,
             header=header,
             device=device,
@@ -103,16 +148,16 @@ class Interface:
         # self.noteReleaseTime.setBuffer(
         #    np.ones((4 * self.POLYPHONY)) * (time.time() + 0.1)
         # )
-        print(len(self.computePipeline.freqFilter.pmap))
+        print(len(self.computeShader.freqFilter.pmap))
         print(4 * self.FILTER_STEPS)
-        self.computePipeline.freqFilter.setBuffer(np.ones((4 * self.FILTER_STEPS)))
+        self.computeShader.freqFilter.setBuffer(np.ones((4 * self.FILTER_STEPS)))
 
         # "ATTACK_TIME" : 0, ALL TIME AS A FLOAT OF SECONDS
-        self.computePipeline.attackEnvelope.setBuffer(np.ones((4 * self.ENVELOPE_LENGTH)))
+        self.computeShader.attackEnvelope.setBuffer(np.ones((4 * self.ENVELOPE_LENGTH)))
 
         # initialize the Sine LookUp Table
-        skipval = self.computePipeline.SLUT.skipval
-        self.computePipeline.SLUT.setBuffer(
+        skipval = self.computeShader.SLUT.skipval
+        self.computeShader.SLUT.setBuffer(
             np.sin(
                 2
                 * 3.1415926
@@ -125,8 +170,8 @@ class Interface:
         ENVTIME_SECONDS = 1
         factor = self.ENVELOPE_LENGTH * 4 / ENVTIME_SECONDS
         # self.attackSpeedMultiplier.setBuffer(np.ones((4 * self.POLYPHONY)) * factor) ???
-        skipval = self.computePipeline.attackSpeedMultiplier.skipval
-        self.computePipeline.attackSpeedMultiplier.setBuffer(
+        skipval = self.computeShader.attackSpeedMultiplier.skipval
+        self.computeShader.attackSpeedMultiplier.setBuffer(
             np.ones((skipval * self.POLYPHONY)) * factor
         )
 
@@ -134,13 +179,13 @@ class Interface:
         ENVTIME_SECONDS = 1
         factor = self.ENVELOPE_LENGTH * 4 / ENVTIME_SECONDS
         # self.releaseSpeedMultiplier.setBuffer(np.ones((4 * self.POLYPHONY)) * factor) ???
-        skipval = self.computePipeline.releaseSpeedMultiplier.skipval
-        self.computePipeline.releaseSpeedMultiplier.setBuffer(
+        skipval = self.computeShader.releaseSpeedMultiplier.skipval
+        self.computeShader.releaseSpeedMultiplier.setBuffer(
             np.ones((skipval * self.POLYPHONY)) * factor
         )
 
         # precompute some arrays
-        skipval = self.computePipeline.noteBasePhase.skipval
+        skipval = self.computeShader.noteBasePhase.skipval
         self.fullAddArray = np.zeros((skipval * self.POLYPHONY), dtype=np.float64)
 
         self.updatePartials()
@@ -162,10 +207,10 @@ class Interface:
             dtype=np.float32,
             axis=0,
         )
-        self.computePipeline.releaseEnvelope.setBuffer(releaseEnv)
+        self.computeShader.releaseEnvelope.setBuffer(releaseEnv)
 
         # read all memory needed for simult postprocess
-        self.buffView = np.frombuffer(self.computePipeline.pcmBufferOut.pmap, np.float32)[
+        self.buffView = np.frombuffer(self.computeShader.pcmBufferOut.pmap, np.float32)[
             ::4
         ]
 
@@ -209,14 +254,14 @@ class Interface:
                     # * np.log2(harmonic + 2)
                 )  # i hope log2 of the harmonic is the octave  # + partial_in_harmonic*0.0001
 
-        self.computePipeline.partialMultiplier.setBuffer(hm)
-        self.computePipeline.partialVolume.setBuffer(pv)
+        self.computeShader.partialMultiplier.setBuffer(hm)
+        self.computeShader.partialVolume.setBuffer(pv)
 
     def run(self):
 
         # UPDATE PMAP MEMORY
-        self.computePipeline.currTime.setByIndex(0, time.time())
-        self.computePipeline.noteBasePhase.setBuffer(self.postBendArray)
+        self.computeShader.currTime.setByIndex(0, time.time())
+        self.computeShader.noteBasePhase.setBuffer(self.postBendArray)
 
         # with artiphon, only bend recent note
         ARTIPHON = True
@@ -236,14 +281,14 @@ class Interface:
             self.parent.POLYLEN_ONES_POST64[
                 self.parent.mm.mostRecentlyStruckNoteIndex * 2
             ] = self.parent.mm.pitchwheelReal
-            self.computePipeline.pitchFactor.setBuffer(self.parent.POLYLEN_ONES_POST64)
+            self.computeShader.pitchFactor.setBuffer(self.parent.POLYLEN_ONES_POST64)
 
         else:
             self.postBendArray += self.fullAddArray * self.parent.mm.pitchwheelReal
-            self.computePipeline.pitchFactor.setBuffer(
+            self.computeShader.pitchFactor.setBuffer(
                 self.parent.POLYLEN_ONES64 * self.parent.mm.pitchwheelReal
             )
-        self.computePipeline.run()
+        self.computeShader.run()
 
         # do CPU tings NOT simultaneous with GPU process
 
@@ -259,21 +304,21 @@ class Interface:
         # self.noteBaseIncrement.setByIndex(note.index, 0)
         # self.fullAddArray[note.index * 4] = 0
         index = note.index
-        self.computePipeline.noteReleaseTime.setByIndex(index, time.time())
+        self.computeShader.noteReleaseTime.setByIndex(index, time.time())
 
         if hasattr(self, "envelopeAmplitude"):
-            currVol = self.computePipeline.envelopeAmplitude.getByIndex(index)
+            currVol = self.computeShader.envelopeAmplitude.getByIndex(index)
         # compute what current volume is
         else:
             secondsSinceStrike = time.time() - note.strikeTime
             currVolIndex = (
                 secondsSinceStrike
-                * self.computePipeline.attackSpeedMultiplier.getByIndex(index)
+                * self.computeShader.attackSpeedMultiplier.getByIndex(index)
             )
             currVolIndex = min(currVolIndex, self.ENVELOPE_LENGTH - 1)
-            currVol = self.computePipeline.attackEnvelope.getByIndex(int(currVolIndex))
+            currVol = self.computeShader.attackEnvelope.getByIndex(int(currVolIndex))
 
-        self.computePipeline.noteVolume.setByIndex(index, currVol)
+        self.computeShader.noteVolume.setByIndex(index, currVol)
 
     def noteOn(self, note):
 
@@ -284,10 +329,10 @@ class Interface:
             / self.SAMPLE_FREQUENCY
         )
         newIndex = note.index
-        self.computePipeline.noteVolume.setByIndex(newIndex, 1)
-        self.computePipeline.noteBaseIncrement.setByIndex(newIndex, incrementPerSample)
-        self.computePipeline.noteBasePhase.setByIndex(newIndex, 0)
-        self.computePipeline.noteStrikeTime.setByIndex(newIndex, time.time())
+        self.computeShader.noteVolume.setByIndex(newIndex, 1)
+        self.computeShader.noteBaseIncrement.setByIndex(newIndex, incrementPerSample)
+        self.computeShader.noteBasePhase.setByIndex(newIndex, 0)
+        self.computeShader.noteStrikeTime.setByIndex(newIndex, time.time())
         self.fullAddArray[newIndex * 2] = incrementPerSample * self.SAMPLES_PER_DISPATCH
 
         # print("NOTE ON" + str(newIndex) + ", " + str(incrementPerSample) + ", " + str(note.midiIndex))
@@ -314,7 +359,7 @@ class Interface:
             # glsl to python
             newt = glsltype2pythonstring(debugVar["type"])
             runString = (
-                "np.frombuffer(self.computePipeline."
+                "np.frombuffer(self.computeShader."
                 + debugVar["name"]
                 + ".pmap, "
                 + newt

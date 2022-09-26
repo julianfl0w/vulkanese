@@ -111,58 +111,6 @@ class Pipeline(Sinode):
 
         self.commandBuffer.release()
 
-
-# the compute pipeline is so much simpler than the old-school
-# graphics pipeline. it should be considered separately
-class ComputePipeline(Pipeline):
-    def __init__(self, device, stages, workgroupShape=[1, 1, 1]):
-        Pipeline.__init__(self, device, stages=stages, outputClass="image")
-
-        self.descriptorSet = device.descriptorPool.descSetGlobal
-
-        # The pipeline layout allows the pipeline to access descriptor sets.
-        # So we just specify the descriptor set layout we created earlier.
-        pipelineLayoutCreateInfo = VkPipelineLayoutCreateInfo(
-            sType=VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            setLayoutCount=len(device.descriptorPool.descSets),
-            pSetLayouts=[
-                d.vkDescriptorSetLayout for d in device.descriptorPool.descSets
-            ],
-        )
-
-        self.vkPipelineLayout = vkCreatePipelineLayout(
-            self.vkDevice, pipelineLayoutCreateInfo, None
-        )
-
-        # Now let us actually create the compute pipeline.
-        # A compute pipeline is very simple compared to a graphics pipeline.
-        # It only consists of a single stage with a compute shader.
-        # So first we specify the compute shader stage, and it's entry point(main).
-        shaderStageCreateInfo = VkPipelineShaderStageCreateInfo(
-            sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            stage=VK_SHADER_STAGE_COMPUTE_BIT,
-            module=stages[0].vkShaderModule,
-            pName="main",
-        )
-
-        self.pipelineCreateInfo = VkComputePipelineCreateInfo(
-            sType=VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
-            stage=shaderStageCreateInfo,
-            layout=self.vkPipelineLayout,
-        )
-
-        # Now, we finally create the compute pipeline.
-        pipelines = vkCreateComputePipelines(
-            self.vkDevice, VK_NULL_HANDLE, 1, self.pipelineCreateInfo, None
-        )
-        if len(pipelines) == 1:
-            self.vkPipeline = pipelines[0]
-
-        self.children += [pipelines]
-        # wrap it all up into a command buffer
-        self.commandBuffer = ComputeCommandBuffer(self, workgroupShape=workgroupShape)
-
-
 class RasterPipeline(Pipeline):
     def __init__(
         self,
