@@ -133,24 +133,19 @@ class DescriptorPool(Sinode):
                 self.activeDescriptorSets += [d]
 
         print(self.writeDescriptorSets)
-        print("WRITING GLOBAL DESC SET")
-        # perform the update of the descriptor set.
-        vkUpdateDescriptorSets(
-            device=self.vkDevice,
-            descriptorWriteCount=1,  # len(writeDescriptorSets),
-            pDescriptorWrites=self.writeDescriptorSets[0],
-            descriptorCopyCount=0,
-            pDescriptorCopies=None,
-        )
-        print("WRITING UNIFORM DESC SET")
-        # perform the update of the descriptor set.
-        vkUpdateDescriptorSets(
-            device=self.vkDevice,
-            descriptorWriteCount=1,  # len(writeDescriptorSets),
-            pDescriptorWrites=self.writeDescriptorSets[1],
-            descriptorCopyCount=0,
-            pDescriptorCopies=None,
-        )
+        for i, wDescSet in enumerate(self.writeDescriptorSets):
+            if i == 0:
+                print("WRITING GLOBAL DESC SET")
+            else:
+                print("WRITING UNIFORM DESC SET")
+            # perform the update of the descriptor set.
+            vkUpdateDescriptorSets(
+                device=self.vkDevice,
+                descriptorWriteCount=1,  # len(writeDescriptorSets),
+                pDescriptorWrites=self.writeDescriptorSets[0],
+                descriptorCopyCount=0,
+                pDescriptorCopies=None,
+            )
 
     def release(self):
         for v in self.descSets:

@@ -70,8 +70,9 @@ class RasterPipeline(Pipeline):
         # actually this should probably belong to the pipeline
         self.indexBuffer = Buffer(
             name="index",
-            dimensionNames=["VERTEX_COUNT"],
-            dimensionVals=self.constantsDict["VERTEX_COUNT"],
+            readFromCPU=True,
+            dimensionNames=["TRIANGLE_COUNT", "VERTS_PER_TRIANGLE"],
+            dimensionVals=[self.constantsDict["TRIANGLE_COUNT"], self.constantsDict["VERTS_PER_TRIANGLE"]],
             location=location,
             descriptorSet=self.device.descriptorPool.descSetGlobal,
             device=self.device,
@@ -121,9 +122,9 @@ class RasterPipeline(Pipeline):
         # Storage Buffers in DEBUG Mode
         # PIPELINE WILL CREATE ITS OWN INDEX BUFFER
         self.vertexShaderInputBuffers = [
-            {"name": "position", "type": "vec3", "dims": ["VERTEX_COUNT"]},
-            {"name": "normal", "type": "vec3", "dims": ["VERTEX_COUNT"]},
-            {"name": "color", "type": "vec3", "dims": ["VERTEX_COUNT"]},
+            {"name": "position", "type": "vec3", "dims": ["VERTEX_COUNT", "SPATIAL_DIMENSIONS"]},
+            {"name": "normal", "type": "vec3", "dims": ["VERTEX_COUNT", "SPATIAL_DIMENSIONS"]},
+            {"name": "color", "type": "vec3", "dims": ["VERTEX_COUNT", "COLOR_DIMENSIONS"]},
         ]
 
         # any input buffers you want to exclude from debug
@@ -138,7 +139,7 @@ class RasterPipeline(Pipeline):
         # the output of the compute shader,
         # which in our case is always a Storage Buffer
         self.vertexShaderOutputBuffers = [
-            {"name": "fragColor", "type": "vec3", "dims": ["VERTEX_COUNT"]},
+            {"name": "fragColor", "type": "vec3", "dims": ["VERTEX_COUNT", "COLOR_DIMENSIONS"]},
         ]
         
         

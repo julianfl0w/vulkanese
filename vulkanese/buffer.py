@@ -56,9 +56,11 @@ def glsltype2bytesize(glsltype):
     elif glsltype == "uint":
         return 4
     elif glsltype == "vec3":
-        return 12
+        #return 12
+        return 4
     elif glsltype == "vec4":
-        return 16
+        #return 16
+        return 4
     else:
         print("type")
         print(glsltype)
@@ -93,7 +95,7 @@ class Buffer(Sinode):
         dimensionNames,
         dimensionVals,
         format=VK_FORMAT_R64_SFLOAT,
-        readFromCPU=False,
+        readFromCPU=True,
         usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         memProperties=VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
@@ -119,13 +121,17 @@ class Buffer(Sinode):
         self.itemSize = glsltype2bytesize(self.type)
         print("itemsize " + str(self.itemSize))
         self.pythonType = glsltype2python(self.type)
-        if self.itemSize <= 8:
+        if (not usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) and self.itemSize <= 8:
           self.skipval = int(16 / self.itemSize)
+        # vec3s (12 bytes) does not divide evenly into 16 :(
+        #elif self.itemSize == 12:
+        #    self.skipval = 4.0/3
         else:
-          self.skipval = int(0)
-          
-        self.sizeBytes=np.prod(dimensionVals)*self.itemSize*self.skipval
-
+          self.skipval = int(1)
+        
+        # for vec3 etc, the size is already bakd in
+        self.itemCount = np.prod(dimensionVals)
+        self.sizeBytes=int(self.itemCount*self.itemSize*self.skipval)
         self.name = name
         self.descriptorSet = descriptorSet
 
@@ -177,8 +183,10 @@ class Buffer(Sinode):
             flags=0,
         )
         
+        print(len(self.pmap[:]))
+        print(len(np.zeros((self.itemCount*self.skipval), dtype=self.pythonType)))
         #initialize to zero
-        self.setBuffer(np.zeros(int(self.sizeBytes / self.itemSize), dtype=self.pythonType))
+        self.setBuffer(np.zeros((self.itemCount*self.skipval), dtype=self.pythonType))
 
         if not readFromCPU:
             vkUnmapMemory(self.vkDevice, self.vkDeviceMemory)
@@ -338,7 +346,14 @@ class Buffer(Sinode):
         return np.frombuffer(self.pmap[startByte:endByte], dtype=self.pythonType)
 
     def setBuffer(self, data):
-        self.pmap[:] = data.astype(self.pythonType)
+        #self.pmap[:] = data.astype(self.pythonType)
+        try: 
+            self.pmap[:] = data.astype(self.pythonType)
+        except:
+            print("WRONG SIZE")
+            print("pmap (bytes): " + str(len(self.pmap[:])))
+            print("data (bytes): " + str(len(data)*self.itemSize))
+            raise Exception("Wrong Size")
 
     def fill(self, value):
         # self.pmap[: data.size * data.itemSize] = data

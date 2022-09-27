@@ -113,7 +113,7 @@ class Stage(Sinode):
     def getVertexBuffers(self):
         allVertexBuffers = []
         for b in self.buffers:
-            if type(b) == VertexBuffer:
+            if b.usage==VK_BUFFER_USAGE_VERTEX_BUFFER_BIT:
                 allVertexBuffers += [b]
         return allVertexBuffers
 
