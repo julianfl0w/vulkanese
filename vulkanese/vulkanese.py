@@ -7,6 +7,7 @@ import json
 from vutil import *
 from vulkan import *
 from pipelines import *
+from rasterpipeline import *
 from raytracepipeline import *
 from computepipeline import *
 from descriptor import *

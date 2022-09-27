@@ -169,7 +169,13 @@ class DescriptorSet(Sinode):
         self.buffers = []
         self.type = type
         self.binding = binding
-
+        self.currBufferBinding = 0
+        
+    def getBufferBinding(self):
+        retval = self.currBufferBinding
+        self.currBufferBinding += 1
+        return retval
+        
     def finalize(self):
         # Here we specify a descriptor set layout. This allows us to bind our descriptors to
         # resources in the shader.

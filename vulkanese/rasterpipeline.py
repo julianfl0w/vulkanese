@@ -23,14 +23,104 @@ class RasterPipeline(Pipeline):
     def __init__(
         self,
         device,
-        indexBuffer,
-        stages,
+        constantsDict, 
+        vertexHeader,
+        vertexMain,
+        vertexShaderInputBuffers,
+        vertexShaderInputBuffersNoDebug,
+        vertexShaderDebuggableVars,
+        vertexShaderOutputBuffers,
+        fragHeader,
+        fragMain,
+        fragmentShaderInputBuffers,
+        fragmentShaderDebuggableVars,
+        fragmentShaderOutputBuffers,
         culling=VK_CULL_MODE_BACK_BIT,
         oversample=VK_SAMPLE_COUNT_1_BIT,
         outputClass="surface",
         outputWidthPixels=700,
         outputHeightPixels=700,
     ):
+        self.DEBUG = False
+        #######################################################
+        # vertex stage
+        # buffers
+        
+        # if we're debugging, all intermediate variables become output buffers
+        if self.DEBUG:
+            allBufferDescriptions = (
+                vertexShaderInputBuffers
+                + vertexShaderInputBuffersNoDebug
+                + vertexShaderDebuggableVars
+                + vertexShaderOutputBuffers
+            )
+        else:
+            allBufferDescriptions = (
+                vertexShaderInputBuffers
+                + vertexShaderInputBuffersNoDebug
+                + vertexShaderOutputBuffers
+            )
+        
+        self.vertexBuffers = []
+        location = 0
+        for bd in allBufferDescriptions:
+            newBuff = Buffer(
+                device=device,
+                dimensionNames=bd["dims"],
+                dimensionVals=[constantsDict[d] for d in bd["dims"]],
+                name=bd["name"],
+                descriptorSet=device.descriptorPool.descSetGlobal,
+                location=location,
+            )
+            location += newBuff.getSize()
+            self.vertexBuffers += [newBuff]
+        
+        # add index buffer at end 
+        # (was in middle before)
+        self.indexBuffer = Buffer(
+            name="index",
+            location=location,
+            descriptorSet=device.descriptorPool.descSetGlobal,
+            device=device,
+            type="uint",
+            usage=VK_BUFFER_USAGE_TRANSFER_DST_BIT
+            | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+            | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+            format=VK_FORMAT_R32_UINT,
+            stride=4,
+        )
+
+
+        # Stage
+        vertex = Stage(
+            device=device,
+            name="passthrough.vert",
+            stage=VK_SHADER_STAGE_VERTEX_BIT,
+            outputWidthPixels=700,
+            outputHeightPixels=700,
+            header=vertexHeader,
+            main=vertexMain,
+            buffers=self.vertexBuffers,
+        )
+
+        #######################################################
+        # fragment stage
+        # buffers,
+        location += fragColor.getSize()
+        outColor.location = 0
+        # fragColor.location= 1
+        fragColor.qualifier = "in"
+        # Stage
+        fragment = Stage(
+            device=device,
+            name="passthrough.frag",
+            stage=VK_SHADER_STAGE_FRAGMENT_BIT,
+            outputWidthPixels=700,
+            outputHeightPixels=700,
+            header=header,
+            main=main,
+            buffers=[outColor, fragColor],
+        )
 
         Pipeline.__init__(
             self,

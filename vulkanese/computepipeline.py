@@ -42,8 +42,6 @@ class ComputePipeline(Pipeline):
     ):
         self.dim2index = dim2index
         self.constantsDict = constantsDict
-        bindingUniform = 0
-        bindingStorage = 0
         allBuffers = []
         self.DEBUG = DEBUG
         self.device = device
@@ -75,16 +73,11 @@ class ComputePipeline(Pipeline):
             if s in shaderOutputBuffers or s in debuggableVars:
                 descriptorSet = device.descriptorPool.descSetGlobal
                 usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-                binding = bindingStorage
-                bindingStorage += 1
             else:
                 descriptorSet = device.descriptorPool.descSetUniform
                 usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
-                binding = bindingUniform
-                bindingUniform += 1
 
             newBuff = Buffer(
-                binding=binding,
                 device=device,
                 type=s["type"],
                 descriptorSet=descriptorSet,
@@ -123,12 +116,10 @@ class ComputePipeline(Pipeline):
         main = main.replace("VARIABLEDECLARATIONS", VARSDECL)
 
         # Stage
-        existingBuffers = []
         computeStage = Stage(
             device=device,
             name="mandlebrot.comp",
             stage=VK_SHADER_STAGE_COMPUTE_BIT,
-            existingBuffers=existingBuffers,
             outputWidthPixels=700,
             outputHeightPixels=700,
             header=header,

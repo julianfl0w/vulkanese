@@ -88,23 +88,23 @@ class Buffer(Sinode):
         name,
         location,
         descriptorSet,
-        format,
         dimensionNames,
         dimensionVals,
+        format=VK_FORMAT_R64_SFLOAT,
         readFromCPU=False,
-        binding=0,
         usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         memProperties=VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
         sharingMode=VK_SHARING_MODE_EXCLUSIVE,
-        SIZEBYTES=65536,
         stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
         qualifier="in",
         type="vec3",
+        rate=VK_VERTEX_INPUT_RATE_VERTEX,
+        stride=12,
     ):
         self.dimensionNames = dimensionNames
         self.dimensionVals  = dimensionVals
-        self.binding = binding
+        self.binding = descriptorSet.getBufferBinding()
         # this should be fixed in vulkan wrapper
         self.released = False
         self.usage = usage
@@ -112,12 +112,12 @@ class Buffer(Sinode):
         self.device = device
         self.location = location
         self.vkDevice = device.vkDevice
-        self.size = SIZEBYTES
         self.qualifier = qualifier
         self.type = type
         self.itemSize = glsltype2bytesize(self.type)
         self.pythonType = glsltype2python(self.type)
         self.skipval = int(16 / self.itemSize)
+        self.sizeBytes=np.prod(dimensionVals)*self.itemSize*self.skipval
 
         self.name = name
         self.descriptorSet = descriptorSet
@@ -127,7 +127,7 @@ class Buffer(Sinode):
         # We will now create a buffer with these options
         self.bufferCreateInfo = VkBufferCreateInfo(
             sType=VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-            size=SIZEBYTES,  # buffer size in bytes.
+            size=self.sizeBytes,  # buffer size in bytes.
             usage=usage,  # buffer is used as a storage buffer.
             sharingMode=sharingMode,  # buffer is exclusive to a single queue family at a time.
         )
@@ -166,9 +166,12 @@ class Buffer(Sinode):
             device=self.vkDevice,
             memory=self.vkDeviceMemory,
             offset=0,
-            size=SIZEBYTES,
+            size=self.sizeBytes,
             flags=0,
         )
+        
+        #initialize to zero
+        self.setBuffer(np.zeros(int(self.sizeBytes / self.itemSize), dtype=self.pythonType))
 
         if not readFromCPU:
             vkUnmapMemory(self.vkDevice, self.vkDeviceMemory)
@@ -207,11 +210,22 @@ class Buffer(Sinode):
         # Next, we need to connect our actual storage buffer with the descrptor.
         # We use vkUpdateDescriptorSets() to update the descriptor set.
         self.descriptorBufferInfo = VkDescriptorBufferInfo(
-            buffer=self.vkBuffer, offset=0, range=SIZEBYTES
+            buffer=self.vkBuffer, offset=0, range=self.sizeBytes
         )
-        self.setBuffer(np.zeros(int(SIZEBYTES / self.itemSize), dtype=self.pythonType))
-        # print("finished creating buffer")
+        
+        # the following are only needed for vertex buffers
+        # VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
+        # VK_VERTEX_INPUT_RATE_INSTANCE: Move to the next data entry after each instance
 
+        # we will standardize its bindings with a attribute description
+        self.attributeDescription = VkVertexInputAttributeDescription(
+            binding=self.binding, location=self.location, format=format, offset=0
+        )
+        # ^^ Consider VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^
+        self.bindingDescription = VkVertexInputBindingDescription(
+            binding=self.binding, stride=stride, inputRate=rate  # 4 bytes/element
+        )
+        
     def getAsNumpyArray(self):
         # glsl to python
         flatArray = np.frombuffer(self.pmap, self.pythonType)
@@ -300,7 +314,7 @@ class Buffer(Sinode):
             + " "
             + self.name
             + "["
-            + str(int(self.size / self.itemSize))
+            + str(int(self.sizeBytes / self.itemSize))
             + "];\n};\n"
         )
 
@@ -317,7 +331,7 @@ class Buffer(Sinode):
         return np.frombuffer(self.pmap[startByte:endByte], dtype=self.pythonType)
 
     def setBuffer(self, data):
-        self.pmap[:] = data.astype(glsltype2python(self.type))
+        self.pmap[:] = data.astype(self.pythonType)
 
     def fill(self, value):
         # self.pmap[: data.size * data.itemSize] = data
@@ -337,56 +351,6 @@ class Buffer(Sinode):
         else:
             size += 1
         return int(size)
-
-
-class VertexBuffer(Buffer):
-    def __init__(
-        self,
-        device,
-        name,
-        location,
-        descriptorSet,
-        binding=0,
-        format=VK_FORMAT_R32G32B32_SFLOAT,
-        usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        rate=VK_VERTEX_INPUT_RATE_VERTEX,
-        memProperties=VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-        sharingMode=VK_SHARING_MODE_EXCLUSIVE,
-        SIZEBYTES=65536,
-        qualifier="in",
-        type="vec3",
-        stride=12,
-    ):
-
-        Buffer.__init__(
-            self=self,
-            location=location,
-            binding=binding,
-            device=device,
-            name=name,
-            usage=usage,
-            descriptorSet=descriptorSet,
-            memProperties=memProperties,
-            sharingMode=sharingMode,
-            SIZEBYTES=SIZEBYTES,
-            qualifier=qualifier,
-            type=type,
-            format=format,
-        )
-
-        # we will standardize its bindings with a attribute description
-        self.attributeDescription = VkVertexInputAttributeDescription(
-            binding=self.binding, location=self.location, format=format, offset=0
-        )
-        # ^^ Consider VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^
-        self.bindingDescription = VkVertexInputBindingDescription(
-            binding=self.binding, stride=stride, inputRate=rate  # 4 bytes/element
-        )
-
-        # VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
-        # VK_VERTEX_INPUT_RATE_INSTANCE: Move to the next data entry after each instance
-
 
 class DescriptorSetBuffer(Buffer):
     def __init__(self, device, setupDict):

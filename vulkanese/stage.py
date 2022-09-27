@@ -14,7 +14,6 @@ class Stage(Sinode):
         device,
         header,
         main,
-        existingBuffers,
         outputWidthPixels=500,
         outputHeightPixels=500,
         stage=VK_SHADER_STAGE_VERTEX_BIT,
