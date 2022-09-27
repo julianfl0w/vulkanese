@@ -11,73 +11,80 @@ here = os.path.dirname(os.path.abspath(__file__))
 class Stage(Sinode):
     def __init__(
         self,
+        parent,
         device,
-        header,
-        main,
-        outputWidthPixels=500,
-        outputHeightPixels=500,
+        buffers,
+        constantsDict,
         stage=VK_SHADER_STAGE_VERTEX_BIT,
         name="mandlebrot",
-        buffers=[],
+        DEBUG=False,
     ):
-        baseFilename = name
-        Sinode.__init__(self, None)
+        self.constantsDict = constantsDict
+        self.buffers = buffers
+        self.DEBUG = DEBUG
+        Sinode.__init__(self, parent)
         self.vkDevice = device.vkDevice
         self.device = device
         self.name = name
-        self.outputWidthPixels = outputWidthPixels
-        self.outputHeightPixels = outputHeightPixels
         self.stage = stage
         print("creating Stage " + str(stage))
-
-        # attributes are ex. location, normal, color
-        self.buffers = buffers
+    
+    def getBufferByName(self, name):
+        for b in self.buffers:
+            if name == b.name:
+                return b
+    
+    def compile(self):
         # POS always outputs to "a.spv"
         compiledFilename = "a.spv"
-        shader_spirv = header
 
-        shader_spirv += "\n"
-        # if stage != VK_SHADER_STAGE_COMPUTE_BIT:
-        reqdTypes = [b.type for b in buffers]
+        STRUCTS_STRING = "\n"
+        
+        # Create STRUCTS for each structured datatype
+        reqdTypes = [b.type for b in self.buffers]
         with open(os.path.join(here, "derivedtypes.json"), "r") as f:
             derivedDict = json.loads(f.read())
             for structName, composeDict in derivedDict.items():
                 if structName in reqdTypes:
-                    shader_spirv += "struct " + structName + "{\n"
+                    STRUCTS_STRING += "struct " + structName + "{\n"
                     for name, ctype in composeDict.items():
-                        shader_spirv += "  " + ctype + " " + name + ";\n"
+                        STRUCTS_STRING += "  " + ctype + " " + name + ";\n"
 
-                    shader_spirv += "};\n\n"
+                    STRUCTS_STRING += "};\n\n"
 
-        self.children += buffers
-
+        BUFFERS_STRING = ""
         # novel INPUT buffers belong to THIS Stage (others are linked)
-        for buffer in buffers:
-            if stage != VK_SHADER_STAGE_COMPUTE_BIT:
-                shader_spirv += buffer.getDeclaration()
+        for buffer in self.buffers:
+            # THIS IS STUPID AND WRONG
+            # FUCK
+            if self.stage == VK_SHADER_STAGE_FRAGMENT_BIT and buffer.name == "fragColor":
+                buffer.qualifier = "in"
+            if self.stage != VK_SHADER_STAGE_COMPUTE_BIT:
+                BUFFERS_STRING += buffer.getDeclaration()
             else:
-                shader_spirv += buffer.getComputeDeclaration()
-            if buffer.name == "INDEX":
-                self.pipeline.indexBuffer = buffer
+                BUFFERS_STRING += buffer.getComputeDeclaration()
+                
 
-        shader_spirv += main
+        # put structs and buffers into the code
+        self.glslCode = self.glslCode.replace("BUFFERS_STRING", BUFFERS_STRING).replace("STRUCTS_STRING", STRUCTS_STRING)
 
         # print("---final Stage code---")
         # print(shader_spirv)
         # print("--- end Stage code ---")
 
+        
         print("compiling Stage")
         compStagesPath = os.path.join(here, "compiledStages")
         compStagesPath = "compiledStages"
         Path(compStagesPath).mkdir(parents=True, exist_ok=True)
 
-        with open(baseFilename, "w+") as f:
-            f.write(shader_spirv)
+        with open(self.name, "w+") as f:
+            f.write(self.glslCode)
 
         # delete the old one
         if os.path.exists(compiledFilename):
             os.remove(compiledFilename)
-        os.system("glslc " + baseFilename)
+        os.system("glslc " + self.name)
         with open(compiledFilename, "rb") as f:
             shader_spirv = f.read()
 
@@ -96,7 +103,7 @@ class Stage(Sinode):
         # Create Shader stage
         self.shader_stage_create = VkPipelineShaderStageCreateInfo(
             sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            stage=stage,
+            stage=self.stage,
             module=self.vkShaderModule,
             flags=0,
             pSpecializationInfo=None,
@@ -110,7 +117,79 @@ class Stage(Sinode):
                 allVertexBuffers += [b]
         return allVertexBuffers
 
+    
     def release(self):
         print("destroying Stage")
         Sinode.release(self)
         vkDestroyShaderModule(self.vkDevice, self.vkShaderModule, None)
+
+class VertexStage(Stage):
+    def __init__(
+        self,
+        parent,
+        device,
+        buffers,
+        constantsDict,
+        name="mandlebrot",
+        DEBUG=False,
+    ):
+        self.glslCode = """
+#version 450
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+STRUCTS_STRING
+BUFFERS_STRING
+void main() {                         
+    gl_Position = vec4(position, 1.0);
+    fragColor = color;                
+}                                     
+"""
+
+        Stage.__init__(
+            self,
+            parent,
+            device,
+            buffers,
+            constantsDict,
+            stage=VK_SHADER_STAGE_VERTEX_BIT,
+            name="vertex.vert",
+            DEBUG=False,
+        )
+        
+        # shader code belongs to the stage
+    
+        
+class FragmentStage(Stage):
+    def __init__(
+        self,
+        parent,
+        device,
+        buffers,
+        constantsDict,
+        stage=VK_SHADER_STAGE_VERTEX_BIT,
+        name="mandlebrot",
+        DEBUG=False,
+    ):
+        self.glslCode = """
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+STRUCTS_STRING
+BUFFERS_STRING
+void main() {
+    outColor = vec4(fragColor, 1.0);
+}
+"""
+        Stage.__init__(
+            self,
+            parent,
+            device,
+            buffers,
+            constantsDict,
+            stage=VK_SHADER_STAGE_FRAGMENT_BIT,
+            name="fragment.frag",
+            DEBUG=False,
+        )
+        
+        # shader code belongs to the stage
+    
+    

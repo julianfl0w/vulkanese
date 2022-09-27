@@ -52,103 +52,35 @@ class HelloTriangle:
         pyramidVerticesColorHSV = cv.cvtColor(pyramidVerticesColor, cv.COLOR_BGR2HSV)
         print(np.asarray(pyramidMesh.vertices))
         
+        # constants declared here will be visible in 
+        # this class as an attribute,
+        # and in the shader as a #define
         self.constantsDict = {
             "VERTEX_COUNT": len(pyramidMesh.vertices)
         }
         for k, v in self.constantsDict.items():
             exec("self." + k + " = " + str(v))
 
-        # Input buffers to the shader
-        # These are Uniform Buffers normally,
-        # Storage Buffers in DEBUG Mode
-        # PIPELINE WILL CREATE ITS OWN INDEX BUFFER
-        vertexShaderInputBuffers = [
-            {"name": "position", "type": "vec3", "dims": ["VERTEX_COUNT"]},
-            {"name": "normal", "type": "vec3", "dims": ["VERTEX_COUNT"]},
-            {"name": "color", "type": "vec3", "dims": ["VERTEX_COUNT"]},
-        ]
-
-        # any input buffers you want to exclude from debug
-        # for example, a sine lookup table
-        vertexShaderInputBuffersNoDebug = []
-
-        # variables that are usually intermediate variables in the shader
-        # but in DEBUG mode they are made visible to the CPU (as Storage Buffers)
-        # so that you can view shader intermediate values :)
-        vertexShaderDebuggableVars = []
-
-        # the output of the compute shader,
-        # which in our case is always a Storage Buffer
-        vertexShaderOutputBuffers = [
-            {"name": "fragColor", "type": "vec3", "dims": ["VERTEX_COUNT"]},
-        ]
-        
-        vertexHeader = """
-#version 450
-#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
-"""
-        vertexMain = """
-void main() {                         
-    gl_Position = vec4(position, 1.0);
-    fragColor = color;                
-}                                     
-"""
-
-        fragHeader = """
-#version 450
-#extension GL_ARB_separate_shader_objects : enable
-#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
-"""
-        fragMain = """
-void main() {
-    outColor = vec4(fragColor, 1.0);
-}
-"""
-        
-        #location = 0
-        #outColor = Buffer(
-        #    device=device,
-        #    name="outColor",
-        #    qualifier="out",
-        #    binding=5,
-        #    type="vec4",
-        #    descriptorSet=device.descriptorPool.descSetGlobal,
-        #    usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        #    sharingMode=VK_SHARING_MODE_EXCLUSIVE,
-        #    SIZEBYTES=65536,
-        #    format=VK_FORMAT_R32G32B32_SFLOAT,
-        #    memProperties=VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        #    | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-        #    location=location,
-        #)
-        
-        fragShaderOutputBuffers = [
-            {"name": "outColor", "type": "vec4", "dims": ["VERTEX_COUNT"]},
-        ]
-        
         #######################################################
         # Pipeline
-
+        # create raster pipeline
         rasterPipeline = RasterPipeline(
             device=self.device,
             constantsDict=self.constantsDict,
-            vertexShaderInputBuffers=vertexShaderInputBuffers,
-            vertexShaderInputBuffersNoDebug=vertexShaderInputBuffersNoDebug,
-            vertexShaderDebuggableVars=vertexShaderDebuggableVars,
-            vertexShaderOutputBuffers=vertexShaderOutputBuffers,
-            vertexHeader=vertexHeader,
-            vertexMain=vertexMain,
-            fragmentShaderInputBuffers=vertexShaderOutputBuffers, # In this case, they are the same
-            fragmentShaderDebuggableVars=[],
-            fragmentShaderOutputBuffers=fragShaderOutputBuffers,
-            fragHeader=fragHeader,
-            fragMain=fragMain,
-            culling=VK_CULL_MODE_BACK_BIT,
-            oversample=VK_SAMPLE_COUNT_1_BIT,
             outputClass="surface",
             outputWidthPixels=700,
             outputHeightPixels=700,
         )
+        # -- ADD BUFFERS HERE --
+        # we will be using the standard set
+        rasterPipeline.createStandardBuffers()
+        # option here to change the code in each shader
+        # (vertex -> tesselate -> fragment)
+        rasterPipeline.createStages()
+        # create the standard set
+        rasterPipeline.createGraphicPipeline()
+        
+        
         device.descriptorPool.finalize()
         device.children += [rasterPipeline]
 

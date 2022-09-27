@@ -115,7 +115,7 @@ class ComputePipeline(Pipeline):
 
         main = main.replace("VARIABLEDECLARATIONS", VARSDECL)
 
-        # Stage
+        # Compute Stage: the only stage
         computeStage = Stage(
             device=device,
             name="mandlebrot.comp",

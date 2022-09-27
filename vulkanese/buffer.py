@@ -57,6 +57,8 @@ def glsltype2bytesize(glsltype):
         return 4
     elif glsltype == "vec3":
         return 12
+    elif glsltype == "vec4":
+        return 16
     else:
         print("type")
         print(glsltype)
@@ -115,8 +117,13 @@ class Buffer(Sinode):
         self.qualifier = qualifier
         self.type = type
         self.itemSize = glsltype2bytesize(self.type)
+        print("itemsize " + str(self.itemSize))
         self.pythonType = glsltype2python(self.type)
-        self.skipval = int(16 / self.itemSize)
+        if self.itemSize <= 8:
+          self.skipval = int(16 / self.itemSize)
+        else:
+          self.skipval = int(0)
+          
         self.sizeBytes=np.prod(dimensionVals)*self.itemSize*self.skipval
 
         self.name = name
