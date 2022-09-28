@@ -18,7 +18,10 @@ class Stage(Sinode):
         stage=VK_SHADER_STAGE_VERTEX_BIT,
         name="mandlebrot",
         DEBUG=False,
+        glslCode=None,
     ):
+        if glslCode is not None:
+            self.glslCode = glslCode
         self.constantsDict = constantsDict
         self.buffers = buffers
         self.DEBUG = DEBUG
@@ -35,8 +38,6 @@ class Stage(Sinode):
                 return b
     
     def compile(self):
-        # POS always outputs to "a.spv"
-        compiledFilename = "a.spv"
 
         STRUCTS_STRING = "\n"
         
@@ -78,10 +79,13 @@ class Stage(Sinode):
         compStagesPath = "compiledStages"
         Path(compStagesPath).mkdir(parents=True, exist_ok=True)
 
-        with open(self.name, "w+") as f:
+        glslFilename = os.path.join(compStagesPath, self.name)
+        with open(glslFilename, "w+") as f:
             f.write(self.glslCode)
 
         # delete the old one
+        # POS always outputs to "a.spv"
+        compiledFilename = "a.spv"
         if os.path.exists(compiledFilename):
             os.remove(compiledFilename)
         os.system("glslc " + self.name)

@@ -16,6 +16,7 @@
 #define ENVELOPE_LENGTH 512
 #define FILTER_STEPS 512
 #define SHADERS_PER_SAMPLE 16
+ // This will be (or has been) replaced by constant definitions
 layout (local_size_x = SAMPLES_PER_DISPATCH, local_size_y = SHADERS_PER_SAMPLE, local_size_z = 1 ) in;
 layout(std140, set = 0, binding = 0) buffer pcmBufferOut_buf
 {
@@ -81,6 +82,7 @@ layout(std140, set = 1, binding = 14) uniform SLUT_buf
 {
    float64_t SLUT[524288];
 };
+  // This will be (or has been) replaced by buffer definitions
 void main() {
   //precision mediump float;
   //precision mediump float64_t;

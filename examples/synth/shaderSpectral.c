@@ -1,3 +1,10 @@
+#version 450
+#extension GL_EXT_shader_explicit_arithmetic_types_float64 : require
+//#extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
+#extension GL_ARB_separate_shader_objects : enable
+DEFINE_STRING // This will be (or has been) replaced by constant definitions
+layout (local_size_x = SAMPLES_PER_DISPATCH, local_size_y = SHADERS_PER_SAMPLE, local_size_z = 1 ) in;
+BUFFERS_STRING  // This will be (or has been) replaced by buffer definitions
 void main() {
   //precision mediump float;
   //precision mediump float64_t;

@@ -61,18 +61,14 @@ class Interface:
         for k, v in self.constantsDict.items():
             exec("self." + k + " = " + str(v))
 
-        header = """#version 450
-#extension GL_EXT_shader_explicit_arithmetic_types_float64 : require
-//#extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
-#extension GL_ARB_separate_shader_objects : enable
-"""
+        DEFINE_STRING = ""
         for k, v in self.constantsDict.items():
-            header += "#define " + k + " " + str(v) + "\n"
-        header += "layout (local_size_x = SAMPLES_PER_DISPATCH, local_size_y = SHADERS_PER_SAMPLE, local_size_z = 1 ) in;"
+            DEFINE_STRING += "#define " + k + " " + str(v) + "\n"
 
         with open("shaderSpectral.c", "r") as f:
-            main = f.read()
-
+            glslCode = f.read()
+        glslCode = glslCode.replace("DEFINE_STRING", DEFINE_STRING)
+              
         # compute the size of each shader
         for buffList in [
             shaderOutputBuffers,
@@ -88,8 +84,7 @@ class Interface:
 
         # generate a compute cmd buffer
         self.computePipeline = ComputePipeline(
-            main=main,
-            header=header,
+            glslCode=glslCode,
             device=device,
             constantsDict=constantsDict,
             shaderOutputBuffers=shaderOutputBuffers,

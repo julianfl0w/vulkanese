@@ -1,0 +1,234 @@
+#version 450
+#extension GL_EXT_shader_explicit_arithmetic_types_float64 : require
+//#extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
+#extension GL_ARB_separate_shader_objects : enable
+#define POLYPHONY 16
+#define POLYPHONY_PER_SHADER 1
+#define SLUTLEN 262144
+#define PARTIALS_PER_VOICE 1
+#define SAMPLE_FREQUENCY 44100
+#define PARTIALS_PER_HARMONIC 1
+#define PARTIAL_SPREAD 0.02
+#define OVERVOLUME 1
+#define CHANNELS 1
+#define SAMPLES_PER_DISPATCH 32
+#define LATENCY_SECONDS 0.01
+#define ENVELOPE_LENGTH 16
+#define FILTER_STEPS 16
+#define SHADERS_PER_SAMPLE 16
+ // This will be (or has been) replaced by constant definitions
+layout (local_size_x = SAMPLES_PER_DISPATCH, local_size_y = SHADERS_PER_SAMPLE, local_size_z = 1 ) in;
+layout(std140, set = 0, binding = 0) buffer pcmBufferOut_buf
+{
+   float pcmBufferOut[2048];
+};
+layout(std140, set = 0, binding = 1) buffer currTimeWithSampleOffset_buf
+{
+   float64_t currTimeWithSampleOffset[1024];
+};
+layout(std140, set = 0, binding = 2) buffer shadersum_buf
+{
+   float shadersum[2048];
+};
+layout(std140, set = 0, binding = 3) buffer envelopeIndexFloat64_buf
+{
+   float64_t envelopeIndexFloat64[1024];
+};
+layout(std140, set = 0, binding = 4) buffer slutIndex_buf
+{
+   uint slutIndex[2048];
+};
+layout(std140, set = 0, binding = 5) buffer envelopeIndex_buf
+{
+   int envelopeIndex[2048];
+};
+layout(std140, set = 0, binding = 6) buffer secondsSinceStrike_buf
+{
+   float64_t secondsSinceStrike[1024];
+};
+layout(std140, set = 0, binding = 7) buffer secondsSinceRelease_buf
+{
+   float64_t secondsSinceRelease[1024];
+};
+layout(std140, set = 0, binding = 8) buffer fractional_buf
+{
+   float64_t fractional[1024];
+};
+layout(std140, set = 0, binding = 9) buffer basePhaseThisNote_buf
+{
+   float64_t basePhaseThisNote[1024];
+};
+layout(std140, set = 0, binding = 10) buffer noteVol_buf
+{
+   float noteVol[2048];
+};
+layout(std140, set = 0, binding = 11) buffer increment_buf
+{
+   float64_t increment[1024];
+};
+layout(std140, set = 0, binding = 12) buffer innersum_buf
+{
+   float innersum[2048];
+};
+layout(std140, set = 0, binding = 13) buffer thisIncrement_buf
+{
+   float64_t thisIncrement[1024];
+};
+layout(std140, set = 0, binding = 14) buffer indexInFilter_buf
+{
+   int indexInFilter[2048];
+};
+layout(std140, set = 0, binding = 15) buffer envelopeAmplitude_buf
+{
+   float envelopeAmplitude[2048];
+};
+layout(std140, set = 1, binding = 0) uniform noteBaseIncrement_buf
+{
+   float64_t noteBaseIncrement[32];
+};
+layout(std140, set = 1, binding = 1) uniform partialMultiplier_buf
+{
+   float partialMultiplier[4];
+};
+layout(std140, set = 1, binding = 2) uniform partialVolume_buf
+{
+   float partialVolume[4];
+};
+layout(std140, set = 1, binding = 3) uniform noteVolume_buf
+{
+   float noteVolume[64];
+};
+layout(std140, set = 1, binding = 4) uniform noteStrikeTime_buf
+{
+   float64_t noteStrikeTime[32];
+};
+layout(std140, set = 1, binding = 5) uniform noteReleaseTime_buf
+{
+   float64_t noteReleaseTime[32];
+};
+layout(std140, set = 1, binding = 6) uniform currTime_buf
+{
+   float64_t currTime[32];
+};
+layout(std140, set = 1, binding = 7) uniform attackEnvelope_buf
+{
+   float attackEnvelope[64];
+};
+layout(std140, set = 1, binding = 8) uniform releaseEnvelope_buf
+{
+   float releaseEnvelope[64];
+};
+layout(std140, set = 1, binding = 9) uniform attackSpeedMultiplier_buf
+{
+   float64_t attackSpeedMultiplier[32];
+};
+layout(std140, set = 1, binding = 10) uniform releaseSpeedMultiplier_buf
+{
+   float64_t releaseSpeedMultiplier[32];
+};
+layout(std140, set = 1, binding = 11) uniform freqFilter_buf
+{
+   float freqFilter[64];
+};
+layout(std140, set = 1, binding = 12) uniform pitchFactor_buf
+{
+   float64_t pitchFactor[32];
+};
+layout(std140, set = 1, binding = 13) uniform noteBasePhase_buf
+{
+   float64_t noteBasePhase[32];
+};
+layout(std140, set = 1, binding = 14) uniform SLUT_buf
+{
+   float64_t SLUT[524288];
+};
+  // This will be (or has been) replaced by buffer definitions
+void main() {
+  //precision mediump float;
+  //precision mediump float64_t;
+  uint sampleNo = gl_LocalInvocationID.x;
+  uint shaderIndexInSample = gl_LocalInvocationID.y;
+  uint zindex = gl_LocalInvocationID.z;
+  
+
+  // current time depends on the sample offset
+  currTimeWithSampleOffset[sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample] = currTime[0] + sampleNo / float(SAMPLE_FREQUENCY);
+  // currTimeWithSampleOffset = shaderIndexInSample;
+  // //sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample;
+
+  for (uint noteNo = shaderIndexInSample * POLYPHONY_PER_SHADER;
+       noteNo < (shaderIndexInSample + 1) * POLYPHONY_PER_SHADER; noteNo++) {
+
+    // calculate the envelope
+    // time is a float holding seconds (since epoch?)
+    // these values are updated in the python loop
+
+    // attack phase
+    secondsSinceStrike[sampleNo*POLYPHONY+noteNo]  = currTimeWithSampleOffset[sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample] - noteStrikeTime[noteNo];
+    secondsSinceRelease[sampleNo*POLYPHONY+noteNo] = currTimeWithSampleOffset[sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample] - noteReleaseTime[noteNo];
+
+    // attack phase
+    if (noteStrikeTime[noteNo] > noteReleaseTime[noteNo]) {
+      envelopeIndexFloat64[sampleNo*POLYPHONY+noteNo] = secondsSinceStrike[sampleNo*POLYPHONY+noteNo] * attackSpeedMultiplier[noteNo];
+    }
+    // release phase
+    else if (noteStrikeTime[noteNo] < noteReleaseTime[noteNo]) {
+      envelopeIndexFloat64[sampleNo*POLYPHONY+noteNo] =
+          secondsSinceRelease[sampleNo*POLYPHONY+noteNo] * releaseSpeedMultiplier[noteNo];
+    }
+    // if both strike- and release-time are 0
+    // continue to next one
+    else {
+      continue;
+    }
+    
+    // keep the fractional part, for interp
+    fractional[sampleNo*POLYPHONY+noteNo] = fract(envelopeIndexFloat64[sampleNo*POLYPHONY+noteNo]);
+    envelopeIndex[sampleNo*POLYPHONY+noteNo] = int(envelopeIndexFloat64[sampleNo*POLYPHONY+noteNo]);
+
+    // if envelope is complete, maintain at the second-to-final index
+    if (envelopeIndex[sampleNo*POLYPHONY+noteNo] >= ENVELOPE_LENGTH-1)
+      envelopeIndex[sampleNo*POLYPHONY+noteNo] = ENVELOPE_LENGTH-2;
+      
+    // attack phase
+    if (noteStrikeTime[noteNo] > noteReleaseTime[noteNo]) {
+      envelopeAmplitude[sampleNo*POLYPHONY+noteNo] = float(fractional[sampleNo*POLYPHONY+noteNo]*attackEnvelope[envelopeIndex[sampleNo*POLYPHONY+noteNo]+1] + (1-fractional[sampleNo*POLYPHONY+noteNo])*attackEnvelope[envelopeIndex[sampleNo*POLYPHONY+noteNo]]); //lerp
+    }
+    // release phase
+    else if (noteStrikeTime[noteNo] < noteReleaseTime[noteNo]) {
+      envelopeAmplitude[sampleNo*POLYPHONY+noteNo] = float(fractional[sampleNo*POLYPHONY+noteNo]*releaseEnvelope[envelopeIndex[sampleNo*POLYPHONY+noteNo]+1] + (1-fractional[sampleNo*POLYPHONY+noteNo])*releaseEnvelope[envelopeIndex[sampleNo*POLYPHONY+noteNo]]); //lerp
+    }
+
+    // the note volume is given, and envelopeAmplitude is applied as well
+    noteVol[sampleNo*POLYPHONY+noteNo] = noteVolume[noteNo] * envelopeAmplitude[sampleNo*POLYPHONY+noteNo];
+    // if notevol is zero, continue
+    if(noteVol[sampleNo*POLYPHONY+noteNo] < 0.01)
+      continue;
+    
+    increment[sampleNo*POLYPHONY+noteNo] = noteBaseIncrement[noteNo] * pitchFactor[noteNo];
+    basePhaseThisNote[sampleNo*POLYPHONY+noteNo] = noteBasePhase[noteNo] + (sampleNo * increment[sampleNo*POLYPHONY+noteNo]);
+
+    innersum[sampleNo*POLYPHONY+noteNo] = 0;
+    // loop over the partials in this note
+    for (uint partialNo = 0; partialNo < PARTIALS_PER_VOICE; partialNo++) {
+
+      thisIncrement[sampleNo*POLYPHONY*PARTIALS_PER_VOICE+noteNo*PARTIALS_PER_VOICE+partialNo] = increment[sampleNo*POLYPHONY+noteNo] * partialMultiplier[partialNo];
+
+      if (thisIncrement[sampleNo*POLYPHONY*PARTIALS_PER_VOICE+noteNo*PARTIALS_PER_VOICE+partialNo] < 1) {
+        indexInFilter[sampleNo*POLYPHONY*PARTIALS_PER_VOICE+noteNo*PARTIALS_PER_VOICE+partialNo] = int(thisIncrement[sampleNo*POLYPHONY*PARTIALS_PER_VOICE+noteNo*PARTIALS_PER_VOICE+partialNo] * FILTER_STEPS);
+        float64_t phase = fract(basePhaseThisNote[sampleNo*POLYPHONY+noteNo] * partialMultiplier[partialNo]);
+        slutIndex[sampleNo*POLYPHONY+noteNo] = uint(phase * SLUTLEN);
+        innersum[sampleNo*POLYPHONY+noteNo] +=
+            float(partialVolume[partialNo] *
+            //SLUT[slutIndex] *
+            sin(float(2*3.1415926*phase)) *
+            freqFilter[indexInFilter[sampleNo*POLYPHONY*PARTIALS_PER_VOICE+noteNo*PARTIALS_PER_VOICE+partialNo]]);
+      }
+    }
+    shadersum[sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample] += innersum[sampleNo*POLYPHONY+noteNo] * noteVol[sampleNo*POLYPHONY+noteNo];
+  }
+
+  pcmBufferOut[sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample] = shadersum[sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample] / (PARTIALS_PER_VOICE * POLYPHONY / OVERVOLUME);
+}
+
+

@@ -28,8 +28,7 @@ def getVulkanesePath():
 class ComputePipeline(Pipeline):
     def __init__(
         self,
-        main,
-        header,
+        glslCode,
         device,
         shaderOutputBuffers,
         debuggableVars,
@@ -84,7 +83,6 @@ class ComputePipeline(Pipeline):
                 qualifier="out",
                 name=s["name"],
                 readFromCPU=True,
-                SIZEBYTES=s["SIZEBYTES"],
                 dimensionNames=s["dims"],
                 dimensionVals=[constantsDict[d] for d in s["dims"]],
                 usage=usage,
@@ -103,7 +101,7 @@ class ComputePipeline(Pipeline):
 
         VARSDECL = ""
         if self.DEBUG:
-            main = self.addIndicesToOutputs(debuggableVars, main)
+            glslCode = self.addIndicesToOutputs(debuggableVars, glslCode)
         else:
             # otherwise, just declare the variable type
             # INITIALIZE TO 0 !
@@ -111,21 +109,21 @@ class ComputePipeline(Pipeline):
                 VARSDECL += var["type"] + " " + var["name"] + " = 0;\n"
 
         # always index output variables
-        main = self.addIndicesToOutputs(shaderOutputBuffers, main)
+        glslCode = self.addIndicesToOutputs(shaderOutputBuffers, glslCode)
 
-        main = main.replace("VARIABLEDECLARATIONS", VARSDECL)
+        glslCode = glslCode.replace("VARIABLEDECLARATIONS", VARSDECL)
 
         # Compute Stage: the only stage
         computeStage = Stage(
+            parent=self,
+            constantsDict=constantsDict, 
             device=device,
             name="mandlebrot.comp",
             stage=VK_SHADER_STAGE_COMPUTE_BIT,
-            outputWidthPixels=700,
-            outputHeightPixels=700,
-            header=header,
-            main=main,
+            glslCode=glslCode,
             buffers=allBuffers,
         )
+        computeStage.compile()
 
         #######################################################
         # Pipeline
