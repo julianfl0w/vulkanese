@@ -31,16 +31,16 @@ class Stage(Sinode):
         self.name = name
         self.stage = stage
         print("creating Stage " + str(stage))
-    
+
     def getBufferByName(self, name):
         for b in self.buffers:
             if name == b.name:
                 return b
-    
+
     def compile(self):
 
         STRUCTS_STRING = "\n"
-        
+
         # Create STRUCTS for each structured datatype
         reqdTypes = [b.type for b in self.buffers]
         with open(os.path.join(here, "derivedtypes.json"), "r") as f:
@@ -58,22 +58,25 @@ class Stage(Sinode):
         for buffer in self.buffers:
             # THIS IS STUPID AND WRONG
             # FUCK
-            if self.stage == VK_SHADER_STAGE_FRAGMENT_BIT and buffer.name == "fragColor":
+            if (
+                self.stage == VK_SHADER_STAGE_FRAGMENT_BIT
+                and buffer.name == "fragColor"
+            ):
                 buffer.qualifier = "in"
             if self.stage != VK_SHADER_STAGE_COMPUTE_BIT:
                 BUFFERS_STRING += buffer.getDeclaration()
             else:
                 BUFFERS_STRING += buffer.getComputeDeclaration()
-                
 
         # put structs and buffers into the code
-        self.glslCode = self.glslCode.replace("BUFFERS_STRING", BUFFERS_STRING).replace("STRUCTS_STRING", STRUCTS_STRING)
+        self.glslCode = self.glslCode.replace("BUFFERS_STRING", BUFFERS_STRING).replace(
+            "STRUCTS_STRING", STRUCTS_STRING
+        )
 
         # print("---final Stage code---")
         # print(shader_spirv)
         # print("--- end Stage code ---")
 
-        
         print("compiling Stage")
         compStagesPath = os.path.join(here, "compiledStages")
         compStagesPath = "compiledStages"
@@ -117,25 +120,19 @@ class Stage(Sinode):
     def getVertexBuffers(self):
         allVertexBuffers = []
         for b in self.buffers:
-            if b.usage==VK_BUFFER_USAGE_VERTEX_BUFFER_BIT:
+            if b.usage == VK_BUFFER_USAGE_VERTEX_BUFFER_BIT:
                 allVertexBuffers += [b]
         return allVertexBuffers
 
-    
     def release(self):
         print("destroying Stage")
         Sinode.release(self)
         vkDestroyShaderModule(self.vkDevice, self.vkShaderModule, None)
 
+
 class VertexStage(Stage):
     def __init__(
-        self,
-        parent,
-        device,
-        buffers,
-        constantsDict,
-        name="mandlebrot",
-        DEBUG=False,
+        self, parent, device, buffers, constantsDict, name="mandlebrot", DEBUG=False,
     ):
         self.glslCode = """
 #version 450
@@ -158,10 +155,10 @@ void main() {
             name="vertex.vert",
             DEBUG=False,
         )
-        
+
         # shader code belongs to the stage
-    
-        
+
+
 class FragmentStage(Stage):
     def __init__(
         self,
@@ -193,7 +190,5 @@ void main() {
             name="fragment.frag",
             DEBUG=False,
         )
-        
+
         # shader code belongs to the stage
-    
-    

@@ -56,10 +56,10 @@ def glsltype2bytesize(glsltype):
     elif glsltype == "uint":
         return 4
     elif glsltype == "vec3":
-        #return 12
+        # return 12
         return 4
     elif glsltype == "vec4":
-        #return 16
+        # return 16
         return 4
     else:
         print("type")
@@ -107,7 +107,7 @@ class Buffer(Sinode):
         stride=12,
     ):
         self.dimensionNames = dimensionNames
-        self.dimensionVals  = dimensionVals
+        self.dimensionVals = dimensionVals
         self.binding = descriptorSet.getBufferBinding()
         # this should be fixed in vulkan wrapper
         self.released = False
@@ -119,19 +119,19 @@ class Buffer(Sinode):
         self.qualifier = qualifier
         self.type = type
         self.itemSize = glsltype2bytesize(self.type)
-        print("itemsize " + str(self.itemSize))
         self.pythonType = glsltype2python(self.type)
         if (not usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) and self.itemSize <= 8:
-          self.skipval = int(16 / self.itemSize)
+            self.skipval = int(16 / self.itemSize)
         # vec3s (12 bytes) does not divide evenly into 16 :(
-        #elif self.itemSize == 12:
+        # elif self.itemSize == 12:
         #    self.skipval = 4.0/3
         else:
-          self.skipval = int(1)
-        
+            self.skipval = int(1)
+
         # for vec3 etc, the size is already bakd in
         self.itemCount = np.prod(dimensionVals)
-        self.sizeBytes=int(self.itemCount*self.itemSize*self.skipval)
+        self.sizeBytes = int(self.itemCount * self.itemSize * self.skipval)
+        print("size " + str(self.sizeBytes))
         self.name = name
         self.descriptorSet = descriptorSet
 
@@ -182,11 +182,11 @@ class Buffer(Sinode):
             size=self.sizeBytes,
             flags=0,
         )
-        
+
         print(len(self.pmap[:]))
-        print(len(np.zeros((self.itemCount*self.skipval), dtype=self.pythonType)))
-        #initialize to zero
-        self.setBuffer(np.zeros((self.itemCount*self.skipval), dtype=self.pythonType))
+        print(len(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType)))
+        # initialize to zero
+        self.setBuffer(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType))
 
         if not readFromCPU:
             vkUnmapMemory(self.vkDevice, self.vkDeviceMemory)
@@ -227,7 +227,7 @@ class Buffer(Sinode):
         self.descriptorBufferInfo = VkDescriptorBufferInfo(
             buffer=self.vkBuffer, offset=0, range=self.sizeBytes
         )
-        
+
         # the following are only needed for vertex buffers
         # VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
         # VK_VERTEX_INPUT_RATE_INSTANCE: Move to the next data entry after each instance
@@ -240,7 +240,7 @@ class Buffer(Sinode):
         self.bindingDescription = VkVertexInputBindingDescription(
             binding=self.binding, stride=stride, inputRate=rate  # 4 bytes/element
         )
-        
+
     def getAsNumpyArray(self):
         # glsl to python
         flatArray = np.frombuffer(self.pmap, self.pythonType)
@@ -346,13 +346,13 @@ class Buffer(Sinode):
         return np.frombuffer(self.pmap[startByte:endByte], dtype=self.pythonType)
 
     def setBuffer(self, data):
-        #self.pmap[:] = data.astype(self.pythonType)
-        try: 
+        # self.pmap[:] = data.astype(self.pythonType)
+        try:
             self.pmap[:] = data.astype(self.pythonType)
         except:
             print("WRONG SIZE")
             print("pmap (bytes): " + str(len(self.pmap[:])))
-            print("data (bytes): " + str(len(data)*self.itemSize))
+            print("data (bytes): " + str(len(data) * self.itemSize))
             raise Exception("Wrong Size")
 
     def fill(self, value):
@@ -373,6 +373,7 @@ class Buffer(Sinode):
         else:
             size += 1
         return int(size)
+
 
 class DescriptorSetBuffer(Buffer):
     def __init__(self, device, setupDict):

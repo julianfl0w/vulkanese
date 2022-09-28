@@ -122,7 +122,7 @@ class Synth:
             # here we are creating sub plots
             self.figure, ax = plt.subplots(figsize=(10, 8))
             self.newVal = np.ones((4 * self.ENVELOPE_LENGTH * self.POLYPHONY))
-            self.plot, = ax.plot(self.newVal)
+            (self.plot,) = ax.plot(self.newVal)
             plt.ylabel("some numbers")
             plt.show()
             plt.ylim(-2, 2)

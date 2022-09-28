@@ -27,21 +27,21 @@ class HelloTriangle:
     def __init__(self):
         # device selection and instantiation
         self.instance_inst = Instance()
-        #print("available Devices:")
-        #for i, d in enumerate(self.instance_inst.getDeviceList()):
+        # print("available Devices:")
+        # for i, d in enumerate(self.instance_inst.getDeviceList()):
         #    print("    " + str(i) + ": " + d.deviceName)
-        #print("")
+        # print("")
 
         # choose a device
         print("naively choosing device 0")
         self.device = self.instance_inst.getDevice(0)
 
-        # constants declared here will be visible in 
+        # constants declared here will be visible in
         # this class as an attribute,
         # and in the shader as a #define
         # we need 12 verts for a pyramid
         self.constantsDict = {
-            "VERTEX_COUNT": 12, # there are redundant verts
+            "VERTEX_COUNT": 12,  # there are redundant verts
             "TRIANGLE_COUNT": 4,
             "VERTS_PER_TRIANGLE": 3,
             "SPATIAL_DIMENSIONS": 3,
@@ -68,8 +68,7 @@ class HelloTriangle:
         self.rasterPipeline.createStages()
         # create the standard set
         self.rasterPipeline.createGraphicPipeline()
-        
-        
+
         self.device.descriptorPool.finalize()
         self.device.children += [self.rasterPipeline]
 
@@ -78,8 +77,7 @@ class HelloTriangle:
         print(json.dumps(self.device.asDict(), indent=4))
 
     def run(self):
-        
-        
+
         # create the pyramid
         pyramidMesh = getPyramid()
         TRANSLATION = (0.0, 0.5, 0.5)
@@ -95,8 +93,7 @@ class HelloTriangle:
         )
         pyramidVerticesColorHSV = cv.cvtColor(pyramidVerticesColor, cv.COLOR_BGR2HSV)
         print(np.asarray(pyramidMesh.vertices))
-        
-        
+
         # Main loop
         clock = time.perf_counter
         last_time = clock() * 1000
@@ -120,14 +117,20 @@ class HelloTriangle:
                     break
 
             # rotate the pyrimid
-            R = pyramidMesh.get_rotation_matrix_from_xyz((0, -np.pi / max(6 * fps_last, 1), 0))
+            R = pyramidMesh.get_rotation_matrix_from_xyz(
+                (0, -np.pi / max(6 * fps_last, 1), 0)
+            )
             pyramidMesh.rotate(R, center=(0, 0, TRANSLATION[2]))
             meshVert = np.asarray(pyramidMesh.vertices, dtype="f4")
             print(np.asarray(pyramidMesh.triangles, dtype="u4"))
             # the index buffer is the 3 vert indices of each triangle
-            self.rasterPipeline.indexBuffer.setBuffer(np.asarray(pyramidMesh.triangles, dtype="u4").flatten())
+            self.rasterPipeline.indexBuffer.setBuffer(
+                np.asarray(pyramidMesh.triangles, dtype="u4").flatten()
+            )
 
-            self.rasterPipeline.vertexStage.getBufferByName("position").setBuffer(meshVert)
+            self.rasterPipeline.vertexStage.getBufferByName("position").setBuffer(
+                meshVert
+            )
             pyramidVerticesColorHSV[:, :, 0] = np.fmod(
                 pyramidVerticesColorHSV[:, :, 0] + 0.01, 360
             )
@@ -139,6 +142,7 @@ class HelloTriangle:
 
         # elegantly free all memory
         self.instance_inst.release()
+
 
 if __name__ == "__main__":
     ht = HelloTriangle()

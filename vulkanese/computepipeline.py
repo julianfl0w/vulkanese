@@ -91,7 +91,7 @@ class ComputePipeline(Pipeline):
                 format=format,
             )
             allBuffers += [newBuff]
-                           
+
             # make the buffer accessable as a local attribute
             exec("self." + s["name"] + " = newBuff")
 
@@ -116,7 +116,7 @@ class ComputePipeline(Pipeline):
         # Compute Stage: the only stage
         computeStage = Stage(
             parent=self,
-            constantsDict=constantsDict, 
+            constantsDict=constantsDict,
             device=device,
             name="mandlebrot.comp",
             stage=VK_SHADER_STAGE_COMPUTE_BIT,

@@ -68,7 +68,7 @@ class Interface:
         with open("shaderSpectral.c", "r") as f:
             glslCode = f.read()
         glslCode = glslCode.replace("DEFINE_STRING", DEFINE_STRING)
-              
+
         # compute the size of each shader
         for buffList in [
             shaderOutputBuffers,
@@ -183,7 +183,7 @@ class Interface:
 
     # update the partial scheme according to PARTIALS_PER_HARMONIC
     def updatePartials(self):
-        print("Updateing Partials")
+        print("Updating Partials")
         hm = np.ones((4 * self.PARTIALS_PER_VOICE), dtype=np.float32)
         pv = np.ones((4 * self.PARTIALS_PER_VOICE), dtype=np.float32)
         # for i in range(int(self.PARTIALS_PER_VOICE/2)):

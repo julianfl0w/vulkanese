@@ -101,6 +101,10 @@ class DescriptorPool(Sinode):
         self.activeDescriptorSets = []
         print(self.vkDescriptorSets)
         for i, d in enumerate(self.descSets):
+
+            # The Vulkan spec states: descriptorCount must be greater than 0
+            if not len(d.buffers):
+                continue
             d.vkDescriptorSet = self.vkDescriptorSets[i]
 
             # Next, we need to connect our actual storage buffer with the descrptor.
@@ -126,11 +130,9 @@ class DescriptorPool(Sinode):
             print("type")
             print(d.type)
 
-            # The Vulkan spec states: descriptorCount must be greater than 0
-            if len(d.buffers):
-                self.writeDescriptorSets += [d.vkWriteDescriptorSet]
-                self.activevkDescriptorSets += [d.vkDescriptorSet]
-                self.activeDescriptorSets += [d]
+            self.writeDescriptorSets += [d.vkWriteDescriptorSet]
+            self.activevkDescriptorSets += [d.vkDescriptorSet]
+            self.activeDescriptorSets += [d]
 
         print(self.writeDescriptorSets)
         for i, wDescSet in enumerate(self.writeDescriptorSets):
@@ -142,7 +144,7 @@ class DescriptorPool(Sinode):
             vkUpdateDescriptorSets(
                 device=self.vkDevice,
                 descriptorWriteCount=1,  # len(writeDescriptorSets),
-                pDescriptorWrites=self.writeDescriptorSets[0],
+                pDescriptorWrites=wDescSet,
                 descriptorCopyCount=0,
                 pDescriptorCopies=None,
             )
@@ -165,12 +167,12 @@ class DescriptorSet(Sinode):
         self.type = type
         self.binding = binding
         self.currBufferBinding = 0
-        
+
     def getBufferBinding(self):
         retval = self.currBufferBinding
         self.currBufferBinding += 1
         return retval
-        
+
     def finalize(self):
         # Here we specify a descriptor set layout. This allows us to bind our descriptors to
         # resources in the shader.

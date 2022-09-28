@@ -13,8 +13,9 @@ shaderInputBuffers = [
     {"name": "freqFilter", "type": "float", "dims": ["FILTER_STEPS"]},
     {"name": "pitchFactor", "type": "float64_t", "dims": ["POLYPHONY"]},
     {"name": "noteBasePhase", "type": "float64_t", "dims": ["POLYPHONY"]},
+    {"name": "SLUT", "type": "float64_t", "dims": ["SLUTLEN"]},
 ]
-shaderInputBuffersNoDebug = [{"name": "SLUT", "type": "float64_t", "dims": ["SLUTLEN"]}]
+shaderInputBuffersNoDebug = []
 
 debuggableVars = [
     # per timeslice, per polyslice (per shader)
@@ -99,5 +100,5 @@ shaderOutputBuffers = [
         "type": "float",
         # "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_SAMPLE", "CHANNELS"],
         "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_SAMPLE"],
-    }
+    },
 ]
