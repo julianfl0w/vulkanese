@@ -35,13 +35,33 @@ debuggableVars = [
         "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
     },
     {
+        "name": "slutIndexFloat",
+        "type": "float64_t",
+        "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
+    },
+    {
+        "name": "slutIndexFract",
+        "type": "float64_t",
+        "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
+    },
+    {
         "name": "slutIndex",
+        "type": "uint",
+        "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
+    },
+    {
+        "name": "slutIndexNext",
         "type": "uint",
         "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
     },
     {
         "name": "envelopeIndex",
         "type": "int",
+        "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
+    },
+    {
+        "name": "sineVal",
+        "type": "float",
         "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
     },
     # // per timeslice, per note

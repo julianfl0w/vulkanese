@@ -8,7 +8,7 @@ if __name__ == "__main__":
     backendProc = ctx.Process(target=runSynth, args=(q,))
     backendProc.start()
     print("PID" + str(backendProc.pid))
-    os.sched_setaffinity(backendProc.pid, {7})
+    os.sched_setaffinity(backendProc.pid, {os.cpu_count()-1})
     print("CPU affinity mask is modified for process id % s" % backendProc.pid)
     print("Now, process is eligible to run on:", os.sched_getaffinity(backendProc.pid))
 

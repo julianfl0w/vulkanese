@@ -91,7 +91,7 @@ class Stage(Sinode):
         compiledFilename = "a.spv"
         if os.path.exists(compiledFilename):
             os.remove(compiledFilename)
-        os.system("glslc " + self.name)
+        os.system("glslc " + glslFilename)
         with open(compiledFilename, "rb") as f:
             shader_spirv = f.read()
 

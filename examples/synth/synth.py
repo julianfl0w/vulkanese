@@ -49,7 +49,8 @@ class Synth:
             self.constantsDict = {
                 "POLYPHONY": 16,
                 "POLYPHONY_PER_SHADER": 1,
-                "SLUTLEN": 2 ** 18,
+                "USESLUT": 1,
+                "SLUTLEN": 2 ** 12,
                 "PARTIALS_PER_VOICE": 1,
                 "SAMPLE_FREQUENCY": 44100,
                 "PARTIALS_PER_HARMONIC": 1,
@@ -65,7 +66,8 @@ class Synth:
             self.constantsDict = {
                 "POLYPHONY": 32,
                 "POLYPHONY_PER_SHADER": 2,
-                "SLUTLEN": 2 ** 18,
+                "USESLUT": 0,
+                "SLUTLEN": 2 ** 12,
                 "PARTIALS_PER_VOICE": 128,
                 "SAMPLE_FREQUENCY": 44100,
                 "PARTIALS_PER_HARMONIC": 3,
@@ -158,7 +160,7 @@ class Synth:
                 # print(recvd)
                 varName, self.newVal = recvd
                 if varName == "attackEnvelope":
-                    self.spectralInterface.computeShader.attackEnvelope.setBuffer(
+                    self.spectralInterface.computePipeline.attackEnvelope.setBuffer(
                         self.newVal
                     )
                 elif varName == "attackLifespan":
@@ -167,7 +169,7 @@ class Synth:
                     self.newVal = mini + (self.newVal * (maxi - mini))
                     multiplier = self.ENVELOPE_LENGTH / (self.newVal)
                     print(multiplier)
-                    self.spectralInterface.computeShader.attackSpeedMultiplier.setBuffer(
+                    self.spectralInterface.computePipeline.attackSpeedMultiplier.setBuffer(
                         self.POLYLEN_ONES64 * multiplier
                     )
 
@@ -177,7 +179,7 @@ class Synth:
                     self.newVal = mini + (self.newVal * (maxi - mini))
                     multiplier = self.ENVELOPE_LENGTH / (self.newVal)
                     print(multiplier)
-                    self.spectralInterface.computeShader.releaseSpeedMultiplier.setBuffer(
+                    self.spectralInterface.computePipeline.releaseSpeedMultiplier.setBuffer(
                         self.POLYLEN_ONES64 * multiplier
                     )
 

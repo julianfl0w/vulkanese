@@ -77,13 +77,24 @@ void main() {
       thisIncrement = increment * partialMultiplier[partialNo];
 
       if (thisIncrement < 1) {
-        indexInFilter = int(thisIncrement * FILTER_STEPS);
         float64_t phase = fract(basePhaseThisNote * partialMultiplier[partialNo]);
-        slutIndex = uint(phase * SLUTLEN);
+        if(USESLUT==1){
+          slutIndexFloat = phase * SLUTLEN;
+          slutIndexFract = fract(slutIndexFloat);
+          slutIndex = uint(slutIndexFloat);
+          slutIndexNext = (slutIndex+1)%SLUTLEN;
+          
+          //sineVal = SLUT[slutIndex] //noninterp
+          
+          sineVal = float(SLUT[slutIndex]*(1-slutIndexFract) + slutIndexFract*SLUT[slutIndexNext]); // interpolated
+        }
+        else{
+          sineVal = sin(float(2*3.1415926*phase));
+        }
+        indexInFilter = int(thisIncrement * FILTER_STEPS);
         innersum +=
             float(partialVolume[partialNo] *
-            //SLUT[slutIndex] *
-            sin(float(2*3.1415926*phase)) *
+            sineVal *
             freqFilter[indexInFilter]);
       }
     }
