@@ -8,6 +8,6 @@ sounddevice
 python-rtmidi
 mido
 hjson
-sinode
-jmidi
+git+https://github.com/julianfl0w/sinode
+git+https://github.com/julianfl0w/jmidi
 
