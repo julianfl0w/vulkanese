@@ -71,13 +71,10 @@ class Buffer(Sinode):
 
     # find memory type with desired properties.
     def findMemoryType(self, memoryTypeBits, properties):
-        memoryProperties = vkGetPhysicalDeviceMemoryProperties(
-            self.device.physical_device
-        )
 
         # How does this search work?
         # See the documentation of VkPhysicalDeviceMemoryProperties for a detailed description.
-        for i, mt in enumerate(memoryProperties.memoryTypes):
+        for i, mt in enumerate(self.device.memoryProperties.memoryTypes):
             if (
                 memoryTypeBits & (1 << i)
                 and (mt.propertyFlags & properties) == properties

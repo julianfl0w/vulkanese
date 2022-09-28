@@ -1,5 +1,5 @@
 import json
-from vutil import *
+from sinode import *
 import os
 
 here = os.path.dirname(os.path.abspath(__file__))

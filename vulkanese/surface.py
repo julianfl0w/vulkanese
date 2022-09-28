@@ -1,5 +1,5 @@
 from vulkan import *
-from .vutil import *
+from sinode import *
 import sdl2
 import sdl2.ext
 import ctypes
