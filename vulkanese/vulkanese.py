@@ -197,8 +197,6 @@ class Device(Sinode):
         # )
 
         self.pFeatures = vkGetPhysicalDeviceFeatures(self.physical_device)
-        print("pFeatures")
-        print([self.pFeatures])
 
         # self.pFeatures2 = vkGetPhysicalDeviceFeatures2(self.physical_device)
         # print("pFeatures2")
@@ -222,7 +220,7 @@ class Device(Sinode):
             physicalDevice=self.physical_device
         )
 
-        print("%s available queue family" % len(queue_families))
+        #print("%s available queue family" % len(queue_families))
 
         self.queue_family_graphic_index = -1
         self.queue_family_present_index = -1
@@ -318,8 +316,6 @@ class Device(Sinode):
             queueIndex=0,
         )
 
-        print("Logical device and graphic queue successfully created\n")
-
         # Create command pool
         command_pool_create = VkCommandPoolCreateInfo(
             sType=VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -336,7 +332,6 @@ class Device(Sinode):
 
     def getPhysicalProperties(self):
         self.pProperties = vkGetPhysicalDeviceProperties(self.physical_device)
-        print("pProperties")
         print("Device Name: " + self.pProperties.deviceName)
 
         self.deviceType = self.pProperties.deviceType

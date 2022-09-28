@@ -30,13 +30,13 @@ class ComputePipeline(Pipeline):
         self,
         glslCode,
         device,
-        shaderOutputBuffers,
-        debuggableVars,
-        shaderInputBuffers,
-        shaderInputBuffersNoDebug,
         dim2index,
-        DEBUG,
         constantsDict,
+        shaderOutputBuffers,
+        shaderInputBuffers,
+        DEBUG=False,
+        debuggableVars=[],
+        shaderInputBuffersNoDebug=[],
         workgroupShape=[1, 1, 1],
     ):
         self.dim2index = dim2index
@@ -108,6 +108,12 @@ class ComputePipeline(Pipeline):
             for var in debuggableVars:
                 VARSDECL += var["type"] + " " + var["name"] + " = 0;\n"
 
+        # add definitions from constants dict
+        DEFINE_STRING = ""
+        for k, v in self.constantsDict.items():
+            DEFINE_STRING += "#define " + k + " " + str(v) + "\n"
+        glslCode = glslCode.replace("DEFINE_STRING", DEFINE_STRING)
+
         # always index output variables
         glslCode = self.addIndicesToOutputs(shaderOutputBuffers, glslCode)
 
@@ -118,7 +124,7 @@ class ComputePipeline(Pipeline):
             parent=self,
             constantsDict=constantsDict,
             device=device,
-            name="mandlebrot.comp",
+            name="compute.comp",
             stage=VK_SHADER_STAGE_COMPUTE_BIT,
             glslCode=glslCode,
             buffers=allBuffers,

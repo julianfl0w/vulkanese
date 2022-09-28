@@ -16,11 +16,7 @@ def noteToFreq(note):
 localtest = True
 if localtest == True:
     vkpath = os.path.join(here, "..", "..", "vulkanese")
-    # sys.path.append(vkpath)
     sys.path = [vkpath] + sys.path
-    print(vkpath)
-    print(sys.path)
-    from vulkanese import Instance
     from vulkanese import *
 else:
     from vulkanese.vulkanese import *
@@ -61,27 +57,9 @@ class Interface:
         for k, v in self.constantsDict.items():
             exec("self." + k + " = " + str(v))
 
-        DEFINE_STRING = ""
-        for k, v in self.constantsDict.items():
-            DEFINE_STRING += "#define " + k + " " + str(v) + "\n"
-
         with open("shaderSpectral.c", "r") as f:
             glslCode = f.read()
-        glslCode = glslCode.replace("DEFINE_STRING", DEFINE_STRING)
-
-        # compute the size of each shader
-        for buffList in [
-            shaderOutputBuffers,
-            debuggableVars,
-            shaderInputBuffers,
-            shaderInputBuffersNoDebug,
-        ]:
-            for s in buffList:
-                TOTALSIZEBYTES = 4 * 4
-                for d in s["dims"]:
-                    TOTALSIZEBYTES *= eval("self." + d)
-                s["SIZEBYTES"] = TOTALSIZEBYTES
-
+            
         # generate a compute cmd buffer
         self.computePipeline = ComputePipeline(
             glslCode=glslCode,
