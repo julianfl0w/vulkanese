@@ -44,6 +44,7 @@ class ComputePipeline(Pipeline):
         allBuffers = []
         self.DEBUG = DEBUG
         self.device = device
+        device.instance.children += [self]
 
         self.shaderOutputBuffers = shaderOutputBuffers
         self.debuggableVars = debuggableVars
@@ -266,6 +267,9 @@ class ComputePipeline(Pipeline):
         )
         vkResetFences(device=self.device.vkDevice, fenceCount=1, pFences=[self.fence])
 
+    def release(self):
+        vkDestroyFence(self.device.vkDevice, self.fence, None)
+        
     def dumpMemory(self):
 
         outdict = {}

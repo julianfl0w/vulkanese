@@ -21,9 +21,9 @@ def getVulkanesePath():
 
 
 class Instance(Sinode):
-    def __init__(self):
+    def __init__(self,verbose=False):
         Sinode.__init__(self, None)
-
+        self.verbose = verbose
         print("version number ")
         packedVersion = vkEnumerateInstanceVersion()
         # The variant is a 3-bit integer packed into bits 31-29.
@@ -34,10 +34,11 @@ class Instance(Sinode):
         minor = (packedVersion >> 12) & 0x3FF
         # The patch version number is a 12-bit integer packed into bits 11-0.
         patch = (packedVersion >> 0) & 0xFFF
-        print("Variant : " + str(variant))
-        print("Major   : " + str(major))
-        print("Minor   : " + str(minor))
-        print("Patch   : " + str(patch))
+        if self.verbose:
+            print("Variant : " + str(variant))
+            print("Major   : " + str(major))
+            print("Minor   : " + str(minor))
+            print("Patch   : " + str(patch))
 
         # ----------
         # Create instance
@@ -61,7 +62,9 @@ class Instance(Sinode):
         # print("available layers:")
         # for l in self.layers:
         #    print("    " + l)
-        print("Available layers " + json.dumps(self.layers, indent=2))
+        
+        if self.verbose:
+            print("Available layers " + json.dumps(self.layers, indent=2))
 
         if "VK_LAYER_KHRONOS_validation" in self.layers:
             self.layers = ["VK_LAYER_KHRONOS_validation"]
@@ -70,7 +73,8 @@ class Instance(Sinode):
         else:
             self.layers = []
 
-        print("applying layers " + str(self.layers))
+        if self.verbose:
+            print("applying layers " + str(self.layers))
         createInfo = VkInstanceCreateInfo(
             sType=VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             flags=0,
@@ -115,12 +119,15 @@ class Instance(Sinode):
         return newDev
 
     def release(self):
-        print("destroying child devices")
+        if self.verbose:
+            print("destroying child devices")
         for d in self.children:
             d.release()
-        print("destroying debug etc")
+        if self.verbose:
+            print("destroying debug etc")
         self.vkDestroyDebugReportCallbackEXT(self.vkInstance, self.callback, None)
-        print("destroying instance")
+        if self.verbose:
+            print("destroying instance")
         vkDestroyInstance(self.vkInstance, None)
 
 

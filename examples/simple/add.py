@@ -18,7 +18,7 @@ instance_inst = Instance()
 # any parameters set here will be available as
 # param within this Python class
 # and as a defined value within the shader
-constantsDict = {"NUMBERS_TO_SUM": 2 ** 24, "SHADER_COUNT": 512}
+constantsDict = {"NUMBERS_TO_SUM": 2 ** 26, "SHADER_COUNT": 512}
 # derived values
 constantsDict["NUMBERS_PER_SHADER"] = (
     int(constantsDict["NUMBERS_TO_SUM"] / constantsDict["SHADER_COUNT"])
@@ -37,7 +37,8 @@ shaderInputBuffers = [
 # the output of the compute shader,
 # which in our case is always a Storage Buffer
 shaderOutputBuffers = [{"name": "sumOut", "type": "float64_t", "dims": ["SHADER_COUNT"]},
-    {"name": "bufferToSum", "type": "float64_t", "dims": ["NUMBERS_TO_SUM"]}]
+    #{"name": "bufferToSum", "type": "float64_t", "dims": ["NUMBERS_TO_SUM"]}
+                      ]
 
 # choose a device
 print("naively choosing device 0")
@@ -62,7 +63,7 @@ void main() {
     // simply loop over the numbers and add
     uint baseIndex = shaderx*NUMBERS_PER_SHADER;
     for(uint i = baseIndex; i < baseIndex+NUMBERS_PER_SHADER; i++){
-        shaderSum += bufferToSum;
+        shaderSum += float64_t(i);
     }
     // only write to the storage buffer once
     sumOut = shaderSum;
@@ -79,7 +80,7 @@ addPipeline = ComputePipeline(
 
 # initialize numbers to sum
 # (must be double size because minimum read in shader is 16 bytes)
-addPipeline.bufferToSum.setBuffer(np.arange(NUMBERS_TO_SUM * 2) / 2)
+#addPipeline.bufferToSum.setBuffer(np.arange(NUMBERS_TO_SUM * 2) / 2)
 shaderStart = time.time()
 addPipeline.run()
 shaderSum = np.sum(addPipeline.sumOut.getAsNumpyArray())
@@ -98,4 +99,4 @@ print("NumPy  time " + str(numpyTime))
 print("Vulkanese speedup: " +str(numpyTime/shaderTime) + "x")
 
 instance_inst.release()
-# vkDestroyFence(device.vkDevice, fence, None)
+# 
