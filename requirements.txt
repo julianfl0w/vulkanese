@@ -8,3 +8,6 @@ sounddevice
 python-rtmidi
 mido
 hjson
+sinode
+jmidi
+

@@ -3,12 +3,12 @@ import os
 import time
 import json
 from vulkan import *
-from surface import *
-from stage import *
-from renderpass import *
-from commandbuffer import *
-from vutil import *
-from vulkanese import *
+from .surface import *
+from .stage import *
+from .renderpass import *
+from .commandbuffer import *
+from .vutil import *
+from .vulkanese import *
 from PIL import Image as pilImage
 
 here = os.path.dirname(os.path.abspath(__file__))

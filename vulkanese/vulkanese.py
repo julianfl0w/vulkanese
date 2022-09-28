@@ -4,13 +4,14 @@ import sdl2
 import sdl2.ext
 import time
 import json
-from vutil import *
 from vulkan import *
-from pipelines import *
-from rasterpipeline import *
-from raytracepipeline import *
-from computepipeline import *
-from descriptor import *
+# prepend local imports with .
+from .vutil import *
+from .pipelines import *
+from .rasterpipeline import *
+from .raytracepipeline import *
+from .computepipeline import *
+from .descriptor import *
 from PIL import Image as pilImage
 
 here = os.path.dirname(os.path.abspath(__file__))
