@@ -2,7 +2,7 @@ import os
 import sys
 import numpy as np
 import re
-from spectralShaderBuffers import *
+from buffers_spectral_synth import *
 from numba import njit
 from jsynth import JSynth
 
@@ -60,14 +60,6 @@ class SpectralSynth(JSynth):
         exec("self." + runtype + " = True")
 
         self.q = q
-
-        # Runtime Parameters
-        self.GRAPH = False
-        self.PYSOUND = False
-        self.SOUND = False
-        self.DEBUG = False
-        exec("self." + runtype + " = True")
-
         if self.DEBUG:
             self.constantsDict = {
                 "POLYPHONY": 16,
@@ -110,6 +102,7 @@ class SpectralSynth(JSynth):
         for k, v in self.constantsDict.items():
             exec("self." + k + " = " + str(v))
 
+        JSynth.__init__(self)
         self.mm = jmidi.MidiManager(polyphony=self.POLYPHONY, synthInterface=self)
 
         # preallocate

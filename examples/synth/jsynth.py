@@ -1,4 +1,6 @@
 import mido
+import sounddevice as sd
+import numpy as np
 
 # standardized q reader
 class JSynth:

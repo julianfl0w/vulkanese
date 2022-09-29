@@ -1,5 +1,5 @@
 import multiprocessing as mp
-from synth import runSynth
+from spectral_synth import runSynth
 import os
 
 if __name__ == "__main__":
