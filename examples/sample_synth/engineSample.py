@@ -193,14 +193,9 @@ class Interface:
         self.computePipeline.partialMultiplier.setBuffer(hm)
         self.computePipeline.partialVolume.setBuffer(pv)
 
-    def run(self):
-
-        # UPDATE PMAP MEMORY
-        self.computePipeline.currTime.setByIndex(0, time.time())
-        self.computePipeline.noteBasePhase.setBuffer(self.postBendArray)
-
+    def updatePitchBend(self):
         # with artiphon, only bend recent note
-        ARTIPHON = True
+        ARTIPHON = False
         if ARTIPHON:
             self.parent.POLYLEN_ONES_POST64[:] = self.fullAddArray[:]
             self.parent.POLYLEN_ONES_POST64[
@@ -224,6 +219,13 @@ class Interface:
             self.computePipeline.pitchFactor.setBuffer(
                 self.parent.POLYLEN_ONES64 * self.parent.mm.pitchwheelReal
             )
+            
+    def run(self):
+
+        # UPDATE PMAP MEMORY
+        self.computePipeline.currTime.setByIndex(0, time.time())
+        self.computePipeline.noteBasePhase.setBuffer(self.postBendArray)
+        self.updatePitchBend()
         self.computePipeline.run()
 
         # do CPU tings NOT simultaneous with GPU process

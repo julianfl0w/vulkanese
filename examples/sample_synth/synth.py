@@ -16,7 +16,7 @@ import sounddevice as sd
 import jmidi
 import pickle as pkl
 import re
-import engineSpectral
+import engineSample
 
 print(sys.path)
 
@@ -34,7 +34,7 @@ here = os.path.dirname(os.path.abspath(__file__))
 
 # WORKGROUP_SIZE = 1  # Workgroup size in compute shader.
 # SAMPLES_PER_DISPATCH = 512
-class Synth:
+class SampleSynth:
     def __init__(self, q, runtype="PYSOUND"):
         self.q = q
 
@@ -49,12 +49,7 @@ class Synth:
             self.constantsDict = {
                 "POLYPHONY": 16,
                 "POLYPHONY_PER_SHADER": 1,
-                "USESLUT": 1,
-                "SLUTLEN": 2 ** 12,
-                "PARTIALS_PER_VOICE": 1,
                 "SAMPLE_FREQUENCY": 44100,
-                "PARTIALS_PER_HARMONIC": 1,
-                "PARTIAL_SPREAD": 0.02,
                 "OVERVOLUME": 1,
                 "CHANNELS": 1,
                 "SAMPLES_PER_DISPATCH": 32,
@@ -66,12 +61,7 @@ class Synth:
             self.constantsDict = {
                 "POLYPHONY": 32,
                 "POLYPHONY_PER_SHADER": 2,
-                "USESLUT": 0,
-                "SLUTLEN": 2 ** 12,
-                "PARTIALS_PER_VOICE": 128,
                 "SAMPLE_FREQUENCY": 44100,
-                "PARTIALS_PER_HARMONIC": 3,
-                "PARTIAL_SPREAD": 0.001,
                 "OVERVOLUME": 8,
                 "CHANNELS": 1,
                 "SAMPLES_PER_DISPATCH": 64,
@@ -86,11 +76,11 @@ class Synth:
         )
         for k, v in self.constantsDict.items():
             exec("self." + k + " = " + str(v))
-        self.spectralInterface = engineSpectral.Interface(
+        self.sampleInterface = engineSample.Interface(
             self, self.constantsDict, runtype
         )
         self.mm = jmidi.MidiManager(
-            polyphony=self.POLYPHONY, synthInterface=self.spectralInterface
+            polyphony=self.POLYPHONY, SampleSynthInterface=self.sampleInterface
         )
 
         # preallocate
@@ -160,7 +150,7 @@ class Synth:
                 # print(recvd)
                 varName, self.newVal = recvd
                 if varName == "attackEnvelope":
-                    self.spectralInterface.computePipeline.attackEnvelope.setBuffer(
+                    self.sampleInterface.computePipeline.attackEnvelope.setBuffer(
                         self.newVal
                     )
                 elif varName == "attackLifespan":
@@ -169,7 +159,7 @@ class Synth:
                     self.newVal = mini + (self.newVal * (maxi - mini))
                     multiplier = self.ENVELOPE_LENGTH / (self.newVal)
                     print(multiplier)
-                    self.spectralInterface.computePipeline.attackSpeedMultiplier.setBuffer(
+                    self.sampleInterface.computePipeline.attackSpeedMultiplier.setBuffer(
                         self.POLYLEN_ONES64 * multiplier
                     )
 
@@ -179,7 +169,7 @@ class Synth:
                     self.newVal = mini + (self.newVal * (maxi - mini))
                     multiplier = self.ENVELOPE_LENGTH / (self.newVal)
                     print(multiplier)
-                    self.spectralInterface.computePipeline.releaseSpeedMultiplier.setBuffer(
+                    self.sampleInterface.computePipeline.releaseSpeedMultiplier.setBuffer(
                         self.POLYLEN_ONES64 * multiplier
                     )
 
@@ -187,15 +177,15 @@ class Synth:
                     mini = 0.0001  # minimum
                     maxi = 0.001  # maximim
                     self.newVal = mini + (self.newVal * (maxi - mini))
-                    self.spectralInterface.PARTIAL_SPREAD = self.newVal
-                    self.spectralInterface.updatePartials()
+                    self.sampleInterface.PARTIAL_SPREAD = self.newVal
+                    self.sampleInterface.updatePartials()
 
                 elif varName == "partialCount":
                     mini = 1  # minimum
                     maxi = 15  # maximim
                     self.newVal = mini + (self.newVal * (maxi - mini))
-                    self.spectralInterface.PARTIALS_PER_HARMONIC = int(self.newVal)
-                    self.spectralInterface.updatePartials()
+                    self.sampleInterface.PARTIALS_PER_HARMONIC = int(self.newVal)
+                    self.sampleInterface.updatePartials()
 
     def run(self):
 
@@ -211,7 +201,7 @@ class Synth:
             # process MIDI
             self.mm.eventLoop(self)
 
-            pa = self.spectralInterface.run()
+            pa = self.sampleInterface.run()
 
             if self.PYSOUND:
                 self.stream.write(pa)
@@ -231,23 +221,23 @@ class Synth:
             #    currFilt /= cfm
 
             if self.DEBUG:
-                self.spectralInterface.computePipeline.dumpMemory()
+                self.sampleInterface.computePipeline.dumpMemory()
                 sys.exit()
             if self.GRAPH:
                 self.updatingGraph(self.newVal)
                 # eval("self." + varName + ".pmap[:] = newVal")
 
-        self.spectralInterface.release()
+        self.sampleInterface.release()
         # elegantly free all memory
         self.instance_inst.release()
 
 
-def runSynth(q, runtype="PYSOUND"):
-    s = Synth(q, runtype)
+def runSampleSynth(q, runtype="PYSOUND"):
+    s = SampleSynth(q, runtype)
     if runtype == "DEBUG":
         s.runTest()
     s.run()
 
 
 if __name__ == "__main__":
-    runSynth(q=None, runtype=sys.argv[1])
+    runSampleSynth(q=None, runtype=sys.argv[1])
