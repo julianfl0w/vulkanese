@@ -4,7 +4,6 @@ import sdl2
 import sdl2.ext
 import ctypes
 
-
 class Surface(Sinode):
     def getEvents(self):
         return sdl2.ext.get_events()
