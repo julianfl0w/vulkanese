@@ -2,8 +2,36 @@ import os
 import sys
 import numpy as np
 import re
-from shaderBuffers import *
+from spectralShaderBuffers import *
 from numba import njit
+from jsynth import JSynth
+
+#!/bin/env python
+import ctypes
+import os
+import time
+import gc
+import sys
+import numpy as np
+
+# import cupy as cp
+import json
+import cv2 as cv
+
+# import matplotlib
+import matplotlib.pyplot as plt
+import sounddevice as sd
+import jmidi
+import pickle as pkl
+import re
+
+print(sys.path)
+
+# from vulkanese.vulkanese import *
+import time
+import rtmidi
+from rtmidi.midiutil import *
+import mido
 
 here = os.path.dirname(os.path.abspath(__file__))
 
@@ -22,15 +50,73 @@ else:
     from vulkanese.vulkanese import *
 
 
-class Interface:
-    def __init__(self, parent, constantsDict, runtype):
-        self.parent = parent
+class SpectralSynth(JSynth):
+    def __init__(self, q, runtype):
         # Runtime Parameters
         self.GRAPH = False
         self.PYSOUND = False
         self.SOUND = False
         self.DEBUG = False
         exec("self." + runtype + " = True")
+
+        self.q = q
+
+        # Runtime Parameters
+        self.GRAPH = False
+        self.PYSOUND = False
+        self.SOUND = False
+        self.DEBUG = False
+        exec("self." + runtype + " = True")
+
+        if self.DEBUG:
+            self.constantsDict = {
+                "POLYPHONY": 16,
+                "POLYPHONY_PER_SHADER": 1,
+                "USESLUT": 1,
+                "SLUTLEN": 2 ** 12,
+                "PARTIALS_PER_VOICE": 1,
+                "SAMPLE_FREQUENCY": 44100,
+                "PARTIALS_PER_HARMONIC": 1,
+                "PARTIAL_SPREAD": 0.02,
+                "OVERVOLUME": 1,
+                "CHANNELS": 1,
+                "SAMPLES_PER_DISPATCH": 32,
+                "LATENCY_SECONDS": 0.010,
+                "ENVELOPE_LENGTH": 16,
+                "FILTER_STEPS": 16,
+            }
+        else:
+            self.constantsDict = {
+                "POLYPHONY": 32,
+                "POLYPHONY_PER_SHADER": 2,
+                "USESLUT": 0,
+                "SLUTLEN": 2 ** 12,
+                "PARTIALS_PER_VOICE": 128,
+                "SAMPLE_FREQUENCY": 44100,
+                "PARTIALS_PER_HARMONIC": 3,
+                "PARTIAL_SPREAD": 0.001,
+                "OVERVOLUME": 8,
+                "CHANNELS": 1,
+                "SAMPLES_PER_DISPATCH": 64,
+                "LATENCY_SECONDS": 0.007,
+                "ENVELOPE_LENGTH": 512,
+                "FILTER_STEPS": 512,
+            }
+
+        # derived values
+        self.constantsDict["SHADERS_PER_SAMPLE"] = int(
+            self.constantsDict["POLYPHONY"] / self.constantsDict["POLYPHONY_PER_SHADER"]
+        )
+        for k, v in self.constantsDict.items():
+            exec("self." + k + " = " + str(v))
+
+        self.mm = jmidi.MidiManager(polyphony=self.POLYPHONY, synthInterface=self)
+
+        # preallocate
+        self.POLYLEN_ONES = np.ones((4 * self.POLYPHONY), dtype=np.float32)
+        self.POLYLEN_ONES_POST = np.ones((4 * self.POLYPHONY), dtype=np.float32)
+        self.POLYLEN_ONES64 = np.ones((2 * self.POLYPHONY), dtype=np.float64)
+        self.POLYLEN_ONES_POST64 = np.ones((2 * self.POLYPHONY), dtype=np.float64)
 
         # given dimension A, return index
         self.dim2index = {
@@ -40,7 +126,7 @@ class Interface:
             "PARTIALS_PER_VOICE": "partialNo",
         }
 
-        self.constantsDict = constantsDict
+        self.constantsDict = self.constantsDict
         # device selection and instantiation
         self.instance_inst = Instance()
         print("available Devices:")
@@ -59,12 +145,12 @@ class Interface:
 
         with open("shaderSpectral.c", "r") as f:
             glslCode = f.read()
-            
+
         # generate a compute cmd buffer
         self.computePipeline = ComputePipeline(
             glslCode=glslCode,
             device=device,
-            constantsDict=constantsDict,
+            constantsDict=self.constantsDict,
             shaderOutputBuffers=shaderOutputBuffers,
             debuggableVars=debuggableVars,
             shaderInputBuffers=shaderInputBuffers,
@@ -193,47 +279,46 @@ class Interface:
         self.computePipeline.partialMultiplier.setBuffer(hm)
         self.computePipeline.partialVolume.setBuffer(pv)
 
-    def updatePitchBend(self):
-        # with artiphon, only bend recent note
-        ARTIPHON = False
-        if ARTIPHON:
-            self.parent.POLYLEN_ONES_POST64[:] = self.fullAddArray[:]
-            self.parent.POLYLEN_ONES_POST64[
-                self.parent.mm.mostRecentlyStruckNoteIndex * 2
-            ] = (
-                self.parent.POLYLEN_ONES_POST64[
-                    self.parent.mm.mostRecentlyStruckNoteIndex * 2
-                ]
-                * self.parent.mm.pitchwheelReal
-            )
-            self.postBendArray += self.parent.POLYLEN_ONES_POST64
-
-            self.parent.POLYLEN_ONES_POST64[:] = self.parent.POLYLEN_ONES64[:]
-            self.parent.POLYLEN_ONES_POST64[
-                self.parent.mm.mostRecentlyStruckNoteIndex * 2
-            ] = self.parent.mm.pitchwheelReal
-            self.computePipeline.pitchFactor.setBuffer(self.parent.POLYLEN_ONES_POST64)
-
-        else:
-            self.postBendArray += self.fullAddArray * self.parent.mm.pitchwheelReal
-            self.computePipeline.pitchFactor.setBuffer(
-                self.parent.POLYLEN_ONES64 * self.parent.mm.pitchwheelReal
-            )
-            
     def run(self):
 
-        # UPDATE PMAP MEMORY
-        self.computePipeline.currTime.setByIndex(0, time.time())
-        self.computePipeline.noteBasePhase.setBuffer(self.postBendArray)
-        self.updatePitchBend()
-        self.computePipeline.run()
+        # here we go
+        gc.disable()
 
-        # do CPU tings NOT simultaneous with GPU process
+        # into the loop
+        # for i in range(int(1024 * 128 / self.SAMPLES_PER_DISPATCH)):
+        while 1:
+            # do all cpu stuff first
+            self.checkQ()
 
-        pa = np.ascontiguousarray(self.buffView)
-        pa = np.reshape(pa, (self.SAMPLES_PER_DISPATCH, self.SHADERS_PER_SAMPLE))
-        pa = np.sum(pa, axis=1)
-        return pa
+            # process MIDI
+            self.mm.eventLoop(self)
+
+            # UPDATE PMAP MEMORY
+            self.computePipeline.currTime.setByIndex(0, time.time())
+            self.computePipeline.noteBasePhase.setBuffer(self.postBendArray)
+            self.updatePitchBend()
+            self.computePipeline.run()
+
+            # do CPU tings NOT simultaneous with GPU process
+
+            pa = np.ascontiguousarray(self.buffView)
+            pa = np.reshape(pa, (self.SAMPLES_PER_DISPATCH, self.SHADERS_PER_SAMPLE))
+            pa = np.sum(pa, axis=1)
+
+            if self.PYSOUND:
+                self.stream.write(pa)
+            # we do CPU tings simultaneously
+
+            if self.DEBUG:
+                self.computePipeline.dumpMemory()
+                sys.exit()
+            if self.GRAPH:
+                self.updatingGraph(self.newVal)
+                # eval("self." + varName + ".pmap[:] = newVal")
+
+        self.release()
+        # elegantly free all memory
+        self.instance_inst.release()
 
     def noteOff(self, note):
 
@@ -286,3 +371,14 @@ class Interface:
 
     def release(self):
         vkDestroyFence(self.device.vkDevice, self.fence, None)
+
+
+def runSynth(q, runtype="PYSOUND"):
+    s = SpectralSynth(q, runtype)
+    if runtype == "DEBUG":
+        s.runTest()
+    s.run()
+
+
+if __name__ == "__main__":
+    runSynth(q=None, runtype=sys.argv[1])

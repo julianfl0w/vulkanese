@@ -59,11 +59,7 @@ debuggableVars = [
         "type": "int",
         "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
     },
-    {
-        "name": "sineVal",
-        "type": "float",
-        "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
-    },
+    {"name": "sineVal", "type": "float", "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"]},
     # // per timeslice, per note
     {
         "name": "secondsSinceStrike",
@@ -120,5 +116,5 @@ shaderOutputBuffers = [
         "type": "float",
         # "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_SAMPLE", "CHANNELS"],
         "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_SAMPLE"],
-    },
+    }
 ]

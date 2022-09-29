@@ -1,7 +1,5 @@
 shaderInputBuffers = [
-    {"name": "noteBaseIncrement", "type": "float64_t", "dims": ["POLYPHONY"]},
-    {"name": "partialMultiplier", "type": "float", "dims": ["PARTIALS_PER_VOICE"]},
-    {"name": "partialVolume", "type": "float", "dims": ["PARTIALS_PER_VOICE"]},
+    {"name": "noteBaseIndex", "type": "float64_t", "dims": ["POLYPHONY"]},
     {"name": "noteVolume", "type": "float", "dims": ["POLYPHONY"]},
     {"name": "noteStrikeTime", "type": "float64_t", "dims": ["POLYPHONY"]},
     {"name": "noteReleaseTime", "type": "float64_t", "dims": ["POLYPHONY"]},
@@ -10,10 +8,7 @@ shaderInputBuffers = [
     {"name": "releaseEnvelope", "type": "float", "dims": ["ENVELOPE_LENGTH"]},
     {"name": "attackSpeedMultiplier", "type": "float64_t", "dims": ["POLYPHONY"]},
     {"name": "releaseSpeedMultiplier", "type": "float64_t", "dims": ["POLYPHONY"]},
-    {"name": "freqFilter", "type": "float", "dims": ["FILTER_STEPS"]},
     {"name": "pitchFactor", "type": "float64_t", "dims": ["POLYPHONY"]},
-    {"name": "noteBasePhase", "type": "float64_t", "dims": ["POLYPHONY"]},
-    {"name": "SLUT", "type": "float64_t", "dims": ["SLUTLEN"]},
 ]
 shaderInputBuffersNoDebug = []
 
@@ -35,32 +30,12 @@ debuggableVars = [
         "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
     },
     {
-        "name": "slutIndexFloat",
-        "type": "float64_t",
-        "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
-    },
-    {
-        "name": "slutIndexFract",
-        "type": "float64_t",
-        "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
-    },
-    {
-        "name": "slutIndex",
-        "type": "uint",
-        "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
-    },
-    {
-        "name": "slutIndexNext",
-        "type": "uint",
-        "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
-    },
-    {
         "name": "envelopeIndex",
         "type": "int",
         "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
     },
     {
-        "name": "sineVal",
+        "name": "sampleVal",
         "type": "float",
         "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
     },
@@ -118,7 +93,11 @@ shaderOutputBuffers = [
     {
         "name": "pcmBufferOut",
         "type": "float",
-        # "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_SAMPLE", "CHANNELS"],
         "dims": ["SAMPLES_PER_DISPATCH", "SHADERS_PER_SAMPLE"],
+    },
+    {
+        "name": "sampleBuffer",
+        "type": "float",
+        "dims": ["SAMPLE_SET_COUNT", "SAMPLES_PER_DISPATCH", "SHADERS_PER_SAMPLE"],
     },
 ]
