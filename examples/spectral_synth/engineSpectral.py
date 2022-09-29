@@ -281,49 +281,6 @@ class Interface:
 
     def modWheel(self, val):
         pass
-
-    def dumpMemory(self):
-
-        outdict = {}
-        for debugVar in shaderInputBuffers + debuggableVars + shaderOutputBuffers:
-            if "64" in debugVar["type"]:
-                # skipindex = 8
-                skipindex = 2
-            else:
-                skipindex = 4
-
-            # glsl to python
-            newt = glsltype2pythonstring(debugVar["type"])
-            runString = (
-                "np.frombuffer(self.computePipeline."
-                + debugVar["name"]
-                + ".pmap, "
-                + newt
-                + ")"
-            )
-            # print(runString)
-
-            # calculate the dims we need to turn the array into
-            newDims = []
-            for d in debugVar["dims"]:
-                newDims += [eval("self." + d)]
-                # print([eval("self." + d)])
-
-            # first retrieve the array with a simple eval
-            rcvdArray = eval(runString)
-            rcvdArray = list(rcvdArray.astype(float))[
-                ::skipindex
-            ]  # apply the skip index
-            rcvdArray = np.array(rcvdArray).reshape(newDims)
-            outdict[
-                debugVar["name"]
-            ] = rcvdArray.tolist()  # nested lists with same data, indices
-        with open("debug.json", "w+") as f:
-            json.dump(outdict, f, indent=4)
-        sys.exit()
-
-    # if self.GRAPH:
-    #    self.updatingGraph(currFilt)
-
+    
     def release(self):
         vkDestroyFence(self.device.vkDevice, self.fence, None)
