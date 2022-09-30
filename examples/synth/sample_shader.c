@@ -2,6 +2,7 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float64 : require
 //#extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
 #extension GL_ARB_separate_shader_objects : enable
+#define TREM_SAMPLES 3000 // make this settable
 DEFINE_STRING // This will be (or has been) replaced by constant definitions
 layout (local_size_x = SAMPLES_PER_DISPATCH, local_size_y = SHADERS_PER_SAMPLE, local_size_z = 1 ) in;
 BUFFERS_STRING  // This will be (or has been) replaced by buffer definitions
@@ -76,6 +77,21 @@ void main() {
     
     thisIndexFract = fract(thisIndexFloat);
     thisIndexUint  = uint(thisIndexFloat) + SAMPLE_MAX_SAMPLE_COUNT*midiNoteNo[noteNo];
+    // tremolo
+    uint tremIndexPre = (uint(thisIndexFloat)% TREM_SAMPLES);
+    uint thisIndexUintTrem = tremIndexPre + SAMPLE_MAX_SAMPLE_COUNT*midiNoteNo[noteNo];
+    float fadeOutAdjust = 1;
+    if(tremIndexPre > TREM_SAMPLES-100)
+      fadeOutAdjust = float(TREM_SAMPLES-tremIndexPre)/100;
+    if(tremIndexPre < 400)
+      fadeOutAdjust = float(tremIndexPre)/400;
+    
+    uint nextIndexTrem = thisIndexUintTrem + 1;
+    float64_t thisSampleTrem = sampleBuffer[thisIndexUintTrem];
+    float64_t nextSampleTrem = sampleBuffer[nextIndexTrem];
+    float innersumtrem = float(thisSampleTrem*(1 - thisIndexFract) + nextSampleTrem*thisIndexFract);
+    
+    
     nextIndex = thisIndexUint + 1;
     
     thisSample = sampleBuffer[thisIndexUint];
@@ -85,9 +101,10 @@ void main() {
     if(percussiveIndex >= SAMPLE_MAX_SAMPLE_COUNT)
       percussiveIndex = SAMPLE_MAX_SAMPLE_COUNT-1;
     
-    float64_t percussive = sampleBufferPercussive[percussiveIndex];
+    //float64_t percussive = sampleBufferPercussive[percussiveIndex];
+    float64_t percussive = 0;
     innersum = float(thisSample*(1 - thisIndexFract) + nextSample*thisIndexFract + percussive);
-    shadersum += innersum * noteVol;
+    shadersum += innersum * noteVol + innersumtrem*tremAmount[0]*fadeOutAdjust;
   }
 
   pcmBufferOut[sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample] = shadersum / (POLYPHONY / OVERVOLUME);

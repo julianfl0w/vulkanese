@@ -164,7 +164,7 @@ class RasterPipeline(Pipeline):
                 "name": "fragColor",
                 "type": "vec3",
                 "dims": ["VERTEX_COUNT", "COLOR_DIMENSIONS"],
-            },
+            }
         ]
 
         # location = 0
@@ -187,7 +187,7 @@ class RasterPipeline(Pipeline):
         self.fragmentShaderInputBuffers = []
         self.fragmentShaderDebuggableVars = []
         self.fragmentShaderOutputBuffers = [
-            {"name": "outColor", "type": "vec4", "dims": ["VERTEX_COUNT"]},
+            {"name": "outColor", "type": "vec4", "dims": ["VERTEX_COUNT"]}
         ]
 
         self.createVertexBuffers()
@@ -225,7 +225,7 @@ class RasterPipeline(Pipeline):
         self.stages = [self.vertexStage, self.fragmentStage]
 
     def createGraphicPipeline(
-        self, culling=VK_CULL_MODE_BACK_BIT, oversample=VK_SAMPLE_COUNT_1_BIT,
+        self, culling=VK_CULL_MODE_BACK_BIT, oversample=VK_SAMPLE_COUNT_1_BIT
     ):
 
         # compile all the stages

@@ -117,7 +117,7 @@ class ComputePipeline(Pipeline):
         glslCode = glslCode.replace("DEFINE_STRING", DEFINE_STRING)
 
         # don't index output variables
-        #glslCode = self.addIndicesToOutputs(shaderOutputBuffers, glslCode)
+        # glslCode = self.addIndicesToOutputs(shaderOutputBuffers, glslCode)
 
         glslCode = glslCode.replace("VARIABLEDECLARATIONS", VARSDECL)
 
@@ -270,12 +270,12 @@ class ComputePipeline(Pipeline):
 
     def release(self):
         vkDestroyFence(self.device.vkDevice, self.fence, None)
-        
+
     def dumpMemory(self):
 
         outdict = {}
         for b in self.debugBuffers:
-            if b.sizeBytes > 2**14:
+            if b.sizeBytes > 2 ** 14:
                 continue
             rcvdArray = b.getAsNumpyArray()
             # convert to list to make it JSON serializable

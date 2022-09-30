@@ -4,6 +4,7 @@ shaderInputBuffers = [
     {"name": "noteStrikeTime", "type": "float64_t", "dims": ["POLYPHONY"]},
     {"name": "noteReleaseTime", "type": "float64_t", "dims": ["POLYPHONY"]},
     {"name": "currTime", "type": "float64_t", "dims": ["POLYPHONY"]},
+    {"name": "tremAmount", "type": "float", "dims": ["POLYPHONY"]},
     {"name": "attackEnvelope", "type": "float", "dims": ["ENVELOPE_LENGTH"]},
     {"name": "releaseEnvelope", "type": "float", "dims": ["ENVELOPE_LENGTH"]},
     {"name": "attackSpeedMultiplier", "type": "float64_t", "dims": ["POLYPHONY"]},

@@ -183,6 +183,7 @@ class Buffer(Sinode):
         print(len(self.pmap[:]))
         print(len(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType)))
         # initialize to zero
+        #if self.sizeBytes < 2**16:
         self.setBuffer(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType))
 
         if not readFromCPU:

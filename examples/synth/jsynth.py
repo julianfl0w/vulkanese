@@ -116,7 +116,10 @@ class JSynth:
     def updatePitchBend(self):
 
         # with artiphon, only bend recent note
-        if self.mm.deviceWhichRecentlyBent is not None and"INSTRUMENT1" in self.mm.deviceWhichRecentlyBent:
+        if (
+            self.mm.deviceWhichRecentlyBent is not None
+            and "INSTRUMENT1" in self.mm.deviceWhichRecentlyBent
+        ):
             self.POLYLEN_ONES_POST64[:] = self.fullAddArray[:]
             self.POLYLEN_ONES_POST64[self.mm.mostRecentlyStruckNoteIndex * 2] = (
                 self.POLYLEN_ONES_POST64[self.mm.mostRecentlyStruckNoteIndex * 2]

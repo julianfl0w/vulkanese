@@ -86,10 +86,10 @@ class SampleSynth(JSynth):
             }
         else:
             self.constantsDict = {
-                "POLYPHONY": 32,
-                "POLYPHONY_PER_SHADER": 2,
+                "POLYPHONY": 128,
+                "POLYPHONY_PER_SHADER": 8,
                 "SAMPLE_FREQUENCY": 44100,
-                "OVERVOLUME": 8,
+                "OVERVOLUME": 16,
                 "CHANNELS": 1,
                 "SAMPLES_PER_DISPATCH": 64,
                 "LATENCY_SECONDS": 0.007,
@@ -115,6 +115,17 @@ class SampleSynth(JSynth):
 
         self.mm = jmidi.MidiManager(polyphony=self.POLYPHONY, synthInterface=self)
 
+        # for delay effects
+        self.RING_BUFFER_TIME_SECONDS = 2
+        self.RING_BUFFER_SIZE = int(self.RING_BUFFER_TIME_SECONDS*self.SAMPLE_FREQUENCY / self.SAMPLES_PER_DISPATCH)
+        self.ringBufferWriteIndex = 0
+        self.ringBuffer = np.zeros((self.RING_BUFFER_SIZE, self.SAMPLES_PER_DISPATCH))
+        self.delayTimeSeconds = 0.1
+        self.delayTimeSamples = self.delayTimeSeconds*self.SAMPLE_FREQUENCY
+        self.delayTimeBuffers = self.delayTimeSamples/self.SAMPLES_PER_DISPATCH
+        self.decayFactor = 0.8
+        self.delayOn = False
+        
         # preallocate
         self.POLYLEN_ONES = np.ones((4 * self.POLYPHONY), dtype=np.float32)
         self.POLYLEN_ONES_POST = np.ones((4 * self.POLYPHONY), dtype=np.float32)
@@ -169,8 +180,13 @@ class SampleSynth(JSynth):
         # initialize some of them
 
         # "ATTACK_TIME" : 0, ALL TIME AS A FLOAT OF SECONDS
+        attackEnvelope = np.ones((4 * self.ENVELOPE_LENGTH))
+        # smooth fadein
+        fadeInTime = 100
+        for i in range(fadeInTime):
+            attackEnvelope[i] = float(i)/fadeInTime
         self.computePipeline.attackEnvelope.setBuffer(
-            np.ones((4 * self.ENVELOPE_LENGTH))
+            attackEnvelope
         )
 
         # value of 1 means 1 second attack. 2 means 1/2 second attack
@@ -221,10 +237,11 @@ class SampleSynth(JSynth):
             midiRange = np.arange(20) + 40
         else:
             midiRange = range(self.MIDI_COUNT)
-            
+
+        sampleDir = "samples/rhodes/"
         for m in tqdm(midiRange):
             y, samplerate = librosa.load(
-                "samples/guitar/midi" + str(m) + ".wav", sr=None
+                os.path.join(sampleDir, "midi" + str(m) + ".wav"), sr=None
             )
             self.computePipeline.sampleBuffer.pmap[
                 self.SAMPLE_MAX_SAMPLE_COUNT
@@ -236,19 +253,11 @@ class SampleSynth(JSynth):
                 * m
                 + len(y) * 4
             ] = y
-            #] = np.ones(len(y), dtype=np.float32)
-            
-        y, samplerate = librosa.load(
-            "samples/guitar/midipercussive.wav", sr=None
-        )
+            # ] = np.ones(len(y), dtype=np.float32)
+
+        y, samplerate = librosa.load(os.path.join(sampleDir, "midipercussive.wav"), sr=None)
         self.computePipeline.sampleBuffer.pmap[
-            self.SAMPLE_SET_COUNT
-            * 4
-            * 4
-            * m : self.SAMPLE_SET_COUNT
-            * 4
-            * 4
-            * m
+            self.SAMPLE_SET_COUNT * 4 * 4 * m : self.SAMPLE_SET_COUNT * 4 * 4 * m
             + len(y) * 4
         ] = y
 
@@ -277,6 +286,12 @@ class SampleSynth(JSynth):
             pa = np.ascontiguousarray(self.buffView)
             pa = np.reshape(pa, (self.SAMPLES_PER_DISPATCH, self.SHADERS_PER_SAMPLE))
             pa = np.sum(pa, axis=1)
+            
+            if self.delayOn:
+                ringBufferReadIndex = int(self.ringBufferWriteIndex + self.RING_BUFFER_SIZE - self.delayTimeBuffers) % self.RING_BUFFER_SIZE   
+                pa += self.ringBuffer[ringBufferReadIndex]*self.decayFactor
+                self.ringBuffer[self.ringBufferWriteIndex] = pa
+                self.ringBufferWriteIndex = (self.ringBufferWriteIndex + 1) % self.RING_BUFFER_SIZE   
 
             if self.PYSOUND:
                 self.stream.write(pa)
@@ -340,7 +355,7 @@ class SampleSynth(JSynth):
         pass
 
     def modWheel(self, val):
-        pass
+        self.computePipeline.tremAmount.setByIndex(0, val)
 
     def release(self):
         vkDestroyFence(self.device.vkDevice, self.fence, None)

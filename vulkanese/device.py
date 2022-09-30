@@ -5,6 +5,7 @@ import sdl2.ext
 import time
 import json
 from vulkan import *
+
 # prepend local imports with .
 from pipelines import *
 from rasterpipeline import *
@@ -19,8 +20,8 @@ here = os.path.dirname(os.path.abspath(__file__))
 def getVulkanesePath():
     return here
 
-class Device(Sinode):
 
+class Device(Sinode):
     def ctypes2dict(self, props, depth=0):
         outDict = dict()
         type = ffi.typeof(props)
@@ -32,16 +33,17 @@ class Device(Sinode):
                 if fieldType.type.kind == "primitive":
                     outDict[fieldName] = eval("props." + fieldName)
                 else:
-                    outDict[fieldName] = self.ctypes2dict(eval("props." + fieldName), depth+1)
-            return(outDict)
+                    outDict[fieldName] = self.ctypes2dict(
+                        eval("props." + fieldName), depth + 1
+                    )
+            return outDict
         elif type.kind == "array":
-            return [self.ctypes2dict(p, depth+1) for p in props]
+            return [self.ctypes2dict(p, depth + 1) for p in props]
         else:
-            print(" "*depth + type.kind)
-            print(" "*depth + dir(type))
+            print(" " * depth + type.kind)
+            print(" " * depth + dir(type))
             die
-            
-        
+
     def __init__(self, instance, deviceIndex):
         Sinode.__init__(self, instance)
         self.instance = instance
@@ -58,38 +60,50 @@ class Device(Sinode):
             self.physical_device
         )
         memoryPropertiesPre = self.ctypes2dict(self.memoryProperties)
-        
+
         # the following is complicated only because C/C++ is so basic
         print(a for a in dir(self))
-        self.memoryTypes = memoryPropertiesPre["memoryTypes"][:memoryPropertiesPre["memoryTypeCount"]]
+        self.memoryTypes = memoryPropertiesPre["memoryTypes"][
+            : memoryPropertiesPre["memoryTypeCount"]
+        ]
         print(self.memoryTypes)
-        self.memoryHeaps = memoryPropertiesPre["memoryHeaps"][:memoryPropertiesPre["memoryHeapCount"]]
+        self.memoryHeaps = memoryPropertiesPre["memoryHeaps"][
+            : memoryPropertiesPre["memoryHeapCount"]
+        ]
         print(self.memoryHeaps)
-        
+
         for mt in self.memoryTypes:
             mt["propertyFlagsString"] = []
         for mh in self.memoryHeaps:
             mh["flagsString"] = []
-        
+
         # (this is so dumb)
         # get all keys that start with VK_MEMORY_PROPERTY_
-        for k, v  in globals().items():
-            if k.startswith("VK_MEMORY_PROPERTY_") and v is not None and not k.endswith("MAX_ENUM"):
+        for k, v in globals().items():
+            if (
+                k.startswith("VK_MEMORY_PROPERTY_")
+                and v is not None
+                and not k.endswith("MAX_ENUM")
+            ):
                 for mt in self.memoryTypes:
                     if mt["propertyFlags"] & v:
                         mt["propertyFlagsString"] += [k]
-                        
-        for k, v  in globals().items():
-            if k.startswith("VK_MEMORY_HEAP_") and v is not None and not k.endswith("MAX_ENUM"):
+
+        for k, v in globals().items():
+            if (
+                k.startswith("VK_MEMORY_HEAP_")
+                and v is not None
+                and not k.endswith("MAX_ENUM")
+            ):
                 for mt in self.memoryHeaps:
                     if mt["flags"] & v:
                         mt["flagsString"] += [k]
-        
-        #print("types")
-        #print(json.dumps(self.memoryTypes,indent=2))
-        #print("heaps")
-        #print(json.dumps(self.memoryHeaps,indent=2))
-        
+
+        # print("types")
+        # print(json.dumps(self.memoryTypes,indent=2))
+        # print("heaps")
+        # print(json.dumps(self.memoryHeaps,indent=2))
+
         print("getting features list")
 
         # vkGetPhysicalDeviceFeatures2 = vkGetInstanceProcAddr(
@@ -123,7 +137,7 @@ class Device(Sinode):
             physicalDevice=self.physical_device
         )
 
-        #print("%s available queue family" % len(queue_families))
+        # print("%s available queue family" % len(queue_families))
 
         self.queue_family_graphic_index = -1
         self.queue_family_present_index = -1
@@ -232,6 +246,7 @@ class Device(Sinode):
 
         self.descriptorPool = DescriptorPool(self)
         self.children += [self.descriptorPool]
+
     def nameSubdicts(self, key, value):
         if type(value) is dict:
             retdict = {}

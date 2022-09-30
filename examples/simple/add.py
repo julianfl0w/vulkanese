@@ -20,8 +20,8 @@ instance_inst = Instance()
 # and as a defined value within the shader
 constantsDict = {"NUMBERS_TO_SUM": 2 ** 26, "SHADER_COUNT": 512}
 # derived values
-constantsDict["NUMBERS_PER_SHADER"] = (
-    int(constantsDict["NUMBERS_TO_SUM"] / constantsDict["SHADER_COUNT"])
+constantsDict["NUMBERS_PER_SHADER"] = int(
+    constantsDict["NUMBERS_TO_SUM"] / constantsDict["SHADER_COUNT"]
 )
 
 # make constants available in this context
@@ -31,21 +31,21 @@ for k, v in constantsDict.items():
 # Input buffers to the shader
 # These are Uniform Buffers normally,
 # Storage Buffers in DEBUG Mode
-shaderInputBuffers = [
-]
+shaderInputBuffers = []
 
 # the output of the compute shader,
 # which in our case is always a Storage Buffer
-shaderOutputBuffers = [{"name": "sumOut", "type": "float64_t", "dims": ["SHADER_COUNT"]},
-    #{"name": "bufferToSum", "type": "float64_t", "dims": ["NUMBERS_TO_SUM"]}
-                      ]
+shaderOutputBuffers = [
+    {"name": "sumOut", "type": "float64_t", "dims": ["SHADER_COUNT"]},
+    # {"name": "bufferToSum", "type": "float64_t", "dims": ["NUMBERS_TO_SUM"]}
+]
 
 # choose a device
 print("naively choosing device 0")
 device = instance_inst.getDevice(0)
 
 # heres how DIMENSIONS RELATE TO THEIR INDEX
-dim2index = {"SHADER_COUNT": "shaderx","NUMBERS_TO_SUM": "i"}
+dim2index = {"SHADER_COUNT": "shaderx", "NUMBERS_TO_SUM": "i"}
 
 glslCode = """#version 450
 #extension GL_EXT_shader_explicit_arithmetic_types_float64 : require
@@ -80,7 +80,7 @@ addPipeline = ComputePipeline(
 
 # initialize numbers to sum
 # (must be double size because minimum read in shader is 16 bytes)
-#addPipeline.bufferToSum.setBuffer(np.arange(NUMBERS_TO_SUM * 2) / 2)
+# addPipeline.bufferToSum.setBuffer(np.arange(NUMBERS_TO_SUM * 2) / 2)
 shaderStart = time.time()
 addPipeline.run()
 shaderSum = np.sum(addPipeline.sumOut.getAsNumpyArray())
@@ -96,7 +96,7 @@ print("Shader result " + str(shaderSum))
 print("NumPy  result " + str(npSum))
 print("Shader time " + str(shaderTime))
 print("NumPy  time " + str(numpyTime))
-print("Vulkanese speedup: " +str(numpyTime/shaderTime) + "x")
+print("Vulkanese speedup: " + str(numpyTime / shaderTime) + "x")
 
 instance_inst.release()
-# 
+#

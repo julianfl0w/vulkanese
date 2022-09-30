@@ -132,7 +132,7 @@ class Stage(Sinode):
 
 class VertexStage(Stage):
     def __init__(
-        self, parent, device, buffers, constantsDict, name="mandlebrot", DEBUG=False,
+        self, parent, device, buffers, constantsDict, name="mandlebrot", DEBUG=False
     ):
         self.glslCode = """
 #version 450

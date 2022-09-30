@@ -5,6 +5,7 @@ import sdl2.ext
 import time
 import json
 from vulkan import *
+
 # prepend local imports with .
 
 if "vulkanese" in sys.modules:
@@ -21,7 +22,7 @@ else:
     from .computepipeline import *
     from .descriptor import *
     from .device import *
-    
+
 from PIL import Image as pilImage
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -32,7 +33,7 @@ def getVulkanesePath():
 
 
 class Instance(Sinode):
-    def __init__(self,verbose=False):
+    def __init__(self, verbose=False):
         Sinode.__init__(self, None)
         self.verbose = verbose
         print("version number ")
@@ -73,7 +74,7 @@ class Instance(Sinode):
         # print("available layers:")
         # for l in self.layers:
         #    print("    " + l)
-        
+
         if self.verbose:
             print("Available layers " + json.dumps(self.layers, indent=2))
 
