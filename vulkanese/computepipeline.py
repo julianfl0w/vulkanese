@@ -116,8 +116,8 @@ class ComputePipeline(Pipeline):
             DEFINE_STRING += "#define " + k + " " + str(v) + "\n"
         glslCode = glslCode.replace("DEFINE_STRING", DEFINE_STRING)
 
-        # always index output variables
-        glslCode = self.addIndicesToOutputs(shaderOutputBuffers, glslCode)
+        # don't index output variables
+        #glslCode = self.addIndicesToOutputs(shaderOutputBuffers, glslCode)
 
         glslCode = glslCode.replace("VARIABLEDECLARATIONS", VARSDECL)
 
@@ -275,6 +275,8 @@ class ComputePipeline(Pipeline):
 
         outdict = {}
         for b in self.debugBuffers:
+            if b.sizeBytes > 2**14:
+                continue
             rcvdArray = b.getAsNumpyArray()
             # convert to list to make it JSON serializable
             outdict[b.name] = rcvdArray.tolist()  # nested lists with same data, indices

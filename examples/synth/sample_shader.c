@@ -14,7 +14,8 @@ void main() {
   VARIABLEDECLARATIONS
 
   // current time depends on the sample offset
-  currTimeWithSampleOffset = currTime[0] + sampleNo / float(SAMPLE_FREQUENCY);
+  float64_t currOffset = sampleNo / float(SAMPLE_FREQUENCY);
+  currTimeWithSampleOffset = currTime[0] + currOffset;
   // currTimeWithSampleOffset = shaderIndexInSample;
   // //sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample;
 
@@ -67,39 +68,27 @@ void main() {
     if(noteVol < 0.01)
       continue;
     
-    increment = noteBaseIncrement[noteNo] * pitchFactor[noteNo];
-    basePhaseThisNote = noteBasePhase[noteNo] + (sampleNo * increment);
-
-    innersum = 0;
-    // loop over the partials in this note
-    for (uint partialNo = 0; partialNo < PARTIALS_PER_VOICE; partialNo++) {
-
-      thisIncrement = increment * partialMultiplier[partialNo];
-
-      if (thisIncrement < 1) {
-        float64_t phase = fract(basePhaseThisNote * partialMultiplier[partialNo]);
-        if(USESLUT==1){
-          slutIndexFloat = phase * SLUTLEN;
-          slutIndexFract = fract(slutIndexFloat);
-          slutIndex = uint(slutIndexFloat);
-          slutIndexNext = (slutIndex+1)%SLUTLEN;
-          
-          //sineVal = SLUT[slutIndex] //noninterp
-          
-          sineVal = float(SLUT[slutIndex]*(1-slutIndexFract) + slutIndexFract*SLUT[slutIndexNext]); // interpolated
-        }
-        else{
-          sineVal = sin(float(2*3.1415926*phase));
-        }
-        indexInFilter = int(thisIncrement * FILTER_STEPS);
-        innersum +=
-            float(partialVolume[partialNo] *
-            sineVal *
-            freqFilter[indexInFilter]);
-      }
-    }
+    thisIndexFloat = noteBaseIndex[noteNo] + sampleNo * pitchFactor[noteNo];
+    
+    // clamp index at the end of the sample
+    if(thisIndexFloat >= SAMPLE_MAX_SAMPLE_COUNT-2)
+      thisIndexFloat = SAMPLE_MAX_SAMPLE_COUNT-2;
+    
+    thisIndexFract = fract(thisIndexFloat);
+    thisIndexUint  = uint(thisIndexFloat) + SAMPLE_MAX_SAMPLE_COUNT*midiNoteNo[noteNo];
+    nextIndex = thisIndexUint + 1;
+    
+    thisSample = sampleBuffer[thisIndexUint];
+    nextSample = sampleBuffer[nextIndex];
+    
+    uint percussiveIndex = uint(secondsSinceStrike*SAMPLE_FREQUENCY);
+    if(percussiveIndex >= SAMPLE_MAX_SAMPLE_COUNT)
+      percussiveIndex = SAMPLE_MAX_SAMPLE_COUNT-1;
+    
+    float64_t percussive = sampleBufferPercussive[percussiveIndex];
+    innersum = float(thisSample*(1 - thisIndexFract) + nextSample*thisIndexFract + percussive);
     shadersum += innersum * noteVol;
   }
 
-  pcmBufferOut[sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample] = shadersum / (PARTIALS_PER_VOICE * POLYPHONY / OVERVOLUME);
+  pcmBufferOut[sampleNo*SHADERS_PER_SAMPLE+shaderIndexInSample] = shadersum / (POLYPHONY / OVERVOLUME);
 }

@@ -72,7 +72,7 @@ debuggableVars = [
         "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
     },
     {
-        "name": "fractional",
+        "name": "envelopeIndexFractional",
         "type": "float64_t",
         "dims": ["SAMPLES_PER_DISPATCH", "POLYPHONY"],
     },
