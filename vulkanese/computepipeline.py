@@ -80,7 +80,7 @@ class ComputePipeline(Pipeline):
 
             newBuff = Buffer(
                 device=device,
-                type=s["type"],
+                memtype=s["type"],
                 descriptorSet=descriptorSet,
                 qualifier="out",
                 name=s["name"],

@@ -95,11 +95,12 @@ class Buffer(Sinode):
         readFromCPU=True,
         usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         memProperties=VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+        | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+        | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
         sharingMode=VK_SHARING_MODE_EXCLUSIVE,
         stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
         qualifier="in",
-        type="vec3",
+        memtype="vec3",
         rate=VK_VERTEX_INPUT_RATE_VERTEX,
         stride=12,
     ):
@@ -114,7 +115,7 @@ class Buffer(Sinode):
         self.location = location
         self.vkDevice = device.vkDevice
         self.qualifier = qualifier
-        self.type = type
+        self.type = memtype
         self.itemSize = glsltype2bytesize(self.type)
         self.pythonType = glsltype2python(self.type)
         if (not usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) and self.itemSize <= 8:
@@ -168,9 +169,12 @@ class Buffer(Sinode):
         )
 
         # allocate memory on device.
+        print("allocating")
         self.vkDeviceMemory = vkAllocateMemory(self.vkDevice, self.allocateInfo, None)
+        print("done allocating")
         self.children += [self.vkDeviceMemory]
 
+        print("mapping")
         # Map the buffer memory, so that we can read from it on the CPU.
         self.pmap = vkMapMemory(
             device=self.vkDevice,
@@ -179,17 +183,22 @@ class Buffer(Sinode):
             size=self.sizeBytes,
             flags=0,
         )
+        print("done mapping")
 
         print(len(self.pmap[:]))
         print(len(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType)))
         # initialize to zero
         #if self.sizeBytes < 2**16:
         self.setBuffer(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType))
+        
+        print("done initializing")
+        
 
         if not readFromCPU:
             vkUnmapMemory(self.vkDevice, self.vkDeviceMemory)
             self.pmap = None
 
+        print("binding")
         # Now associate that allocated memory with the buffer. With that, the buffer is backed by actual memory.
         vkBindBufferMemory(
             device=self.vkDevice,
@@ -197,6 +206,7 @@ class Buffer(Sinode):
             memory=self.vkDeviceMemory,
             memoryOffset=0,
         )
+        print("done binding")
 
         self.bufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
             sType=VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,

@@ -4,10 +4,7 @@ numpy
 trimesh
 opencv-python
 open3d
-sounddevice
-python-rtmidi
 mido
 hjson
 git+https://github.com/julianfl0w/sinode
-git+https://github.com/julianfl0w/jmidi
 
