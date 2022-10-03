@@ -270,23 +270,30 @@ class Device(Sinode):
 
         return -1
 
-
+    def getProcessorType(physical_device):
+        
+        pProperties = vkGetPhysicalDeviceProperties(physical_device)
+        deviceType = pProperties.deviceType
+        if deviceType == 0:
+            deviceTypeStr = "VK_PHYSICAL_DEVICE_TYPE_OTHER"
+        elif deviceType == 1:
+            deviceTypeStr = "VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU"
+        elif deviceType == 2:
+            deviceTypeStr = "VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU"
+        elif deviceType == 3:
+            deviceTypeStr = "VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU"
+        elif deviceType == 4:
+            deviceTypeStr = "VK_PHYSICAL_DEVICE_TYPE_CPU"
+        return deviceTypeStr
+        
     def getPhysicalProperties(self):
         self.pProperties = vkGetPhysicalDeviceProperties(self.physical_device)
         print("Device Name: " + self.pProperties.deviceName)
 
-        self.deviceType = self.pProperties.deviceType
-        if self.deviceType == 0:
-            self.deviceTypeStr = "VK_PHYSICAL_DEVICE_TYPE_OTHER"
-        elif self.deviceType == 1:
-            self.deviceTypeStr = "VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU"
-        elif self.deviceType == 2:
-            self.deviceTypeStr = "VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU"
-        elif self.deviceType == 3:
-            self.deviceTypeStr = "VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU"
-        elif self.deviceType == 4:
-            self.deviceTypeStr = "VK_PHYSICAL_DEVICE_TYPE_CPU"
-
+        devPropsDict = {}
+        
+        devPropsDict["deviceType"] = self.getProcessorType(self.physical_device)
+        
         print("Device Type: " + self.deviceTypeStr)
         limitsDict = {}
         type = ffi.typeof(self.pProperties.limits)

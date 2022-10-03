@@ -128,7 +128,8 @@ class Instance(Sinode):
         for i, physical_device in enumerate(self.physical_devices):
             pProperties = vkGetPhysicalDeviceProperties(physical_device)
             memprops = Device.getMemoryProperties(physical_device)
-            devdict[pProperties.deviceName] = {"pProperties" : memprops}
+            processorType = Device.getProcessorType(physical_device)
+            devdict[pProperties.deviceName] = {"processorType": processorType, "memProperties" : memprops}
         return devdict
 
     def getDevice(self, deviceIndex):
