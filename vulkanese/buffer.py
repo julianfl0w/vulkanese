@@ -207,11 +207,12 @@ class Buffer(Sinode):
         )
         print("done binding")
 
-        self.bufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
-            sType=VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-            pNext=None,
-            buffer=self.vkBuffer,
-        )
+        # NEEDED FOR RAYTRACING, FAILS BEFORE VULKAN 1.3
+        #self.bufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
+        #    sType=VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+        #    pNext=None,
+        #    buffer=self.vkBuffer,
+        #)
 
         descriptorSet.buffers += [self]
         # descriptorCount is the number of descriptors contained in the binding,
