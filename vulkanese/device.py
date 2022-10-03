@@ -2,13 +2,16 @@ import ctypes
 import os
 import time
 import json
+from sinode import *
 from vulkan import *
 
 # prepend local imports with .
 try:
     from vulkanese import *
+    from descriptor import *
 except:
     from .vulkanese import *
+    from .descriptor import *
 from PIL import Image as pilImage
 
 here = os.path.dirname(os.path.abspath(__file__))

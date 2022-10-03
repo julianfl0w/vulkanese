@@ -5,8 +5,10 @@ import json
 from vulkan import *
 try:
     from vulkanese import *
+    from pipelines import *
 except:
     from .vulkanese import *
+    from .pipelines import *
 from sinode import *
 from PIL import Image as pilImage
 
