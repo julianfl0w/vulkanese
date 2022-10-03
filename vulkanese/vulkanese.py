@@ -8,7 +8,7 @@ from vulkan import *
 
 # prepend local imports with .
 
-if "vulkanese" in sys.modules:
+if False:
     from pipelines import *
     from rasterpipeline import *
     from raytracepipeline import *

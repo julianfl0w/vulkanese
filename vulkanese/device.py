@@ -5,11 +5,7 @@ import json
 from vulkan import *
 
 # prepend local imports with .
-from pipelines import *
-from rasterpipeline import *
-from raytracepipeline import *
-from computepipeline import *
-from descriptor import *
+from .vulkanese import *
 from PIL import Image as pilImage
 
 here = os.path.dirname(os.path.abspath(__file__))

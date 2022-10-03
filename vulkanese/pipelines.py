@@ -2,13 +2,20 @@ import ctypes
 import os
 import time
 import json
-from vulkan import *
 from sinode import *
-from surface import *
-from stage import *
-from renderpass import *
-from commandbuffer import *
-from vulkanese import *
+from vulkan import *
+if False:
+    from surface import *
+    from stage import *
+    from renderpass import *
+    from commandbuffer import *
+    from vulkanese import *
+else:
+    from .surface import *
+    from .stage import *
+    from .renderpass import *
+    from .commandbuffer import *
+    from .vulkanese import *
 from PIL import Image as pilImage
 
 here = os.path.dirname(os.path.abspath(__file__))

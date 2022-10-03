@@ -3,13 +3,12 @@ import os
 import time
 import json
 from vulkan import *
-from surface import *
-from stage import *
-from renderpass import *
-from pipelines import *
-from commandbuffer import *
+if False:
+    from vulkanese import *
+else:
+    from .vulkanese import *
+
 from sinode import *
-from vulkanese import *
 from PIL import Image as pilImage
 
 # import faulthandler

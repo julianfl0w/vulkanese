@@ -5,6 +5,6 @@ opencv-python
 open3d
 mido
 hjson
-git+https://github.com/julianfl0w/vulkan
+vulkan
 git+https://github.com/julianfl0w/sinode
 

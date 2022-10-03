@@ -2,7 +2,10 @@ import json
 from sinode import *
 import os
 from vulkan import *
-from buffer import *
+if False:
+    from buffer import *
+else:
+    from .buffer import *
 from pathlib import Path
 
 here = os.path.dirname(os.path.abspath(__file__))
