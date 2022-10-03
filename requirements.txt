@@ -1,10 +1,10 @@
 pysdl2
-vulkan
 numpy
 trimesh
 opencv-python
 open3d
 mido
 hjson
+git+https://github.com/julianfl0w/vulkan
 git+https://github.com/julianfl0w/sinode
 
