@@ -28,11 +28,6 @@ constantsDict["NUMBERS_PER_SHADER"] = int(
 for k, v in constantsDict.items():
     exec(k + " = " + str(v))
 
-# Input buffers to the shader
-# These are Uniform Buffers normally,
-# Storage Buffers in DEBUG Mode
-shaderInputBuffers = []
-
 # the output of the compute shader,
 # which in our case is always a Storage Buffer
 shaderOutputBuffers = [
@@ -75,7 +70,7 @@ addPipeline = ComputePipeline(
     device=device,
     dim2index=dim2index,
     shaderOutputBuffers=shaderOutputBuffers,
-    shaderInputBuffers=shaderInputBuffers,
+    shaderInputBuffers=[],
 )
 
 # initialize numbers to sum
