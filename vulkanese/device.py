@@ -22,7 +22,7 @@ def getVulkanesePath():
 
 
 class Device(Sinode):
-    def ctypes2dict(self, props, depth=0):
+    def ctypes2dict(props, depth=0):
         outDict = dict()
         type = ffi.typeof(props)
         if type.kind == "primitive":
@@ -33,17 +33,17 @@ class Device(Sinode):
                 if fieldType.type.kind == "primitive":
                     outDict[fieldName] = eval("props." + fieldName)
                 else:
-                    outDict[fieldName] = self.ctypes2dict(
+                    outDict[fieldName] = Device.ctypes2dict(
                         eval("props." + fieldName), depth + 1
                     )
             return outDict
         elif type.kind == "array":
-            return [self.ctypes2dict(p, depth + 1) for p in props]
+            return [Device.ctypes2dict(p, depth + 1) for p in props]
         else:
             print(" " * depth + type.kind)
             print(" " * depth + dir(type))
             die
-
+        
     def __init__(self, instance, deviceIndex):
         Sinode.__init__(self, instance)
         self.instance = instance
@@ -55,55 +55,8 @@ class Device(Sinode):
             deviceIndex
         ]
 
-        print("getting memory properties")
-        self.memoryProperties = vkGetPhysicalDeviceMemoryProperties(
-            self.physical_device
-        )
-        memoryPropertiesPre = self.ctypes2dict(self.memoryProperties)
-
-        # the following is complicated only because C/C++ is so basic
-        print(a for a in dir(self))
-        self.memoryTypes = memoryPropertiesPre["memoryTypes"][
-            : memoryPropertiesPre["memoryTypeCount"]
-        ]
-        print(self.memoryTypes)
-        self.memoryHeaps = memoryPropertiesPre["memoryHeaps"][
-            : memoryPropertiesPre["memoryHeapCount"]
-        ]
-        print(self.memoryHeaps)
-
-        for mt in self.memoryTypes:
-            mt["propertyFlagsString"] = []
-        for mh in self.memoryHeaps:
-            mh["flagsString"] = []
-
-        # (this is so dumb)
-        # get all keys that start with VK_MEMORY_PROPERTY_
-        for k, v in globals().items():
-            if (
-                k.startswith("VK_MEMORY_PROPERTY_")
-                and v is not None
-                and not k.endswith("MAX_ENUM")
-            ):
-                for mt in self.memoryTypes:
-                    if mt["propertyFlags"] & v:
-                        mt["propertyFlagsString"] += [k]
-
-        for k, v in globals().items():
-            if (
-                k.startswith("VK_MEMORY_HEAP_")
-                and v is not None
-                and not k.endswith("MAX_ENUM")
-            ):
-                for mt in self.memoryHeaps:
-                    if mt["flags"] & v:
-                        mt["flagsString"] += [k]
-
-        # print("types")
-        # print(json.dumps(self.memoryTypes,indent=2))
-        # print("heaps")
-        # print(json.dumps(self.memoryHeaps,indent=2))
-
+        self.memoryProperties = Device.getMemoryProperties(self.physical_device)
+        
         print("getting features list")
 
         # vkGetPhysicalDeviceFeatures2 = vkGetInstanceProcAddr(
@@ -247,6 +200,55 @@ class Device(Sinode):
         self.descriptorPool = DescriptorPool(self)
         self.children += [self.descriptorPool]
 
+    def getMemoryProperties(physical_device):
+        print("getting memory properties")
+        memoryProperties = vkGetPhysicalDeviceMemoryProperties(
+            physical_device
+        )
+        memoryPropertiesPre = Device.ctypes2dict(memoryProperties)
+
+        # the following is complicated only because C/C++ is so basic
+        # shorten the lists to however many there are
+        memoryTypes = memoryPropertiesPre["memoryTypes"][
+            : memoryPropertiesPre["memoryTypeCount"]
+        ]
+        print(memoryTypes)
+        memoryHeaps = memoryPropertiesPre["memoryHeaps"][
+            : memoryPropertiesPre["memoryHeapCount"]
+        ]
+        print(memoryHeaps)
+
+        for mt in memoryTypes:
+            mt["propertyFlagsString"] = []
+        for mh in memoryHeaps:
+            mh["flagsString"] = []
+
+        heaps = []
+        types = []
+        # (this is so dumb)
+        # get all keys that start with VK_MEMORY_PROPERTY_
+        for k, v in globals().items():
+            if (
+                k.startswith("VK_MEMORY_PROPERTY_")
+                and v is not None
+                and not k.endswith("MAX_ENUM")
+            ):
+                for mt in memoryTypes:
+                    if mt["propertyFlags"] & v:
+                        mt["propertyFlagsString"] += [k]
+
+        for k, v in globals().items():
+            if (
+                k.startswith("VK_MEMORY_HEAP_")
+                and v is not None
+                and not k.endswith("MAX_ENUM")
+            ):
+                for mh in memoryHeaps:
+                    if mh["flags"] & v:
+                        mh["flagsString"] += [k]
+                        
+        return {"memoryTypes":memoryTypes, "memoryHeaps":memoryHeaps}
+
     def nameSubdicts(self, key, value):
         if type(value) is dict:
             retdict = {}
@@ -270,33 +272,6 @@ class Device(Sinode):
 
         return -1
 
-    def applyLayout(self, setupDict):
-        self.setupDict = self.nameSubdicts("root", setupDict)
-        print(json.dumps(self.setupDict, indent=2))
-        self.pipelines = []
-        for pipelineName, pipelineDict in self.setupDict.items():
-            if pipelineDict == "root":
-                continue
-            if pipelineDict["class"] == "raster":
-                self.pipelines += [RasterPipeline(self, pipelineDict)]
-            elif pipelineDict["class"] == "compute":
-                self.pipelines += [ComputePipeline(self, pipelineDict)]
-            else:
-                self.pipelines += [RaytracePipeline(self, pipelineDict)]
-        self.descriptorPool.finalize()
-        self.children += self.pipelines
-        return self.pipelines
-
-    def applyLayoutFile(self, filename):
-
-        with open(filename, "r") as f:
-            setupDict = json.loads(f.read())
-
-        # apply setup to device
-        print("Applying the following layout:")
-        print(json.dumps(setupDict, indent=4))
-        print("")
-        return self.applyLayout(setupDict)
 
     def getPhysicalProperties(self):
         self.pProperties = vkGetPhysicalDeviceProperties(self.physical_device)

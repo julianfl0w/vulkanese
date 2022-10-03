@@ -188,8 +188,7 @@ class Buffer(Sinode):
         print(len(self.pmap[:]))
         print(len(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType)))
         # initialize to zero
-        #if self.sizeBytes < 2**16:
-        self.setBuffer(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType))
+        self.zeroInitialize()
         
         print("done initializing")
         
@@ -249,6 +248,10 @@ class Buffer(Sinode):
             binding=self.binding, stride=stride, inputRate=rate  # 4 bytes/element
         )
 
+    def zeroInitialize(self):
+        self.setBuffer(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType))
+        
+        
     def getAsNumpyArray(self):
         # glsl to python
         flatArray = np.frombuffer(self.pmap, self.pythonType)

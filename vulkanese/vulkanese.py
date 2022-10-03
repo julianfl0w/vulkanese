@@ -123,7 +123,13 @@ class Instance(Sinode):
 
     def getDeviceList(self):
         self.physical_devices = vkEnumeratePhysicalDevices(self.vkInstance)
-        return self.physical_devices
+        print(type(self.physical_devices))
+        devdict = {}
+        for i, physical_device in enumerate(self.physical_devices):
+            pProperties = vkGetPhysicalDeviceProperties(physical_device)
+            memprops = Device.getMemoryProperties(physical_device)
+            devdict[pProperties.deviceName] = {"pProperties" : memprops}
+        return devdict
 
     def getDevice(self, deviceIndex):
         newDev = Device(self, deviceIndex)
