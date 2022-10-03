@@ -13,7 +13,7 @@ else:
     from vulkanese import *
 
 # get vulkanese instance
-instance_inst = Instance()
+instance_inst = Instance(verbose=True)
 print(json.dumps(instance_inst.getDeviceList(), indent=2))
 instance_inst.release()
 #
