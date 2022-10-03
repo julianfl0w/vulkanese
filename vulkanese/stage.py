@@ -21,10 +21,7 @@ class Stage(Sinode):
         stage=VK_SHADER_STAGE_VERTEX_BIT,
         name="mandlebrot",
         DEBUG=False,
-        glslCode=None,
     ):
-        if glslCode is not None:
-            self.glslCode = glslCode
         self.constantsDict = constantsDict
         self.buffers = buffers
         self.DEBUG = DEBUG
@@ -40,7 +37,7 @@ class Stage(Sinode):
             if name == b.name:
                 return b
 
-    def compile(self):
+    def compile(self, glslCode):
 
         STRUCTS_STRING = "\n"
 
@@ -72,7 +69,7 @@ class Stage(Sinode):
                 BUFFERS_STRING += buffer.getComputeDeclaration()
 
         # put structs and buffers into the code
-        self.glslCode = self.glslCode.replace("BUFFERS_STRING", BUFFERS_STRING).replace(
+        glslCode = glslCode.replace("BUFFERS_STRING", BUFFERS_STRING).replace(
             "STRUCTS_STRING", STRUCTS_STRING
         )
 
@@ -87,7 +84,7 @@ class Stage(Sinode):
 
         glslFilename = os.path.join(compStagesPath, self.name)
         with open(glslFilename, "w+") as f:
-            f.write(self.glslCode)
+            f.write(glslCode)
 
         # delete the old one
         # POS always outputs to "a.spv"
@@ -137,7 +134,7 @@ class VertexStage(Stage):
     def __init__(
         self, parent, device, buffers, constantsDict, name="mandlebrot", DEBUG=False
     ):
-        self.glslCode = """
+        glslCode = """
 #version 450
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
 STRUCTS_STRING
@@ -160,6 +157,7 @@ void main() {
         )
 
         # shader code belongs to the stage
+        self.compile(glslCode)
 
 
 class FragmentStage(Stage):
@@ -173,7 +171,7 @@ class FragmentStage(Stage):
         name="mandlebrot",
         DEBUG=False,
     ):
-        self.glslCode = """
+        glslCode = """
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
@@ -193,5 +191,7 @@ void main() {
             name="fragment.frag",
             DEBUG=False,
         )
+        
+        self.compile(glslCode)
 
         # shader code belongs to the stage

@@ -72,7 +72,7 @@ class Device(Sinode):
         # print("pFeatures2")
         # print(self.pFeatures2)
 
-        self.propertiesDict = self.getPhysicalProperties()
+        self.propertiesDict = self.getLimits()
 
         # self.pProperties2 = vkGetPhysicalDeviceProperties2(self.physical_device)
         # print("pProperties2")
@@ -288,25 +288,23 @@ class Device(Sinode):
             deviceTypeStr = "VK_PHYSICAL_DEVICE_TYPE_CPU"
         return deviceTypeStr
         
-    def getPhysicalProperties(self):
-        self.pProperties = vkGetPhysicalDeviceProperties(self.physical_device)
-        print("Device Name: " + self.pProperties.deviceName)
+    def getLimits(physical_device):
+        pProperties = vkGetPhysicalDeviceProperties(physical_device)
+        print("Device Name: " + pProperties.deviceName)
 
         devPropsDict = {}
         
-        devPropsDict["deviceType"] = Device.getProcessorType(self.physical_device)
+        devPropsDict["deviceType"] = Device.getProcessorType(physical_device)
         
         limitsDict = {}
-        type = ffi.typeof(self.pProperties.limits)
+        type = ffi.typeof(pProperties.limits)
         for fieldName, fieldType in type.fields:
             if fieldType.type.kind == "primitive":
-                fieldValue = eval("self.pProperties.limits." + fieldName)
+                fieldValue = eval("pProperties.limits." + fieldName)
             else:
-                lfieldValue = str(eval("self.pProperties.limits." + fieldName))
+                lfieldValue = str(eval("pProperties.limits." + fieldName))
 
             limitsDict[fieldName] = fieldValue
-            # make all these available as device attributes
-            exec("self." + fieldName + " = fieldValue")
 
         return limitsDict
 
