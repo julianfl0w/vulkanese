@@ -1,7 +1,5 @@
 import ctypes
 import os
-import sdl2
-import sdl2.ext
 import time
 import json
 from vulkan import *
