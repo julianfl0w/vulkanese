@@ -288,9 +288,8 @@ class Device(Sinode):
 
         devPropsDict = {}
         
-        devPropsDict["deviceType"] = self.getProcessorType(self.physical_device)
+        devPropsDict["deviceType"] = Device.getProcessorType(self.physical_device)
         
-        print("Device Type: " + self.deviceTypeStr)
         limitsDict = {}
         type = ffi.typeof(self.pProperties.limits)
         for fieldName, fieldType in type.fields:
