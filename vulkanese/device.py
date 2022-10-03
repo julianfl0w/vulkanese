@@ -5,7 +5,10 @@ import json
 from vulkan import *
 
 # prepend local imports with .
-from .vulkanese import *
+try:
+    from vulkanese import *
+except:
+    from .vulkanese import *
 from PIL import Image as pilImage
 
 here = os.path.dirname(os.path.abspath(__file__))

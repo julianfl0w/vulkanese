@@ -3,10 +3,16 @@ import os
 import time
 import json
 from vulkan import *
-if False:
+try:
     from vulkanese import *
-else:
+    from buffer import *
+    from stage import *
+    from commandbuffer import *
+except:
     from .vulkanese import *
+    from .buffer import *
+    from .stage import *
+    from .commandbuffer import *
 from PIL import Image as pilImage
 import re
 

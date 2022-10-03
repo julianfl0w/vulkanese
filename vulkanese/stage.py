@@ -2,9 +2,9 @@ import json
 from sinode import *
 import os
 from vulkan import *
-if False:
+try:
     from buffer import *
-else:
+except:
     from .buffer import *
 from pathlib import Path
 

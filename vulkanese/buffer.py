@@ -74,10 +74,10 @@ class Buffer(Sinode):
 
         # How does this search work?
         # See the documentation of VkPhysicalDeviceMemoryProperties for a detailed description.
-        for i, mt in enumerate(self.device.memoryProperties.memoryTypes):
+        for i, mt in enumerate(self.device.memoryProperties["memoryTypes"]):
             if (
                 memoryTypeBits & (1 << i)
-                and (mt.propertyFlags & properties) == properties
+                and (mt["propertyFlags"] & properties) == properties
             ):
                 return i
 

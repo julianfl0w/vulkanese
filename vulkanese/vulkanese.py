@@ -7,21 +7,22 @@ import json
 from vulkan import *
 
 # prepend local imports with .
-
-if False:
+try:
     from pipelines import *
     from rasterpipeline import *
     from raytracepipeline import *
     from computepipeline import *
     from descriptor import *
     from device import *
-else:
+    from buffer import *
+except:
     from .pipelines import *
     from .rasterpipeline import *
     from .raytracepipeline import *
     from .computepipeline import *
     from .descriptor import *
     from .device import *
+    from .buffer import *
 
 from PIL import Image as pilImage
 

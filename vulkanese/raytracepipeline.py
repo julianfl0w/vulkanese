@@ -3,9 +3,9 @@ import os
 import time
 import json
 from vulkan import *
-if False:
+try:
     from vulkanese import *
-else:
+except:
     from .vulkanese import *
 
 from sinode import *

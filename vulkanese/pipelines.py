@@ -4,17 +4,9 @@ import time
 import json
 from sinode import *
 from vulkan import *
-if False:
-    from surface import *
-    from stage import *
-    from renderpass import *
-    from commandbuffer import *
+try:
     from vulkanese import *
-else:
-    from .surface import *
-    from .stage import *
-    from .renderpass import *
-    from .commandbuffer import *
+except:
     from .vulkanese import *
 from PIL import Image as pilImage
 
