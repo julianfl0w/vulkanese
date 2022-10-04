@@ -1,7 +1,8 @@
 from vulkan import *
 from sinode import *
-#import sdl2
-#import sdl2.ext
+
+# import sdl2
+# import sdl2.ext
 import ctypes
 
 

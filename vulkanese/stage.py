@@ -2,6 +2,7 @@ import json
 from sinode import *
 import os
 from vulkan import *
+
 try:
     from buffer import *
 except:
@@ -20,8 +21,8 @@ class Stage(Sinode):
         constantsDict,
         shaderOutputBuffers,
         shaderInputBuffers,
-        shaderCode = "",
-        sourceFilename = "",
+        shaderCode="",
+        sourceFilename="",
         debuggableVars=[],
         shaderInputBuffersNoDebug=[],
         stage=VK_SHADER_STAGE_VERTEX_BIT,
@@ -35,7 +36,7 @@ class Stage(Sinode):
         self.device = device
         self.name = name
         self.stage = stage
-    
+
         self.shaderOutputBuffers = shaderOutputBuffers
         self.debuggableVars = debuggableVars
         self.shaderInputBuffers = shaderInputBuffers
@@ -90,11 +91,11 @@ class Stage(Sinode):
             # save these buffers for reading later
             if s not in self.shaderInputBuffersNoDebug:
                 self.debugBuffers += [newBuff]
-        
+
         outfilename = self.name + ".spv"
-        # if its spv (compiled), just run it 
+        # if its spv (compiled), just run it
         if sourceFilename != "":
-            
+
             if sourceFilename.endswith(".spv"):
                 with open(sourceFilename, "rb") as f:
                     spirv = f.read()
@@ -111,9 +112,8 @@ class Stage(Sinode):
             with open(self.name + ".spv", "wb+") as f:
                 f.write(spirv)
         else:
-            raise("either source filename or shader text must be provided")
-            
-                
+            raise ("either source filename or shader text must be provided")
+
         # Create Stage
         self.shader_create = VkShaderModuleCreateInfo(
             sType=VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -210,7 +210,6 @@ class Stage(Sinode):
         with open(compiledFilename, "rb") as f:
             spirv = f.read()
         return spirv
-    
 
     def getVertexBuffers(self):
         allVertexBuffers = []
@@ -330,7 +329,7 @@ void main() {
             name="fragment.frag",
             DEBUG=False,
         )
-        
+
         self.compile(glslCode)
 
         # shader code belongs to the stage
