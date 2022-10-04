@@ -72,7 +72,7 @@ class Device(Sinode):
         # print("pFeatures2")
         # print(self.pFeatures2)
 
-        self.propertiesDict = self.getLimits()
+        self.propertiesDict = Device.getLimits(self.physical_device)
 
         # self.pProperties2 = vkGetPhysicalDeviceProperties2(self.physical_device)
         # print("pProperties2")

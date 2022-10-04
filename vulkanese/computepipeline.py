@@ -32,115 +32,20 @@ def getVulkanesePath():
 class ComputePipeline(Pipeline):
     def __init__(
         self,
-        glslCode,
+        computeShader,
         device,
-        dim2index,
         constantsDict,
-        shaderOutputBuffers,
-        shaderInputBuffers,
-        DEBUG=False,
-        debuggableVars=[],
-        shaderInputBuffersNoDebug=[],
-        workgroupShape=[1, 1, 1],
+        workgroupShape=[1, 1, 1]
     ):
         Sinode.__init__(self)
-        self.dim2index = dim2index
-        self.constantsDict = constantsDict
-        allBuffers = []
-        self.DEBUG = DEBUG
         self.device = device
         device.instance.children += [self]
 
-        self.shaderOutputBuffers = shaderOutputBuffers
-        self.debuggableVars = debuggableVars
-        self.shaderInputBuffers = shaderInputBuffers
-        self.shaderInputBuffersNoDebug = shaderInputBuffersNoDebug
-
-        self.debugBuffers = []
-
-        # if we're debugging, all intermediate variables become output buffers
-        if self.DEBUG:
-            allBufferDescriptions = (
-                shaderOutputBuffers
-                + debuggableVars
-                + shaderInputBuffers
-                + shaderInputBuffersNoDebug
-            )
-        else:
-            allBufferDescriptions = (
-                shaderOutputBuffers + shaderInputBuffers + shaderInputBuffersNoDebug
-            )
-
-        # create all buffers according to their description
-        for s in allBufferDescriptions:
-            format = VK_FORMAT_R32_SFLOAT
-
-            if s in shaderOutputBuffers or s in debuggableVars:
-                descriptorSet = device.descriptorPool.descSetGlobal
-                usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-            else:
-                descriptorSet = device.descriptorPool.descSetUniform
-                usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
-
-            newBuff = Buffer(
-                device=device,
-                memtype=s["type"],
-                descriptorSet=descriptorSet,
-                qualifier="out",
-                name=s["name"],
-                readFromCPU=True,
-                dimensionNames=s["dims"],
-                dimensionVals=[constantsDict[d] for d in s["dims"]],
-                usage=usage,
-                stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-                location=0,
-                format=format,
-            )
-            allBuffers += [newBuff]
-
-            # make the buffer accessable as a local attribute
-            exec("self." + s["name"] + " = newBuff")
-
-            # save these buffers for reading later
-            if s not in self.shaderInputBuffersNoDebug:
-                self.debugBuffers += [newBuff]
-
-        VARSDECL = ""
-        if self.DEBUG:
-            glslCode = self.addIndicesToOutputs(debuggableVars, glslCode)
-        else:
-            # otherwise, just declare the variable type
-            # INITIALIZE TO 0 !
-            for var in debuggableVars:
-                VARSDECL += var["type"] + " " + var["name"] + " = 0;\n"
-
-        # add definitions from constants dict
-        DEFINE_STRING = ""
-        for k, v in self.constantsDict.items():
-            DEFINE_STRING += "#define " + k + " " + str(v) + "\n"
-        glslCode = glslCode.replace("DEFINE_STRING", DEFINE_STRING)
-
-        # don't index output variables
-        # glslCode = self.addIndicesToOutputs(shaderOutputBuffers, glslCode)
-
-        glslCode = glslCode.replace("VARIABLEDECLARATIONS", VARSDECL)
-
-        # Compute Stage: the only stage
-        computeStage = Stage(
-            parent=self,
-            constantsDict=constantsDict,
-            device=device,
-            name="compute.comp",
-            stage=VK_SHADER_STAGE_COMPUTE_BIT,
-            glslCode=glslCode,
-            buffers=allBuffers,
-        )
-        computeStage.compile()
 
         #######################################################
         # Pipeline
         device.descriptorPool.finalize()
-        Pipeline.__init__(self, device, stages=[computeStage], outputClass="image")
+        Pipeline.__init__(self, device, stages=[computeShader], outputClass="image")
 
         self.descriptorSet = device.descriptorPool.descSetGlobal
 
@@ -165,7 +70,7 @@ class ComputePipeline(Pipeline):
         shaderStageCreateInfo = VkPipelineShaderStageCreateInfo(
             sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
             stage=VK_SHADER_STAGE_COMPUTE_BIT,
-            module=computeStage.vkShaderModule,
+            module=computeShader.vkShaderModule,
             pName="main",
         )
 
@@ -203,38 +108,6 @@ class ComputePipeline(Pipeline):
             sType=VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, flags=0
         )
         self.fence = vkCreateFence(self.device.vkDevice, fenceCreateInfo, None)
-
-    # take the template GLSL file
-    # and add output indices
-    # mostly for debugging
-    def addIndicesToOutputs(self, outvars, shaderGLSL):
-        indexedVarStrings = []
-        # if this is debug mode, all vars have already been declared as output buffers
-        # intermediate variables must be indexed
-        for var in outvars:
-            indexedVarString = var["name"] + "["
-            for i, d in enumerate(var["dims"]):
-                indexedVarString += self.dim2index[d]
-                # since GLSL doesnt allow multidim arrays (kinda, see gl_arb_arrays_of_arrays)
-                # ok i dont understand Vulkan multidim
-                for j, rd in enumerate(var["dims"][i + 1 :]):
-                    indexedVarString += "*" + rd
-                if i < (len(var["dims"]) - 1):
-                    indexedVarString += "+"
-            indexedVarString += "]"
-            indexedVarStrings += [(var["name"], indexedVarString)]
-
-        outShaderGLSL = ""
-        for line in shaderGLSL.split("\n"):
-            # replace all non-comments
-            if not line.strip().startswith("//"):
-                # whole-word replacement
-                for iv in indexedVarStrings:
-                    line = re.sub(r"\b{}\b".format(iv[0]), iv[1], line)
-            # keep the comments
-            outShaderGLSL += line + "\n"
-
-        return outShaderGLSL
 
     # this help if you run the main loop in C/C++
     # just use the Vulkan addresses!
@@ -274,15 +147,3 @@ class ComputePipeline(Pipeline):
 
     def release(self):
         vkDestroyFence(self.device.vkDevice, self.fence, None)
-
-    def dumpMemory(self):
-
-        outdict = {}
-        for b in self.debugBuffers:
-            if b.sizeBytes > 2 ** 14:
-                continue
-            rcvdArray = b.getAsNumpyArray()
-            # convert to list to make it JSON serializable
-            outdict[b.name] = rcvdArray.tolist()  # nested lists with same data, indices
-        with open("debug.json", "w+") as f:
-            json.dump(outdict, f, indent=4)
