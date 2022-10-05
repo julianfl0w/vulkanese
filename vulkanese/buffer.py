@@ -94,9 +94,9 @@ class Buffer(Sinode):
         format=VK_FORMAT_R64_SFLOAT,
         readFromCPU=True,
         usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        memProperties=VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-        | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+        memProperties=VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT |
+        # | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
         sharingMode=VK_SHARING_MODE_EXCLUSIVE,
         stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
         qualifier="in",
@@ -161,6 +161,10 @@ class Buffer(Sinode):
         # visible to the host(CPU), without having to call any extra flushing commands. So mainly for convenience, we set
         # this flag.
         index = self.findMemoryType(memoryRequirements.memoryTypeBits, memProperties)
+
+        if index < 0:
+            raise ("Requested memory type not available on this device")
+
         # Now use obtained memory requirements info to allocate the memory for the buffer.
         self.allocateInfo = VkMemoryAllocateInfo(
             sType=VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -189,9 +193,8 @@ class Buffer(Sinode):
         print(len(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType)))
         # initialize to zero
         self.zeroInitialize()
-        
+
         print("done initializing")
-        
 
         if not readFromCPU:
             vkUnmapMemory(self.vkDevice, self.vkDeviceMemory)
@@ -208,11 +211,11 @@ class Buffer(Sinode):
         print("done binding")
 
         # NEEDED FOR RAYTRACING, FAILS BEFORE VULKAN 1.3
-        #self.bufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
+        # self.bufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
         #    sType=VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
         #    pNext=None,
         #    buffer=self.vkBuffer,
-        #)
+        # )
 
         descriptorSet.buffers += [self]
         # descriptorCount is the number of descriptors contained in the binding,
@@ -251,8 +254,7 @@ class Buffer(Sinode):
 
     def zeroInitialize(self):
         self.setBuffer(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType))
-        
-        
+
     def getAsNumpyArray(self):
         # glsl to python
         flatArray = np.frombuffer(self.pmap, self.pythonType)

@@ -1,0 +1,35 @@
+# This file may be used to create an environment using:
+# $ conda create --name <env> --file <this file>
+# platform: linux-64
+_libgcc_mutex=0.1=main
+_openmp_mutex=5.1=1_gnu
+ca-certificates=2022.07.19=h06a4308_0
+certifi=2022.9.14=py38h06a4308_0
+cffi=1.15.1=pypi_0
+dill=0.3.5.1=pypi_0
+hjson=3.1.0=pypi_0
+ld_impl_linux-64=2.38=h1181459_1
+libffi=3.3=he6710b0_2
+libgcc-ng=11.2.0=h1234567_1
+libgomp=11.2.0=h1234567_1
+libstdcxx-ng=11.2.0=h1234567_1
+mido=1.2.10=pypi_0
+ncurses=6.3=h5eee18b_3
+numpy=1.23.3=pypi_0
+opencv-python=4.6.0.66=pypi_0
+openssl=1.1.1q=h7f8727e_0
+pillow=9.2.0=pypi_0
+pip=22.2.2=py38h06a4308_0
+pycparser=2.21=pypi_0
+pysdl2=0.9.14=pypi_0
+python=3.8.13=h12debd9_0
+readline=8.1.2=h7f8727e_1
+setuptools=63.4.1=py38h06a4308_0
+sinode=1.1.2=pypi_0
+sqlite=3.39.3=h5082296_0
+tk=8.6.12=h1ccaba5_0
+trimesh=3.15.3=pypi_0
+vulkan=1.1.99.1=pypi_0
+wheel=0.37.1=pyhd3eb1b0_0
+xz=5.2.6=h5eee18b_0
+zlib=1.2.12=h5eee18b_3

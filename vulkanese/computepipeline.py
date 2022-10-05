@@ -3,6 +3,7 @@ import os
 import time
 import json
 from vulkan import *
+
 try:
     from vulkanese import *
     from buffer import *
@@ -30,17 +31,10 @@ def getVulkanesePath():
 # shader
 # All in one. it is self-contained
 class ComputePipeline(Pipeline):
-    def __init__(
-        self,
-        computeShader,
-        device,
-        constantsDict,
-        workgroupShape=[1, 1, 1]
-    ):
+    def __init__(self, computeShader, device, constantsDict, workgroupShape=[1, 1, 1]):
         Sinode.__init__(self)
         self.device = device
         device.instance.children += [self]
-
 
         #######################################################
         # Pipeline

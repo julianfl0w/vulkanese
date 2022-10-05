@@ -43,7 +43,7 @@ class Device(Sinode):
             print(" " * depth + type.kind)
             print(" " * depth + dir(type))
             die
-        
+
     def __init__(self, instance, deviceIndex):
         Sinode.__init__(self, instance)
         self.instance = instance
@@ -56,7 +56,7 @@ class Device(Sinode):
         ]
 
         self.memoryProperties = Device.getMemoryProperties(self.physical_device)
-        
+
         print("getting features list")
 
         # vkGetPhysicalDeviceFeatures2 = vkGetInstanceProcAddr(
@@ -202,9 +202,7 @@ class Device(Sinode):
 
     def getMemoryProperties(physical_device):
         print("getting memory properties")
-        memoryProperties = vkGetPhysicalDeviceMemoryProperties(
-            physical_device
-        )
+        memoryProperties = vkGetPhysicalDeviceMemoryProperties(physical_device)
         memoryPropertiesPre = Device.ctypes2dict(memoryProperties)
 
         # the following is complicated only because C/C++ is so basic
@@ -246,8 +244,8 @@ class Device(Sinode):
                 for mh in memoryHeaps:
                     if mh["flags"] & v:
                         mh["flagsString"] += [k]
-                        
-        return {"memoryTypes":memoryTypes, "memoryHeaps":memoryHeaps}
+
+        return {"memoryTypes": memoryTypes, "memoryHeaps": memoryHeaps}
 
     def nameSubdicts(self, key, value):
         if type(value) is dict:
@@ -273,7 +271,7 @@ class Device(Sinode):
         return -1
 
     def getProcessorType(physical_device):
-        
+
         pProperties = vkGetPhysicalDeviceProperties(physical_device)
         deviceType = pProperties.deviceType
         if deviceType == 0:
@@ -287,15 +285,15 @@ class Device(Sinode):
         elif deviceType == 4:
             deviceTypeStr = "VK_PHYSICAL_DEVICE_TYPE_CPU"
         return deviceTypeStr
-        
+
     def getLimits(physical_device):
         pProperties = vkGetPhysicalDeviceProperties(physical_device)
         print("Device Name: " + pProperties.deviceName)
 
         devPropsDict = {}
-        
+
         devPropsDict["deviceType"] = Device.getProcessorType(physical_device)
-        
+
         limitsDict = {}
         type = ffi.typeof(pProperties.limits)
         for fieldName, fieldType in type.fields:

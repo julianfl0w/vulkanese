@@ -1,7 +1,8 @@
 import ctypes
 import os
-#import sdl2
-#import sdl2.ext
+
+# import sdl2
+# import sdl2.ext
 import time
 import json
 from vulkan import *
@@ -131,7 +132,11 @@ class Instance(Sinode):
             memprops = Device.getMemoryProperties(physical_device)
             processorType = Device.getProcessorType(physical_device)
             limits = Device.getLimits(physical_device)
-            devdict[pProperties.deviceName] = {"processorType": processorType, "memProperties" : memprops, "limits": limits}
+            devdict[pProperties.deviceName] = {
+                "processorType": processorType,
+                "memProperties": memprops,
+                "limits": limits,
+            }
         return devdict
 
     def getDevice(self, deviceIndex):
