@@ -61,24 +61,45 @@ void main() {
         shaderSum += float64_t(i);
     }
     // only write to the storage buffer once
-    sumOut = shaderSum;
+    sumOut[shaderx] = shaderSum;
 }
 """
-addPipeline = ComputePipeline(
-    glslCode=glslCode,
+RECOMPILE = True
+shader_basename = os.path.join("shaders", "add")
+if RECOMPILE:
+    sourceFilename = shader_basename + ".c"
+else:
+    sourceFilename = shader_basename + ".spv"
+
+# Compute Stage: the only stage
+computeShader = Stage(
+    shaderCode = glslCode, # can be GLSL or SPIRV
+    parent=instance_inst,
     constantsDict=constantsDict,
     device=device,
-    dim2index=dim2index,
+    name=shader_basename,
+    stage=VK_SHADER_STAGE_COMPUTE_BIT,
     shaderOutputBuffers=shaderOutputBuffers,
+    debuggableVars=[],
     shaderInputBuffers=[],
+    shaderInputBuffersNoDebug=[],
+    DEBUG=False,
+    dim2index=dim2index,
 )
 
+# generate a compute cmd buffer
+addPipeline = ComputePipeline(
+    computeShader=computeShader,
+    device=device,
+    constantsDict=constantsDict,
+)
+        
 # initialize numbers to sum
 # (must be double size because minimum read in shader is 16 bytes)
 # addPipeline.bufferToSum.setBuffer(np.arange(NUMBERS_TO_SUM * 2) / 2)
-shaderStart = time.time()
+shaderStart = time.time()   
 addPipeline.run()
-shaderSum = np.sum(addPipeline.sumOut.getAsNumpyArray())
+shaderSum = np.sum(computeShader.sumOut.getAsNumpyArray())
 shaderTime = time.time() - shaderStart
 
 # initialize numpy version

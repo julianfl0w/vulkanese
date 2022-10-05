@@ -1,6 +1,7 @@
 import json
 from sinode import *
 import os
+import re
 from vulkan import *
 try:
     from buffer import *
@@ -35,6 +36,7 @@ class Stage(Sinode):
         self.device = device
         self.name = name
         self.stage = stage
+        self.dim2index = dim2index
     
         self.shaderOutputBuffers = shaderOutputBuffers
         self.debuggableVars = debuggableVars
@@ -174,19 +176,20 @@ class Stage(Sinode):
             else:
                 BUFFERS_STRING += buffer.getComputeDeclaration()
 
-        # put structs and buffers into the code
-        glslCode = glslCode.replace("BUFFERS_STRING", BUFFERS_STRING).replace(
-            "STRUCTS_STRING", STRUCTS_STRING
-        )
         VARSDECL = ""
         if self.DEBUG:
-            glslCode = self.addIndicesToOutputs(debuggableVars, glslCode)
+            glslCode = self.addIndicesToOutputs(self.debuggableVars, glslCode)
         else:
             # otherwise, just declare the variable type
             # INITIALIZE TO 0 !
             for var in self.debuggableVars:
                 VARSDECL += var["type"] + " " + var["name"] + " = 0;\n"
 
+        # put structs and buffers into the code
+        glslCode = glslCode.replace("BUFFERS_STRING", BUFFERS_STRING).replace(
+            "STRUCTS_STRING", STRUCTS_STRING
+        )
+        
         # add definitions from constants dict
         DEFINE_STRING = ""
         for k, v in self.constantsDict.items():

@@ -26,4 +26,3 @@ void main() {
     // only write to the storage buffer once
     sumOut[shaderx] = shaderSum;
 }
-
