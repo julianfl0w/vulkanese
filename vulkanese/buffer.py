@@ -94,9 +94,10 @@ class Buffer(Sinode):
         format=VK_FORMAT_R64_SFLOAT,
         readFromCPU=True,
         usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        memProperties=VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT |
-        # | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+        memProperties=0
+        | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+        | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
         sharingMode=VK_SHARING_MODE_EXCLUSIVE,
         stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
         qualifier="in",
