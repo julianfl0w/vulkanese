@@ -188,7 +188,7 @@ class Stage(Sinode):
         glslCode = glslCode.replace("BUFFERS_STRING", BUFFERS_STRING).replace(
             "STRUCTS_STRING", STRUCTS_STRING
         )
-        
+
         # add definitions from constants dict
         DEFINE_STRING = ""
         for k, v in self.constantsDict.items():
