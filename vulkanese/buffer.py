@@ -95,10 +95,10 @@ class Buffer(Sinode):
         readFromCPU=True,
         usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         memProperties=0
-        | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        #| VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
         | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 
-        #| VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+        | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+        | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
         sharingMode=VK_SHARING_MODE_EXCLUSIVE,
         stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
         qualifier="in",
@@ -129,7 +129,7 @@ class Buffer(Sinode):
             self.skipval = int(1)
 
         # for vec3 etc, the size is already bakd in
-        self.itemCount = np.prod(dimensionVals)
+        self.itemCount = int(np.prod(dimensionVals))
         self.sizeBytes = int(self.itemCount * self.itemSize * self.skipval)
         print("size " + str(self.sizeBytes))
         self.name = name
@@ -165,7 +165,7 @@ class Buffer(Sinode):
         index = self.findMemoryType(memoryRequirements.memoryTypeBits, memProperties)
 
         if index < 0:
-            raise ("Requested memory type not available on this device")
+            raise Exception("Requested memory type not available on this device")
 
         # Now use obtained memory requirements info to allocate the memory for the buffer.
         self.allocateInfo = VkMemoryAllocateInfo(
@@ -253,6 +253,8 @@ class Buffer(Sinode):
         self.bindingDescription = VkVertexInputBindingDescription(
             binding=self.binding, stride=stride, inputRate=rate  # 4 bytes/element
         )
+        
+        self.addrPtr = 0
 
     def zeroInitialize(self):
         self.setBuffer(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType))
@@ -348,7 +350,17 @@ class Buffer(Sinode):
             + str(int(self.sizeBytes / self.itemSize))
             + "];\n};\n"
         )
-
+    
+    def write(self, data):
+        startByte = self.addrPtr
+        endByte   = self.addrPtr + len(data)*self.itemSize
+        self.addrPtr = endByte
+        
+        self.pmap[
+            startByte : endByte
+        ] = data
+        return startByte
+        
     def setByIndex(self, index, data):
         # print(self.name + " setting " + str(index) + " to " + str(data))
         startByte = index * self.itemSize * self.skipval
