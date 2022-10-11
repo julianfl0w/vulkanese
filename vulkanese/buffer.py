@@ -367,6 +367,12 @@ class Buffer(Sinode):
         endByte = index * self.itemSize * self.skipval + self.itemSize
         self.pmap[startByte:endByte] = np.array(data, dtype=self.pythonType)
 
+    def setByIndexStart(self, startIndex, data):
+        # print(self.name + " setting " + str(index) + " to " + str(data))
+        startByte = startIndex * self.itemSize * self.skipval
+        endByte = startIndex * self.itemSize * self.skipval + self.itemSize * len(data)
+        self.pmap[startByte:endByte] = np.array(data, dtype=self.pythonType)
+
     def getByIndex(self, index):
         # print(self.name + " setting " + str(index) + " to " + str(data))
         startByte = index * self.itemSize * self.skipval
