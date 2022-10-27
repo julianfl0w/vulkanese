@@ -55,6 +55,9 @@ def glsltype2bytesize(glsltype):
         return 4
     elif glsltype == "uint":
         return 4
+    elif glsltype == "vec2":
+        # return 12
+        return 4
     elif glsltype == "vec3":
         # return 12
         return 4
@@ -360,6 +363,12 @@ class Buffer(Sinode):
             startByte : endByte
         ] = data
         return startByte
+        
+    def setByIndexComplex(self, index, data):
+        # print(self.name + " setting " + str(index) + " to " + str(data))
+        startByte = index * self.itemSize * self.skipval
+        self.pmap[startByte:startByte+4] = np.real(data).astype(np.float32)
+        self.pmap[startByte+4:startByte+8] = np.imag(data).astype(np.float32)
         
     def setByIndex(self, index, data):
         # print(self.name + " setting " + str(index) + " to " + str(data))
