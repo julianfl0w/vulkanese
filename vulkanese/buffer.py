@@ -270,9 +270,14 @@ class Buffer(Sinode):
         flatArray = np.frombuffer(self.pmap, self.pythonType)
         # because GLSL only allows 16-byte access,
         # we need to skip a few values in the memory
-        rcvdArray = list(flatArray.astype(float))[:: self.skipval]
-        # finally, reshape according to the expected dims
-        rcvdArray = np.array(rcvdArray).reshape(self.dimensionVals)
+        if self.type == "vec2":
+            rcvdArray = list(flatArray.astype(float))
+            # finally, reshape according to the expected dims
+            rcvdArray = np.array(rcvdArray).reshape([d for d in self.dimensionVals] + [4])
+        else:
+            rcvdArray = list(flatArray.astype(float))[:: self.skipval]
+            # finally, reshape according to the expected dims
+            rcvdArray = np.array(rcvdArray).reshape(self.dimensionVals)
         return rcvdArray
 
     def saveAsImage(self, height, width, path="mandelbrot.png"):
@@ -367,12 +372,14 @@ class Buffer(Sinode):
         ] = data
         return startByte
         
-    def setByIndexComplex(self, index, data):
+    def setByIndexVec(self, index, data):
         # print(self.name + " setting " + str(index) + " to " + str(data))
         startByte = index * self.itemSize * self.skipval
         self.pmap[startByte:startByte+4]   = np.real(data).astype(np.float32)
         self.pmap[startByte+4:startByte+8] = np.imag(data).astype(np.float32)
-        self.pmap[startByte+8:startByte+12] = np.imag(data).astype(np.float32)
+        
+        #print("setting " + str(index) + " to " + str(np.real(data).astype(np.float32)))
+        #print("setting " + str(index) + ".i to " + str(np.imag(data).astype(np.float32)))
         
     def setByIndex(self, index, data):
         # print(self.name + " setting " + str(index) + " to " + str(data))
