@@ -265,15 +265,23 @@ class Buffer(Sinode):
     def zeroInitialize(self):
         self.setBuffer(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType))
 
-    def getAsNumpyArray(self):
+    def getAsNumpyArray(self, asComplex=False):
         # glsl to python
         flatArray = np.frombuffer(self.pmap, self.pythonType)
         # because GLSL only allows 16-byte access,
         # we need to skip a few values in the memory
-        if self.type == "vec2":
+        if asComplex:
             rcvdArray = list(flatArray.astype(float))
+            rcvdArrayReal = rcvdArray[::4]
+            rcvdArrayImag = 1j*flatArray[1::4].astype(complex)
+            rcvdArrayComplex = rcvdArrayReal+rcvdArrayImag
             # finally, reshape according to the expected dims
-            rcvdArray = np.array(rcvdArray).reshape([d for d in self.dimensionVals] + [4])
+            rcvdArray = np.array(rcvdArrayComplex).reshape(self.dimensionVals)
+        elif self.type == "vec2":
+            rcvdArrayList = list(flatArray.astype(float))
+            rcvdArray = np.zeros(self.dimensionVals + [2])
+            rcvdArray = np.append(np.expand_dims(rcvdArrayList[::4],1),np.expand_dims(rcvdArrayList[1::4],1),axis=1)
+            
         else:
             rcvdArray = list(flatArray.astype(float))[:: self.skipval]
             # finally, reshape according to the expected dims
