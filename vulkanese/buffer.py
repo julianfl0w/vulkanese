@@ -86,6 +86,15 @@ class Buffer(Sinode):
 
         return -1
 
+    def getSkipval(self):
+        if (not self.usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) and self.itemSize <= 8:
+            self.skipval = int(16 / self.itemSize)
+        # vec3s (12 bytes) does not divide evenly into 16 :(
+        # elif self.itemSize == 12:
+        #    self.skipval = 4.0/3
+        else:
+            self.skipval = int(1)
+    
     def __init__(
         self,
         device,
@@ -123,13 +132,7 @@ class Buffer(Sinode):
         self.type = memtype
         self.itemSize = glsltype2bytesize(self.type)
         self.pythonType = glsltype2python(self.type)
-        if (not usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) and self.itemSize <= 8:
-            self.skipval = int(16 / self.itemSize)
-        # vec3s (12 bytes) does not divide evenly into 16 :(
-        # elif self.itemSize == 12:
-        #    self.skipval = 4.0/3
-        else:
-            self.skipval = int(1)
+        self.getSkipval()
 
         # for vec3 etc, the size is already bakd in
         self.itemCount = int(np.prod(dimensionVals))
@@ -367,8 +370,9 @@ class Buffer(Sinode):
     def setByIndexComplex(self, index, data):
         # print(self.name + " setting " + str(index) + " to " + str(data))
         startByte = index * self.itemSize * self.skipval
-        self.pmap[startByte:startByte+4] = np.real(data).astype(np.float32)
+        self.pmap[startByte:startByte+4]   = np.real(data).astype(np.float32)
         self.pmap[startByte+4:startByte+8] = np.imag(data).astype(np.float32)
+        self.pmap[startByte+8:startByte+12] = np.imag(data).astype(np.float32)
         
     def setByIndex(self, index, data):
         # print(self.name + " setting " + str(index) + " to " + str(data))
