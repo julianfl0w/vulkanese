@@ -87,7 +87,11 @@ class Buffer(Sinode):
         return -1
 
     def getSkipval(self):
-        if (not self.usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) and self.itemSize <= 8:
+        if self.usage == VK_BUFFER_USAGE_STORAGE_BUFFER_BIT and self.type == "float64_t":
+            self.skipval = 1
+        if self.usage == VK_BUFFER_USAGE_STORAGE_BUFFER_BIT and self.type == "float":
+            self.skipval = 1
+        elif (not self.usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) and self.itemSize <= 8:
             self.skipval = int(16 / self.itemSize)
         # vec3s (12 bytes) does not divide evenly into 16 :(
         # elif self.itemSize == 12:
@@ -345,12 +349,15 @@ class Buffer(Sinode):
     def getComputeDeclaration(self):
         if self.usage == VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT:
             b = "uniform "
+            std = "std140"
         else:
             b = "buffer "
-
+            std = "std430"
+    
         return (
-            "layout(std140, "
-            + "set = "
+            "layout(" 
+            + std
+            + ", set = "
             + str(self.descriptorSet.binding)
             + ", binding = "
             + str(self.binding)

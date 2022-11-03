@@ -208,6 +208,7 @@ class Stage(Sinode):
         if os.path.exists(compiledFilename):
             os.remove(compiledFilename)
         print("running " + glslFilename)
+        #os.system("glslc --scalar-block-layout " + glslFilename)
         os.system("glslc " + glslFilename)
         with open(compiledFilename, "rb") as f:
             spirv = f.read()
@@ -220,8 +221,7 @@ class Stage(Sinode):
                 allVertexBuffers += [b]
         return allVertexBuffers
 
-    def dumpMemory(self):
-
+    def dumpMemory(self, filename="debug.json"):
         outdict = {}
         for b in self.debugBuffers:
             if b.sizeBytes > 2 ** 14:
@@ -229,7 +229,8 @@ class Stage(Sinode):
             rcvdArray = b.getAsNumpyArray()
             # convert to list to make it JSON serializable
             outdict[b.name] = rcvdArray.tolist()  # nested lists with same data, indices
-        with open("debug.json", "w+") as f:
+        with open(filename, "w+") as f:
+            print("dumping to " + filename)
             json.dump(outdict, f, indent=4)
 
     def release(self):
