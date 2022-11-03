@@ -89,7 +89,7 @@ class Buffer(Sinode):
     def getSkipval(self):
         if self.usage == VK_BUFFER_USAGE_STORAGE_BUFFER_BIT and self.type == "float64_t":
             self.skipval = 1
-        if self.usage == VK_BUFFER_USAGE_STORAGE_BUFFER_BIT and self.type == "float":
+        elif self.usage == VK_BUFFER_USAGE_STORAGE_BUFFER_BIT and self.type == "float":
             self.skipval = 1
         elif (not self.usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) and self.itemSize <= 8:
             self.skipval = int(16 / self.itemSize)
@@ -98,6 +98,12 @@ class Buffer(Sinode):
         #    self.skipval = 4.0/3
         else:
             self.skipval = int(1)
+    
+    def printSizeParams(self):
+        print("itemCount " + str(self.itemCount))
+        print("itemSize " + str(self.itemSize))
+        print("skipval " + str(self.skipval))
+        print("sizeBytes " + str(self.sizeBytes))
     
     def __init__(
         self,
@@ -141,7 +147,6 @@ class Buffer(Sinode):
         # for vec3 etc, the size is already bakd in
         self.itemCount = int(np.prod(dimensionVals))
         self.sizeBytes = int(self.itemCount * self.itemSize * self.skipval)
-        print("size " + str(self.sizeBytes))
         self.name = name
         self.descriptorSet = descriptorSet
 
@@ -267,7 +272,7 @@ class Buffer(Sinode):
         self.addrPtr = 0
 
     def zeroInitialize(self):
-        self.setBuffer(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType))
+        self.setBuffer(np.zeros((self.itemCount), dtype=self.pythonType))
 
     def getAsNumpyArray(self, asComplex=False):
         # glsl to python
@@ -417,7 +422,13 @@ class Buffer(Sinode):
     def setBuffer(self, data):
         # self.pmap[:] = data.astype(self.pythonType)
         try:
-            self.pmap[:] = data.astype(self.pythonType)
+            if self.skipval == 1:
+                self.pmap[:] = data.astype(self.pythonType)
+            else:
+                indices = np.arange(0,len(data),1.0/self.skipval).astype(int)
+                data = data[indices]
+                self.pmap[:] = data.astype(self.pythonType)
+                
         except:
             print("WRONG SIZE")
             print("pmap (bytes): " + str(len(self.pmap[:])))
