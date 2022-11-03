@@ -6,8 +6,11 @@ from vulkan import *
 
 try:
     from buffer import *
+    from computepipeline import *
 except:
     from .buffer import *
+    from .computepipeline import *
+
 from pathlib import Path
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -29,6 +32,7 @@ class Stage(Sinode):
         stage=VK_SHADER_STAGE_VERTEX_BIT,
         name="mandlebrot",
         DEBUG=False,
+        workgroupShape=[1, 1, 1],
     ):
         self.constantsDict = constantsDict
         self.DEBUG = DEBUG
@@ -136,7 +140,17 @@ class Stage(Sinode):
             pSpecializationInfo=None,
             pName="main",
         )
-        print("creating Stage " + str(stage))
+        self.device.instance.debug("creating Stage " + str(stage))
+
+        # if this is a compute shader, it corresponds with a single pipeline. we create that here
+        if stage == VK_SHADER_STAGE_COMPUTE_BIT:
+            # generate a compute cmd buffer
+            self.computePipeline = ComputePipeline(
+                computeShader=self,
+                device=self.device,
+                constantsDict=self.constantsDict,
+                workgroupShape=[1, 1, 1],
+            )
 
     def getBufferByName(self, name):
         for b in self.buffers:
@@ -197,7 +211,7 @@ class Stage(Sinode):
         glslCode = glslCode.replace("VARIABLEDECLARATIONS", VARSDECL)
 
         # COMPILE GLSL TO SPIR-V
-        print("compiling Stage")
+        self.device.instance.debug("compiling Stage")
         glslFilename = os.path.join(self.name + ".comp")
         with open(glslFilename, "w+") as f:
             f.write(glslCode)
@@ -207,13 +221,16 @@ class Stage(Sinode):
         compiledFilename = "a.spv"
         if os.path.exists(compiledFilename):
             os.remove(compiledFilename)
-        print("running " + glslFilename)
-        #os.system("glslc --scalar-block-layout " + glslFilename)
+        self.device.instance.debug("running " + glslFilename)
+        # os.system("glslc --scalar-block-layout " + glslFilename)
         os.system("glslc " + glslFilename)
         with open(compiledFilename, "rb") as f:
             spirv = f.read()
         return spirv
 
+    def run(self):
+        self.computePipeline.run()
+    
     def getVertexBuffers(self):
         allVertexBuffers = []
         for b in self.buffers:
@@ -230,11 +247,11 @@ class Stage(Sinode):
             # convert to list to make it JSON serializable
             outdict[b.name] = rcvdArray.tolist()  # nested lists with same data, indices
         with open(filename, "w+") as f:
-            print("dumping to " + filename)
+            self.device.instance.debug("dumping to " + filename)
             json.dump(outdict, f, indent=4)
 
     def release(self):
-        print("destroying Stage")
+        self.device.instance.debug("destroying Stage")
         Sinode.release(self)
         vkDestroyShaderModule(self.vkDevice, self.vkShaderModule, None)
 

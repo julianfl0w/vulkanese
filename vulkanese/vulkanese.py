@@ -12,7 +12,7 @@ try:
     from pipelines import *
     from rasterpipeline import *
     from raytracepipeline import *
-    from computepipeline import *
+    from stage import *
     from descriptor import *
     from device import *
     from buffer import *
@@ -20,7 +20,7 @@ except:
     from .pipelines import *
     from .rasterpipeline import *
     from .raytracepipeline import *
-    from .computepipeline import *
+    from .stage import *
     from .descriptor import *
     from .device import *
     from .buffer import *
@@ -122,6 +122,10 @@ class Instance(Sinode):
         self.callback = vkCreateDebugReportCallbackEXT(
             self.vkInstance, debug_create, None
         )
+
+    def debug(self, *args):
+        if self.verbose:
+            print(args)
 
     def getDeviceList(self):
         self.physical_devices = vkEnumeratePhysicalDevices(self.vkInstance)

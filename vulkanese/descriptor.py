@@ -9,6 +9,7 @@ from vulkan import *
 class DescriptorPool(Sinode):
     def __init__(self, device, MAX_FRAMES_IN_FLIGHT=3):
         Sinode.__init__(self, device)
+        self.device = device
         self.vkDevice = device.vkDevice
         self.MAX_FRAMES_IN_FLIGHT = MAX_FRAMES_IN_FLIGHT
 
@@ -39,9 +40,9 @@ class DescriptorPool(Sinode):
         ]
 
     def getBinding(self, buffer, descSet):
-        print("Allocating ")
-        print(buffer)
-        print(bindname)
+        self.device.instance.debug("Allocating ")
+        self.device.instance.debug(buffer)
+        self.device.instance.debug(bindname)
         return self.descSet.attachBuffer(buffer)
 
     # We first need to describe which descriptor types our descriptor sets are going to contain and how many of them, using VkDescriptorPoolSize structures.
@@ -60,11 +61,7 @@ class DescriptorPool(Sinode):
             type=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
             descriptorCount=1000,  # len(self.descSets[1].buffers)
         )
-        print("sb")
-        print(len(self.descSets[0].buffers))
-        print("ub")
-        print(len(self.descSets[1].buffers))
-
+        
         # We will allocate one of these descriptors for every frame. This pool size structure is referenced by the main VkDescriptorPoolCreateInfo:
         # Aside from the maximum number of individual descriptors that are available, we also need to specify the maximum number of descriptor sets that may be allocated:
         self.poolInfo = VkDescriptorPoolCreateInfo(
@@ -99,7 +96,7 @@ class DescriptorPool(Sinode):
         self.writeDescriptorSets = []
         self.activevkDescriptorSets = []
         self.activeDescriptorSets = []
-        print(self.vkDescriptorSets)
+        self.device.instance.debug(self.vkDescriptorSets)
         for i, d in enumerate(self.descSets):
 
             # The Vulkan spec states: descriptorCount must be greater than 0
@@ -121,25 +118,25 @@ class DescriptorPool(Sinode):
                 descriptorType=d.type,
                 pBufferInfo=[b.descriptorBufferInfo for b in d.buffers],
             )
-            print("Buffers")
-            print(d.buffers)
-            print("buffbinds")
-            print([b.binding for b in d.buffers])
-            print("binding")
-            print(d.binding)
-            print("type")
-            print(d.type)
+            self.device.instance.debug("Buffers")
+            self.device.instance.debug(d.buffers)
+            self.device.instance.debug("buffbinds")
+            self.device.instance.debug([b.binding for b in d.buffers])
+            self.device.instance.debug("binding")
+            self.device.instance.debug(d.binding)
+            self.device.instance.debug("type")
+            self.device.instance.debug(d.type)
 
             self.writeDescriptorSets += [d.vkWriteDescriptorSet]
             self.activevkDescriptorSets += [d.vkDescriptorSet]
             self.activeDescriptorSets += [d]
 
-        print(self.writeDescriptorSets)
+        self.device.instance.debug(self.writeDescriptorSets)
         for i, wDescSet in enumerate(self.writeDescriptorSets):
             if i == 0:
-                print("WRITING GLOBAL DESC SET")
+                self.device.instance.debug("WRITING GLOBAL DESC SET")
             else:
-                print("WRITING UNIFORM DESC SET")
+                self.device.instance.debug("WRITING UNIFORM DESC SET")
             # perform the update of the descriptor set.
             vkUpdateDescriptorSets(
                 device=self.vkDevice,
@@ -151,9 +148,9 @@ class DescriptorPool(Sinode):
 
     def release(self):
         for v in self.descSets:
-            print("destroying descriptor set " + v.name)
+            self.device.instance.debug("destroying descriptor set " + v.name)
             v.release()
-        print("destroying descriptor pool")
+        self.device.instance.debug("destroying descriptor pool")
         vkDestroyDescriptorPool(self.vkDevice, self.vkDescriptorPool, None)
 
 
@@ -161,6 +158,7 @@ class DescriptorSet(Sinode):
     def __init__(self, descriptorPool, binding, name, type, MAX_FRAMES_IN_FLIGHT=3):
         Sinode.__init__(self, descriptorPool)
         self.name = name
+        self.device = descriptorPool.device
         self.vkDevice = descriptorPool.vkDevice
         self.descriptorPool = descriptorPool
         self.buffers = []
@@ -192,11 +190,11 @@ class DescriptorSet(Sinode):
         self.vkDescriptorSetLayout = vkCreateDescriptorSetLayout(
             self.vkDevice, descriptorSetLayoutCreateInfo, None
         )
-        print("finalized desc set " + self.name)
+        self.device.instance.debug("finalized desc set " + self.name)
 
     def release(self):
 
-        print("destroying descriptor set")
+        self.device.instance.debug("destroying descriptor set")
         vkDestroyDescriptorSetLayout(self.vkDevice, self.vkDescriptorSetLayout, None)
 
 

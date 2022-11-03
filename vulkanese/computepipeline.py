@@ -7,12 +7,14 @@ from vulkan import *
 try:
     from vulkanese import *
     from buffer import *
-    from stage import *
+
+    # from stage import *
     from commandbuffer import *
 except:
     from .vulkanese import *
     from .buffer import *
-    from .stage import *
+
+    # from .stage import *
     from .commandbuffer import *
 from PIL import Image as pilImage
 import re
