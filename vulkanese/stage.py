@@ -16,7 +16,7 @@ from pathlib import Path
 here = os.path.dirname(os.path.abspath(__file__))
 
 
-class Stage(Sinode):
+class Shader(Sinode):
     def __init__(
         self,
         parent,
@@ -151,7 +151,15 @@ class Stage(Sinode):
                 constantsDict=self.constantsDict,
                 workgroupShape=[1, 1, 1],
             )
+            self.children += [self.computePipeline]
 
+    def release(self):
+        self.device.instance.debug("destroying Stage")
+        Sinode.release(self)
+        vkDestroyShaderModule(self.vkDevice, self.vkShaderModule, None)
+
+class ComputeShader(Shader):
+    
     def getBufferByName(self, name):
         for b in self.buffers:
             if name == b.name:
@@ -250,11 +258,6 @@ class Stage(Sinode):
             self.device.instance.debug("dumping to " + filename)
             json.dump(outdict, f, indent=4)
 
-    def release(self):
-        self.device.instance.debug("destroying Stage")
-        Sinode.release(self)
-        vkDestroyShaderModule(self.vkDevice, self.vkShaderModule, None)
-
     # take the template GLSL file
     # and add output indices
     # mostly for debugging
@@ -288,7 +291,7 @@ class Stage(Sinode):
         return outShaderGLSL
 
 
-class VertexStage(Stage):
+class VertexStage(Shader):
     def __init__(
         self, parent, device, buffers, constantsDict, name="mandlebrot", DEBUG=False
     ):
@@ -303,7 +306,7 @@ void main() {
 }                                     
 """
 
-        Stage.__init__(
+        Shader.__init__(
             self,
             parent,
             device,
@@ -318,7 +321,7 @@ void main() {
         self.compile(glslCode)
 
 
-class FragmentStage(Stage):
+class FragmentStage(Shader):
     def __init__(
         self,
         parent,
@@ -339,7 +342,7 @@ void main() {
     outColor = vec4(fragColor, 1.0);
 }
 """
-        Stage.__init__(
+        Shader.__init__(
             self,
             parent,
             device,

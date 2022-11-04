@@ -193,7 +193,8 @@ class DescriptorSet(Sinode):
         self.device.instance.debug("finalized desc set " + self.name)
 
     def release(self):
-
+        for b in self.buffers:
+            b.release()
         self.device.instance.debug("destroying descriptor set")
         vkDestroyDescriptorSetLayout(self.vkDevice, self.vkDescriptorSetLayout, None)
 

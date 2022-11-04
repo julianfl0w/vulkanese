@@ -463,47 +463,7 @@ class Buffer(Sinode):
         return int(size)
 
 
-class DescriptorSetBuffer(Buffer):
-    def __init__(self, device, setupDict):
-        Buffer.__init__(self, device, setupDict)
-
-
-class PushConstantsBuffer(DescriptorSetBuffer):
-    def __init__(self, device, setupDict):
-        DescriptorSetBuffer.__init__(self, device, setupDict)
-
-
-class UniformBuffer(DescriptorSetBuffer):
-    def __init__(self, device, setupDict):
-        DescriptorSetBuffer.__init__(self, device, setupDict)
-
-
-class UniformTexelBuffer(DescriptorSetBuffer):
-    def __init__(self, device, setupDict):
-        DescriptorSetBuffer.__init__(self, device, setupDict)
-
-
-class SampledImageBuffer(DescriptorSetBuffer):
-    def __init__(self, device, setupDict):
-        DescriptorSetBuffer.__init__(self, device, setupDict)
-
-
-class StorageBuffer(DescriptorSetBuffer):
-    def __init__(self, device, setupDict):
-        DescriptorSetBuffer.__init__(self, device, setupDict)
-
-
-class StorageTexelBuffer(DescriptorSetBuffer):
-    def __init__(self, device, setupDict):
-        DescriptorSetBuffer.__init__(self, device, setupDict)
-
-
-class StorageImageBuffer(DescriptorSetBuffer):
-    def __init__(self, device, setupDict):
-        DescriptorSetBuffer.__init__(self, device, setupDict)
-
-
-class AccelerationStructure(DescriptorSetBuffer):
+class AccelerationStructure(Buffer):
     def __init__(self, setupDict, shader):
         DescriptorSetBuffer.__init__(self, shader)
         self.pipeline = shader.pipeline
