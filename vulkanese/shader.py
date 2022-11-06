@@ -151,12 +151,16 @@ class Shader(Sinode):
                 constantsDict=self.constantsDict,
                 workgroupShape=[1, 1, 1],
             )
-            self.children += [self.computePipeline]
+            self.computePipeline.children += [self]
 
+        # first run is always slow
+        # run once in init so people dont judge the first run
+        self.run()
+        
     def release(self):
         self.device.instance.debug("destroying Stage")
-        Sinode.release(self)
         vkDestroyShaderModule(self.vkDevice, self.vkShaderModule, None)
+        Sinode.release(self)
 
 class ComputeShader(Shader):
     

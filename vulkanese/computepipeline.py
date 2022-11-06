@@ -36,7 +36,7 @@ class ComputePipeline(Pipeline):
     def __init__(self, computeShader, device, constantsDict, workgroupShape=[1, 1, 1]):
         Sinode.__init__(self)
         self.device = device
-        device.instance.children += [self]
+        device.children += [self]
 
         #######################################################
         # Pipeline
@@ -83,11 +83,9 @@ class ComputePipeline(Pipeline):
         if len(pipelines) == 1:
             self.vkPipeline = pipelines[0]
 
-        self.children += [pipelines]
+        #self.children += [pipelines]
         # wrap it all up into a command buffer
         self.commandBuffer = ComputeCommandBuffer(self, workgroupShape=workgroupShape)
-
-        device.children += [self]
 
         # Now we shall finally submit the recorded command buffer to a queue.
         self.submitInfo = VkSubmitInfo(
@@ -100,10 +98,8 @@ class ComputePipeline(Pipeline):
 
         # We create a fence.
         # So the CPU can know when processing is done
-        fenceCreateInfo = VkFenceCreateInfo(
-            sType=VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, flags=0
-        )
-        self.fence = vkCreateFence(self.device.vkDevice, fenceCreateInfo, None)
+        self.fence = Fence(device = self.device)
+        self.fences = [self.fence]
 
     # this help if you run the main loop in C/C++
     # just use the Vulkan addresses!
@@ -124,22 +120,22 @@ class ComputePipeline(Pipeline):
             queue=self.device.compute_queue,
             submitCount=1,
             pSubmits=self.submitInfo,
-            fence=self.fence,
+            fence=self.fence.vkFence,
         )
-
-        # The command will not have finished executing until the fence is signalled.
-        # So we wait here.
-        # We will directly after this read our buffer from the GPU,
-        # and we will not be sure that the command has finished executing unless we wait for the fence.
-        # Hence, we use a fence here.
-        vkWaitForFences(
-            device=self.device.vkDevice,
-            fenceCount=1,
-            pFences=[self.fence],
-            waitAll=VK_TRUE,
-            timeout=1000000000,
-        )
-        vkResetFences(device=self.device.vkDevice, fenceCount=1, pFences=[self.fence])
-
+        for fence in self.fences:
+            fence.wait()
+        
     def release(self):
-        vkDestroyFence(self.device.vkDevice, self.fence, None)
+        for fence in self.fences:
+            fence.release()
+        
+        print("destroying pipeline")
+        Pipeline.release(self)
+        
+        print("destroying compute pipeline")
+        
+        
+        print("destroying children")
+        for child in self.children:
+            child.release()
+

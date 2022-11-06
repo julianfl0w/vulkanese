@@ -12,7 +12,7 @@ try:
     from pipelines import *
     from rasterpipeline import *
     from raytracepipeline import *
-    from stage import *
+    from shader import *
     from descriptor import *
     from device import *
     from buffer import *
@@ -20,7 +20,7 @@ except:
     from .pipelines import *
     from .rasterpipeline import *
     from .raytracepipeline import *
-    from .stage import *
+    from .shader import *
     from .descriptor import *
     from .device import *
     from .buffer import *
@@ -32,7 +32,6 @@ here = os.path.dirname(os.path.abspath(__file__))
 
 def getVulkanesePath():
     return here
-
 
 class Instance(Sinode):
     def __init__(self, verbose=False):

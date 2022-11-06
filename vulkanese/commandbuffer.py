@@ -20,13 +20,13 @@ class CommandBuffer(Sinode):
 
         # assume triple-buffering for surfaces
         if pipeline.outputClass == "surface":
-            print("allocating 3 command buffers, one for each image")
+            self.device.instance.debug("allocating 3 command buffers, one for each image")
             self.commandBufferCount += 3
         # single-buffering for images
         else:
             self.commandBufferCount += 1
 
-        print(
+        self.device.instance.debug(
             "Creating buffers of size "
             + str(self.outputWidthPixels)
             + ", "
@@ -50,12 +50,12 @@ class CommandBuffer(Sinode):
         self.submit_create = VkSubmitInfo(
             sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,
             waitSemaphoreCount=len(self.pipeline.wait_semaphores),
-            pWaitSemaphores=self.pipeline.wait_semaphores,
+            pWaitSemaphores=[s.vkSemaphore for s in self.pipeline.wait_semaphores],
             pWaitDstStageMask=self.pipeline.wait_stages,
             commandBufferCount=1,
             pCommandBuffers=[self.vkCommandBuffers[0]],
             signalSemaphoreCount=len(self.pipeline.signal_semaphores),
-            pSignalSemaphores=self.pipeline.signal_semaphores,
+            pSignalSemaphores=[s.vkSemaphore for s in self.pipeline.signal_semaphores],
         )
 
 
@@ -90,25 +90,25 @@ class RasterCommandBuffer(CommandBuffer):
             # Provided by VK_VERSION_1_0
             allBuffers = self.pipeline.getAllBuffers()
 
-            print("--- ALL BUFFERS ---")
+            self.device.instance.debug("--- ALL BUFFERS ---")
             for i, buffer in enumerate(allBuffers):
-                print("-------------------------")
-                print(i)
+                self.device.instance.debug("-------------------------")
+                self.device.instance.debug(i)
             allVertexBuffers = [
                 b
                 for b in allBuffers
                 if (b.usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or b.name == "index")
             ]
-            print("--- ALL VERTEX BUFFERS ---")
+            self.device.instance.debug("--- ALL VERTEX BUFFERS ---")
             for i, buffer in enumerate(allVertexBuffers):
-                print("-------------------------")
-                print(i)
+                self.device.instance.debug("-------------------------")
+                self.device.instance.debug(i)
 
             allVertexBuffersVk = [b.vkBuffer for b in allVertexBuffers]
 
             pOffsets = [0] * len(allVertexBuffersVk)
-            print("pOffsets")
-            print(pOffsets)
+            self.device.instance.debug("pOffsets")
+            self.device.instance.debug(pOffsets)
             vkCmdBindVertexBuffers(
                 commandBuffer=vkCommandBuffer,
                 firstBinding=0,

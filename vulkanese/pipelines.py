@@ -7,8 +7,10 @@ from vulkan import *
 
 try:
     from vulkanese import *
+    from semaphore import *
 except:
     from .vulkanese import *
+    from .semaphore import *
 from PIL import Image as pilImage
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -41,19 +43,15 @@ class Pipeline(Sinode):
         self.instance = device.instance
         self.outputWidthPixels = outputWidthPixels
         self.outputHeightPixels = outputHeightPixels
+        self.shaders = []
         # Add Stages
-        self.stages = stages
+        # if not compute
+        #self.stages = stages
 
         # Create semaphores
-        semaphore_create = VkSemaphoreCreateInfo(
-            sType=VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, flags=0
-        )
-        self.semaphore_image_available = vkCreateSemaphore(
-            self.vkDevice, semaphore_create, None
-        )
-        self.semaphore_render_finished = vkCreateSemaphore(
-            self.vkDevice, semaphore_create, None
-        )
+        self.semaphore_image_available = Semaphore(device = self.device)
+        self.semaphore_render_finished = Semaphore(device = self.device)
+        self.semaphores = [self.semaphore_image_available, self.semaphore_render_finished]
 
         self.wait_stages = [VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT]
         self.wait_semaphores = [self.semaphore_image_available]
@@ -72,38 +70,40 @@ class Pipeline(Sinode):
             self.instance.vkInstance, "vkQueuePresentKHR"
         )
 
-        self.children += self.stages
+        #if not type(self) == "ComputePipeline":
+        #    self.children += self.stages
 
     def draw_frame(self):
         image_index = self.vkAcquireNextImageKHR(
             self.vkDevice,
             self.surface.swapchain,
             UINT64_MAX,
-            self.semaphore_image_available,
+            self.semaphore_image_available.vkSemaphore,
             None,
         )
         self.commandBuffer.draw_frame(image_index)
 
     def getAllBuffers(self):
         allBuffers = []
-        for stage in self.stages:
-            allBuffers += stage.buffers
+        for shader in self.shaders:
+            allBuffers += shader.buffers
 
         return allBuffers
 
     def release(self):
-        print("generic pipeline release")
-        vkDestroySemaphore(self.vkDevice, self.semaphore_image_available, None)
-        vkDestroySemaphore(self.vkDevice, self.semaphore_render_finished, None)
-
-        for stage in self.stages:
-            stage.release()
-
+        self.device.instance.debug("generic pipeline release")
+        
+        for shader in self.shaders:
+            shader.release()
+            
+        for semaphore in self.semaphores:
+            semaphore.release()
+        
         vkDestroyPipeline(self.vkDevice, self.vkPipeline, None)
         vkDestroyPipelineLayout(self.vkDevice, self.vkPipelineLayout, None)
 
         if hasattr(self, "surface"):
-            print("releasing surface")
+            self.device.instance.debug("releasing surface")
             self.surface.release()
 
         if hasattr(self, "renderPass"):
