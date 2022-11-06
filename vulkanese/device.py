@@ -40,8 +40,8 @@ class Device(Sinode):
         elif type.kind == "array":
             return [Device.ctypes2dict(p, depth + 1) for p in props]
         else:
-            print(" " * depth + type.kind)
-            print(" " * depth + dir(type))
+            self.instance.debug(" " * depth + type.kind)
+            self.instance.debug(" " * depth + dir(type))
             die
 
     def __init__(self, instance, deviceIndex):
@@ -50,14 +50,14 @@ class Device(Sinode):
         self.vkInstance = instance.vkInstance
         self.deviceIndex = deviceIndex
 
-        print("initializing device " + str(deviceIndex))
+        self.instance.debug("initializing device " + str(deviceIndex))
         self.physical_device = vkEnumeratePhysicalDevices(self.instance.vkInstance)[
             deviceIndex
         ]
 
-        self.memoryProperties = Device.getMemoryProperties(self.physical_device)
+        self.memoryProperties = self.getMemoryProperties()
 
-        print("getting features list")
+        self.instance.debug("getting features list")
 
         # vkGetPhysicalDeviceFeatures2 = vkGetInstanceProcAddr(
         #    self.vkInstance, "vkGetPhysicalDeviceFeatures2KHR"
@@ -69,16 +69,16 @@ class Device(Sinode):
         self.pFeatures = vkGetPhysicalDeviceFeatures(self.physical_device)
 
         # self.pFeatures2 = vkGetPhysicalDeviceFeatures2(self.physical_device)
-        # print("pFeatures2")
-        # print(self.pFeatures2)
+        # self.instance.debug("pFeatures2")
+        # self.instance.debug(self.pFeatures2)
 
-        self.propertiesDict = Device.getLimits(self.physical_device)
+        self.propertiesDict = self.getLimits()
 
         # self.pProperties2 = vkGetPhysicalDeviceProperties2(self.physical_device)
-        # print("pProperties2")
-        # print(self.pProperties2)
+        # self.instance.debug("pProperties2")
+        # self.instance.debug(self.pProperties2)
 
-        print("Select queue family")
+        self.instance.debug("Select queue family")
         # ----------
         # Select queue family
         vkGetPhysicalDeviceSurfaceSupportKHR = vkGetInstanceProcAddr(
@@ -90,7 +90,7 @@ class Device(Sinode):
             physicalDevice=self.physical_device
         )
 
-        # print("%s available queue family" % len(queue_families))
+        # self.instance.debug("%s available queue family" % len(queue_families))
 
         self.queue_family_graphic_index = -1
         self.queue_family_present_index = -1
@@ -110,7 +110,7 @@ class Device(Sinode):
             # if queue_family.queueCount > 0 and support_present:
             #     self.queue_family_present_index = i
 
-        print(
+        self.instance.debug(
             "indice of selected queue families, graphic: %s, presentation: %s\n"
             % (self.queue_family_graphic_index, self.queue_family_present_index)
         )
@@ -133,7 +133,7 @@ class Device(Sinode):
             physicalDevice=self.physical_device, pLayerName=None
         )
         extensions = [e.extensionName for e in extensions]
-        # print("available device extensions: %s\n" % extensions)
+        # self.instance.debug("available device extensions: %s\n" % extensions)
 
         # only use the extensions necessary
         extensions = [VK_KHR_SWAPCHAIN_EXTENSION_NAME]
@@ -148,7 +148,7 @@ class Device(Sinode):
             )
             for i in {self.queue_family_graphic_index, self.queue_family_present_index}
         ]
-        # print(self.pFeatures.pNext)
+        # self.instance.debug(self.pFeatures.pNext)
         # die
         self.device_create = VkDeviceCreateInfo(
             sType=VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -200,9 +200,9 @@ class Device(Sinode):
         self.descriptorPool = DescriptorPool(self)
         self.children += [self.descriptorPool]
 
-    def getMemoryProperties(physical_device):
-        print("getting memory properties")
-        memoryProperties = vkGetPhysicalDeviceMemoryProperties(physical_device)
+    def getMemoryProperties(self):
+        self.instance.debug("getting memory properties")
+        memoryProperties = vkGetPhysicalDeviceMemoryProperties(self.physical_device)
         memoryPropertiesPre = Device.ctypes2dict(memoryProperties)
 
         # the following is complicated only because C/C++ is so basic
@@ -210,11 +210,11 @@ class Device(Sinode):
         memoryTypes = memoryPropertiesPre["memoryTypes"][
             : memoryPropertiesPre["memoryTypeCount"]
         ]
-        print(memoryTypes)
+        self.instance.debug(memoryTypes)
         memoryHeaps = memoryPropertiesPre["memoryHeaps"][
             : memoryPropertiesPre["memoryHeapCount"]
         ]
-        print(memoryHeaps)
+        self.instance.debug(memoryHeaps)
 
         for mt in memoryTypes:
             mt["propertyFlagsString"] = []
@@ -286,13 +286,13 @@ class Device(Sinode):
             deviceTypeStr = "VK_PHYSICAL_DEVICE_TYPE_CPU"
         return deviceTypeStr
 
-    def getLimits(physical_device):
-        pProperties = vkGetPhysicalDeviceProperties(physical_device)
-        print("Device Name: " + pProperties.deviceName)
+    def getLimits(self):
+        pProperties = vkGetPhysicalDeviceProperties(self.physical_device)
+        self.instance.debug("Device Name: " + pProperties.deviceName)
 
         devPropsDict = {}
 
-        devPropsDict["deviceType"] = Device.getProcessorType(physical_device)
+        devPropsDict["deviceType"] = Device.getProcessorType(self.physical_device)
 
         limitsDict = {}
         type = ffi.typeof(pProperties.limits)
@@ -320,12 +320,12 @@ class Device(Sinode):
 
     def release(self):
 
-        print("destroying children")
+        self.instance.debug("destroying children")
         for child in self.children:
             child.release()
 
-        print("destroying command pool")
+        self.instance.debug("destroying command pool")
         vkDestroyCommandPool(self.vkDevice, self.vkCommandPool, None)
 
-        print("destroying device")
+        self.instance.debug("destroying device")
         vkDestroyDevice(self.vkDevice, None)
