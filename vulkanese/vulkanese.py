@@ -37,7 +37,7 @@ class Instance(Sinode):
     def __init__(self, verbose=False):
         Sinode.__init__(self, None)
         self.verbose = verbose
-        print("version number ")
+        self.debug("version number ")
         packedVersion = vkEnumerateInstanceVersion()
         # The variant is a 3-bit integer packed into bits 31-29.
         variant = (packedVersion >> 29) & 0x07
@@ -47,11 +47,11 @@ class Instance(Sinode):
         minor = (packedVersion >> 12) & 0x3FF
         # The patch version number is a 12-bit integer packed into bits 11-0.
         patch = (packedVersion >> 0) & 0xFFF
-        if self.verbose:
-            print("Variant : " + str(variant))
-            print("Major   : " + str(major))
-            print("Minor   : " + str(minor))
-            print("Patch   : " + str(patch))
+        
+        self.debug("Variant : " + str(variant))
+        self.debug("Major   : " + str(major))
+        self.debug("Minor   : " + str(minor))
+        self.debug("Patch   : " + str(patch))
 
         # ----------
         # Create instance
@@ -66,18 +66,18 @@ class Instance(Sinode):
 
         extensions = vkEnumerateInstanceExtensionProperties(None)
         extensions = [e.extensionName for e in extensions]
-        # print("available extensions: ")
+        # self.debug("available extensions: ")
         # for e in extensions:
-        #    print("    " + e)
+        #    self.debug("    " + e)
 
         self.layers = vkEnumerateInstanceLayerProperties()
         self.layers = [l.layerName for l in self.layers]
-        # print("available layers:")
+        # self.debug("available layers:")
         # for l in self.layers:
-        #    print("    " + l)
+        #    self.debug("    " + l)
 
         if self.verbose:
-            print("Available layers " + json.dumps(self.layers, indent=2))
+            self.debug("Available layers " + json.dumps(self.layers, indent=2))
 
         if "VK_LAYER_KHRONOS_validation" in self.layers:
             self.layers = ["VK_LAYER_KHRONOS_validation"]
@@ -87,7 +87,7 @@ class Instance(Sinode):
             self.layers = []
 
         if self.verbose:
-            print("applying layers " + str(self.layers))
+            self.debug("applying layers " + str(self.layers))
         createInfo = VkInstanceCreateInfo(
             sType=VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             flags=0,
@@ -110,7 +110,7 @@ class Instance(Sinode):
         )
 
         def debugCallback(*args):
-            print("DEBUG: " + args[5] + " " + args[6])
+            self.debug("DEBUG: " + args[5] + " " + args[6])
             return 0
 
         debug_create = VkDebugReportCallbackCreateInfoEXT(
@@ -128,7 +128,7 @@ class Instance(Sinode):
 
     def getDeviceList(self):
         self.physical_devices = vkEnumeratePhysicalDevices(self.vkInstance)
-        print(type(self.physical_devices))
+        self.debug(type(self.physical_devices))
         devdict = {}
         for i, physical_device in enumerate(self.physical_devices):
             pProperties = vkGetPhysicalDeviceProperties(physical_device)
@@ -149,12 +149,12 @@ class Instance(Sinode):
 
     def release(self):
         if self.verbose:
-            print("destroying child devices")
+            self.debug("destroying child devices")
         for d in self.children:
             d.release()
         if self.verbose:
-            print("destroying debug etc")
+            self.debug("destroying debug etc")
         self.vkDestroyDebugReportCallbackEXT(self.vkInstance, self.callback, None)
         if self.verbose:
-            print("destroying instance")
+            self.debug("destroying instance")
         vkDestroyInstance(self.vkInstance, None)

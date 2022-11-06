@@ -129,13 +129,10 @@ class ComputePipeline(Pipeline):
         for fence in self.fences:
             fence.release()
         
-        print("destroying pipeline")
+        self.device.instance.debug("destroying pipeline")
         Pipeline.release(self)
         
-        print("destroying compute pipeline")
-        
-        
-        print("destroying children")
+        self.device.instance.debug("destroying children")
         for child in self.children:
             child.release()
 

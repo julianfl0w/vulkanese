@@ -212,8 +212,10 @@ class Buffer(Sinode):
         )
         self.device.instance.debug("done mapping")
 
-        self.device.instance.debug(len(self.pmap[:]))
-        self.device.instance.debug(len(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType)))
+        # these debug prints take forever
+        #self.device.instance.debug(len(self.pmap[:]))
+        #self.device.instance.debug(len(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType)))
+        
         # initialize to zero
         self.zeroInitialize()
 

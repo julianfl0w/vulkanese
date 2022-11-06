@@ -33,6 +33,10 @@ class Shader(Sinode):
         name="mandlebrot",
         DEBUG=False,
         workgroupShape=[1, 1, 1],
+        memProperties = 0
+        | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+        | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
     ):
         self.constantsDict = constantsDict
         self.DEBUG = DEBUG
@@ -87,6 +91,7 @@ class Shader(Sinode):
                 stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
                 location=0,
                 format=format,
+                memProperties=memProperties
             )
             self.buffers += [newBuff]
 
