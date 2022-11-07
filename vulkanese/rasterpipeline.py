@@ -7,9 +7,13 @@ from vulkan import *
 try:
     from vulkanese import *
     from pipelines import *
+    from buffer import *
+    from shader import *
 except:
     from .vulkanese import *
     from .pipelines import *
+    from .buffer import *
+    from .shader import *
 from sinode import *
 from PIL import Image as pilImage
 
@@ -85,7 +89,7 @@ class RasterPipeline(Pipeline):
             location=location,
             descriptorSet=self.device.descriptorPool.descSetGlobal,
             device=self.device,
-            type="uint",
+            memtype="uint",
             usage=VK_BUFFER_USAGE_TRANSFER_DST_BIT
             | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
             | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
@@ -120,7 +124,7 @@ class RasterPipeline(Pipeline):
                 descriptorSet=self.device.descriptorPool.descSetGlobal,
                 location=location,
                 qualifier=qualifier,
-                type=bd["type"],
+                memtype=bd["type"],
             )
             location += newBuff.getSize()
             self.fragmentBuffers += [newBuff]
