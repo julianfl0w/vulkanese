@@ -33,6 +33,7 @@ here = os.path.dirname(os.path.abspath(__file__))
 def getVulkanesePath():
     return here
 
+
 class Instance(Sinode):
     def __init__(self, verbose=False):
         Sinode.__init__(self, None)
@@ -47,7 +48,7 @@ class Instance(Sinode):
         minor = (packedVersion >> 12) & 0x3FF
         # The patch version number is a 12-bit integer packed into bits 11-0.
         patch = (packedVersion >> 0) & 0xFFF
-        
+
         self.debug("Variant : " + str(variant))
         self.debug("Major   : " + str(major))
         self.debug("Minor   : " + str(minor))

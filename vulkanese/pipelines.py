@@ -46,12 +46,15 @@ class Pipeline(Sinode):
         self.shaders = []
         # Add Stages
         # if not compute
-        #self.stages = stages
+        # self.stages = stages
 
         # Create semaphores
-        self.semaphore_image_available = Semaphore(device = self.device)
-        self.semaphore_render_finished = Semaphore(device = self.device)
-        self.semaphores = [self.semaphore_image_available, self.semaphore_render_finished]
+        self.semaphore_image_available = Semaphore(device=self.device)
+        self.semaphore_render_finished = Semaphore(device=self.device)
+        self.semaphores = [
+            self.semaphore_image_available,
+            self.semaphore_render_finished,
+        ]
 
         self.wait_stages = [VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT]
         self.wait_semaphores = [self.semaphore_image_available]
@@ -70,7 +73,7 @@ class Pipeline(Sinode):
             self.instance.vkInstance, "vkQueuePresentKHR"
         )
 
-        #if not type(self) == "ComputePipeline":
+        # if not type(self) == "ComputePipeline":
         #    self.children += self.stages
 
     def draw_frame(self):
@@ -92,13 +95,13 @@ class Pipeline(Sinode):
 
     def release(self):
         self.device.instance.debug("generic pipeline release")
-        
+
         for shader in self.shaders:
             shader.release()
-            
+
         for semaphore in self.semaphores:
             semaphore.release()
-        
+
         vkDestroyPipeline(self.vkDevice, self.vkPipeline, None)
         vkDestroyPipelineLayout(self.vkDevice, self.vkPipelineLayout, None)
 

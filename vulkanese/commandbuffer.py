@@ -20,7 +20,9 @@ class CommandBuffer(Sinode):
 
         # assume triple-buffering for surfaces
         if pipeline.outputClass == "surface":
-            self.device.instance.debug("allocating 3 command buffers, one for each image")
+            self.device.instance.debug(
+                "allocating 3 command buffers, one for each image"
+            )
             self.commandBufferCount += 3
         # single-buffering for images
         else:

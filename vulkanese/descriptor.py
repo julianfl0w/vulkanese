@@ -61,7 +61,7 @@ class DescriptorPool(Sinode):
             type=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
             descriptorCount=1000,  # len(self.descSets[1].buffers)
         )
-        
+
         # We will allocate one of these descriptors for every frame. This pool size structure is referenced by the main VkDescriptorPoolCreateInfo:
         # Aside from the maximum number of individual descriptors that are available, we also need to specify the maximum number of descriptor sets that may be allocated:
         self.poolInfo = VkDescriptorPoolCreateInfo(

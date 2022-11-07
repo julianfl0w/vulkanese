@@ -1,5 +1,6 @@
 from vulkan import *
 
+
 class Semaphore:
     def __init__(self, device, flags=0):
         self.extant = True
@@ -10,12 +11,13 @@ class Semaphore:
         self.vkSemaphore = vkCreateSemaphore(
             self.device.vkDevice, self.semaphore_create, None
         )
-        
+
     def release(self):
         if self.extant:
             vkDestroySemaphore(self.device.vkDevice, self.vkSemaphore, None)
             self.extant = False
-            
+
+
 class Fence:
     def __init__(self, device, flags=0):
         self.device = device
@@ -24,14 +26,14 @@ class Fence:
             sType=VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, flags=flags
         )
         self.vkFence = vkCreateFence(self.device.vkDevice, self.fenceCreateInfo, None)
-        
+
     def release(self):
         if self.extant:
             vkDestroyFence(self.device.vkDevice, self.vkFence, None)
             self.extant = False
-            
+
     def wait(self):
-        
+
         # The command will not have finished executing until the fence is signalled.
         # So we wait here.
         # We will directly after this read our buffer from the GPU,

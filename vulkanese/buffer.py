@@ -88,11 +88,10 @@ class Buffer(Sinode):
 
     def getSkipval(self):
         if (
-            self.usage == VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-            and self.type == "float64_t"
+            self.compressBuffers
+            and self.usage == VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            and (self.type == "float64_t" or self.type == "float")
         ):
-            self.skipval = 1
-        elif self.usage == VK_BUFFER_USAGE_STORAGE_BUFFER_BIT and self.type == "float":
             self.skipval = 1
         elif (
             not self.usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
@@ -132,7 +131,9 @@ class Buffer(Sinode):
         memtype="vec3",
         rate=VK_VERTEX_INPUT_RATE_VERTEX,
         stride=12,
+        compressBuffers=True,
     ):
+        self.compressBuffers = compressBuffers
         self.dimensionNames = dimensionNames
         self.dimensionVals = dimensionVals
         self.binding = descriptorSet.getBufferBinding()
@@ -213,9 +214,9 @@ class Buffer(Sinode):
         self.device.instance.debug("done mapping")
 
         # these debug prints take forever
-        #self.device.instance.debug(len(self.pmap[:]))
-        #self.device.instance.debug(len(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType)))
-        
+        # self.device.instance.debug(len(self.pmap[:]))
+        # self.device.instance.debug(len(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType)))
+
         # initialize to zero
         self.zeroInitialize()
 
@@ -369,7 +370,10 @@ class Buffer(Sinode):
             std = "std140"
         else:
             b = "buffer "
-            std = "std430"
+            if self.compressBuffers:
+                std = "std430"
+            else:
+                std = "std140"
 
         return (
             "layout("
@@ -442,7 +446,9 @@ class Buffer(Sinode):
         except:
             self.device.instance.debug("WRONG SIZE")
             self.device.instance.debug("pmap (bytes): " + str(len(self.pmap[:])))
-            self.device.instance.debug("data (bytes): " + str(len(data) * self.itemSize))
+            self.device.instance.debug(
+                "data (bytes): " + str(len(data) * self.itemSize)
+            )
             raise Exception("Wrong Size")
 
     def fill(self, value):

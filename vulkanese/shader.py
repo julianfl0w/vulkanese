@@ -33,10 +33,11 @@ class Shader(Sinode):
         name="mandlebrot",
         DEBUG=False,
         workgroupShape=[1, 1, 1],
-        memProperties = 0
+        memProperties=0
         | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
         | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+        compressBuffers=True,
     ):
         self.constantsDict = constantsDict
         self.DEBUG = DEBUG
@@ -91,7 +92,8 @@ class Shader(Sinode):
                 stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
                 location=0,
                 format=format,
-                memProperties=memProperties
+                memProperties=memProperties,
+                compressBuffers=compressBuffers,
             )
             self.buffers += [newBuff]
 
@@ -154,21 +156,21 @@ class Shader(Sinode):
                 computeShader=self,
                 device=self.device,
                 constantsDict=self.constantsDict,
-                workgroupShape=[1, 1, 1],
+                workgroupShape=workgroupShape,
             )
             self.computePipeline.children += [self]
 
         # first run is always slow
         # run once in init so people dont judge the first run
         self.run()
-        
+
     def release(self):
         self.device.instance.debug("destroying Stage")
         vkDestroyShaderModule(self.vkDevice, self.vkShaderModule, None)
         Sinode.release(self)
 
+
 class ComputeShader(Shader):
-    
     def getBufferByName(self, name):
         for b in self.buffers:
             if name == b.name:
@@ -247,7 +249,7 @@ class ComputeShader(Shader):
 
     def run(self):
         self.computePipeline.run()
-    
+
     def getVertexBuffers(self):
         allVertexBuffers = []
         for b in self.buffers:

@@ -83,7 +83,7 @@ class ComputePipeline(Pipeline):
         if len(pipelines) == 1:
             self.vkPipeline = pipelines[0]
 
-        #self.children += [pipelines]
+        # self.children += [pipelines]
         # wrap it all up into a command buffer
         self.commandBuffer = ComputeCommandBuffer(self, workgroupShape=workgroupShape)
 
@@ -98,7 +98,7 @@ class ComputePipeline(Pipeline):
 
         # We create a fence.
         # So the CPU can know when processing is done
-        self.fence = Fence(device = self.device)
+        self.fence = Fence(device=self.device)
         self.fences = [self.fence]
 
     # this help if you run the main loop in C/C++
@@ -124,15 +124,14 @@ class ComputePipeline(Pipeline):
         )
         for fence in self.fences:
             fence.wait()
-        
+
     def release(self):
         for fence in self.fences:
             fence.release()
-        
+
         self.device.instance.debug("destroying pipeline")
         Pipeline.release(self)
-        
+
         self.device.instance.debug("destroying children")
         for child in self.children:
             child.release()
-
