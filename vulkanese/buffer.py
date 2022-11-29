@@ -72,69 +72,32 @@ def glsltype2bytesize(glsltype):
 
 class Buffer(Sinode):
 
-    # find memory type with desired properties.
-    def findMemoryType(self, memoryTypeBits, properties):
-
-        # How does this search work?
-        # See the documentation of VkPhysicalDeviceMemoryProperties for a detailed description.
-        for i, mt in enumerate(self.device.memoryProperties["memoryTypes"]):
-            if (
-                memoryTypeBits & (1 << i)
-                and (mt["propertyFlags"] & properties) == properties
-            ):
-                return i
-
-        return -1
-
-    def getSkipval(self):
-        if (
-            self.compressBuffers
-            and self.usage == VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-            and (self.type == "float64_t" or self.type == "float")
-        ):
-            self.skipval = 1
-        elif (
-            not self.usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
-        ) and self.itemSize <= 8:
-            self.skipval = int(16 / self.itemSize)
-        # vec3s (12 bytes) does not divide evenly into 16 :(
-        # elif self.itemSize == 12:
-        #    self.skipval = 4.0/3
-        else:
-            self.skipval = int(1)
-
-    def debugSizeParams(self):
-        self.device.instance.debug("itemCount " + str(self.itemCount))
-        self.device.instance.debug("itemSize " + str(self.itemSize))
-        self.device.instance.debug("skipval " + str(self.skipval))
-        self.device.instance.debug("sizeBytes " + str(self.sizeBytes))
-
     def __init__(
         self,
         device,
         name,
         location,
         descriptorSet,
-        dimensionNames,
         dimensionVals,
+        DEBUG = False,
         format=VK_FORMAT_R64_SFLOAT,
         readFromCPU=True,
         usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         memProperties=0
-        # | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
         | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
         | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
         sharingMode=VK_SHARING_MODE_EXCLUSIVE,
         stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-        qualifier="in",
-        memtype="vec3",
+        qualifier="",
+        memtype="float",
         rate=VK_VERTEX_INPUT_RATE_VERTEX,
         stride=12,
         compressBuffers=True,
     ):
+        self.DEBUG = DEBUG
         self.compressBuffers = compressBuffers
-        self.dimensionNames = dimensionNames
         self.dimensionVals = dimensionVals
         self.binding = descriptorSet.getBufferBinding()
         # this should be fixed in vulkan wrapper
@@ -280,6 +243,43 @@ class Buffer(Sinode):
 
         self.addrPtr = 0
 
+    # find memory type with desired properties.
+    def findMemoryType(self, memoryTypeBits, properties):
+
+        # How does this search work?
+        # See the documentation of VkPhysicalDeviceMemoryProperties for a detailed description.
+        for i, mt in enumerate(self.device.memoryProperties["memoryTypes"]):
+            if (
+                memoryTypeBits & (1 << i)
+                and (mt["propertyFlags"] & properties) == properties
+            ):
+                return i
+
+        return -1
+
+    def getSkipval(self):
+        if (
+            self.compressBuffers
+            and self.usage == VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            and (self.type == "float64_t" or self.type == "float")
+        ):
+            self.skipval = 1
+        elif (
+            not self.usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+        ) and self.itemSize <= 8:
+            self.skipval = int(16 / self.itemSize)
+        # vec3s (12 bytes) does not divide evenly into 16 :(
+        # elif self.itemSize == 12:
+        #    self.skipval = 4.0/3
+        else:
+            self.skipval = int(1)
+
+    def debugSizeParams(self):
+        self.device.instance.debug("itemCount " + str(self.itemCount))
+        self.device.instance.debug("itemSize " + str(self.itemSize))
+        self.device.instance.debug("skipval " + str(self.skipval))
+        self.device.instance.debug("sizeBytes " + str(self.sizeBytes))
+
     def zeroInitialize(self):
         self.setBuffer(np.zeros((self.itemCount), dtype=self.pythonType))
 
@@ -374,7 +374,7 @@ class Buffer(Sinode):
                 std = "std430"
             else:
                 std = "std140"
-
+                
         return (
             "layout("
             + std
@@ -388,8 +388,8 @@ class Buffer(Sinode):
             + b
             + self.name
             + "_buf\n{\n   "
-            # + self.qualifier
-            # + " "
+            + self.qualifier
+            + " "
             + self.type
             + " "
             + self.name
@@ -470,7 +470,81 @@ class Buffer(Sinode):
             size += 1
         return int(size)
 
+class DebugBuffer(Buffer):
+    
+    def __init__(
+        self,
+        device,
+        name,
+        dimensionVals,
+        memtype="vec3",
+        rate=VK_VERTEX_INPUT_RATE_VERTEX,
+        stride=12,
+    ):
+        Buffer.__init__(
+            
+            
+            self,
+            debug=True,
+            device=device,
+            name=name,
+            location=0,
+            descriptorSet=device.descriptorPool.descSetGlobal,
+            dimensionVals=dimensionVals,
+            format=VK_FORMAT_R64_SFLOAT,
+            readFromCPU=True,
+            usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            memProperties=0
+            | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+            | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            sharingMode=VK_SHARING_MODE_EXCLUSIVE,
+            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
+            qualifier="",
+            memtype="float",
+            rate=VK_VERTEX_INPUT_RATE_VERTEX,
+            stride=12,
+            compressBuffers=True,
+        )
+        
 
+class StorageBuffer(Buffer):
+    
+    def __init__(
+        self,
+        device,
+        name,
+        dimensionVals,
+        DEBUG=False,
+        qualifier = "",
+        memProperties=0
+            | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+            | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+        memtype="float",
+        rate=VK_VERTEX_INPUT_RATE_VERTEX,
+        stride=12,
+    ):
+        Buffer.__init__(
+            
+            self,
+            DEBUG=False,
+            device=device,
+            name=name,
+            location=0,
+            descriptorSet=device.descriptorPool.descSetGlobal,
+            dimensionVals=dimensionVals,
+            format=VK_FORMAT_R64_SFLOAT,
+            readFromCPU=True,
+            usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            memProperties=memProperties,
+            sharingMode=VK_SHARING_MODE_EXCLUSIVE,
+            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
+            qualifier=qualifier,
+            memtype=memtype,
+            rate=VK_VERTEX_INPUT_RATE_VERTEX,
+            stride=12,
+            compressBuffers=True,
+        )
+        
 class AccelerationStructure(Buffer):
     def __init__(self, setupDict, shader):
         DescriptorSetBuffer.__init__(self, shader)

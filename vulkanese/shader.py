@@ -23,12 +23,9 @@ class Shader(Sinode):
         device,
         dim2index,
         constantsDict,
-        shaderOutputBuffers,
-        shaderInputBuffers,
+        buffers,
         shaderCode="",
         sourceFilename="",
-        debuggableVars=[],
-        shaderInputBuffersNoDebug=[],
         stage=VK_SHADER_STAGE_VERTEX_BIT,
         name="mandlebrot",
         DEBUG=False,
@@ -47,62 +44,18 @@ class Shader(Sinode):
         self.name = name
         self.stage = stage
         self.dim2index = dim2index
-        self.shaderOutputBuffers = shaderOutputBuffers
-        self.debuggableVars = debuggableVars
-        self.shaderInputBuffers = shaderInputBuffers
-        self.shaderInputBuffersNoDebug = shaderInputBuffersNoDebug
-
+        self.buffers = buffers
+        
         self.debugBuffers = []
-
-        # if we're debugging, all intermediate variables become output buffers
-        if self.DEBUG:
-            allBufferDescriptions = (
-                shaderOutputBuffers
-                + debuggableVars
-                + shaderInputBuffers
-                + shaderInputBuffersNoDebug
-            )
-        else:
-            allBufferDescriptions = (
-                shaderOutputBuffers + shaderInputBuffers + shaderInputBuffersNoDebug
-            )
-
-        self.buffers = []
-        # create all buffers according to their description
-        for s in allBufferDescriptions:
-            format = VK_FORMAT_R32_SFLOAT
-
-            if s in shaderOutputBuffers or s in debuggableVars:
-                descriptorSet = device.descriptorPool.descSetGlobal
-                usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-            else:
-                descriptorSet = device.descriptorPool.descSetUniform
-                usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
-
-            newBuff = Buffer(
-                device=device,
-                memtype=s["type"],
-                descriptorSet=descriptorSet,
-                qualifier="out",
-                name=s["name"],
-                readFromCPU=True,
-                dimensionNames=s["dims"],
-                dimensionVals=[constantsDict[d] for d in s["dims"]],
-                usage=usage,
-                stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
-                location=0,
-                format=format,
-                memProperties=memProperties,
-                compressBuffers=compressBuffers,
-            )
-            self.buffers += [newBuff]
-
+        for b in buffers:
             # make the buffer accessable as a local attribute
-            exec("self." + s["name"] + " = newBuff")
+            exec("self." + b.name + "= b")
 
-            # save these buffers for reading later
-            if s not in self.shaderInputBuffersNoDebug:
-                self.debugBuffers += [newBuff]
+            # keep the debug buffers separately
+            if type(b) == "DebugBuffer":
+                self.debugBuffers += [b]
+
+        self.buffers = buffers
 
         outfilename = self.name + ".spv"
         # if its spv (compiled), just run it
@@ -214,8 +167,9 @@ class ComputeShader(Shader):
         else:
             # otherwise, just declare the variable type
             # INITIALIZE TO 0 !
-            for var in self.debuggableVars:
-                VARSDECL += var["type"] + " " + var["name"] + " = 0;\n"
+            for b in self.buffers:
+                if b.DEBUG:
+                    VARSDECL += var["type"] + " " + var["name"] + " = 0;\n"
 
         # put structs and buffers into the code
         glslCode = glslCode.replace("BUFFERS_STRING", BUFFERS_STRING).replace(
@@ -242,7 +196,7 @@ class ComputeShader(Shader):
             os.remove(compiledFilename)
         self.device.instance.debug("running " + glslFilename)
         # os.system("glslc --scalar-block-layout " + glslFilename)
-        os.system("glslc " + glslFilename)
+        os.system("glslc --target-env=vulkan1.1 " + glslFilename)
         with open(compiledFilename, "rb") as f:
             spirv = f.read()
         return spirv
@@ -259,8 +213,9 @@ class ComputeShader(Shader):
 
     def dumpMemory(self, filename="debug.json"):
         outdict = {}
-        for b in self.debugBuffers:
-            if b.sizeBytes > 2 ** 14:
+        for b in self.buffers:
+            
+            if b.sizeBytes > 2 ** 14 or not b.DEBUG:
                 continue
             rcvdArray = b.getAsNumpyArray()
             # convert to list to make it JSON serializable
