@@ -151,7 +151,8 @@ class DescriptorPool(Sinode):
             self.device.instance.debug("destroying descriptor set " + v.name)
             v.release()
         self.device.instance.debug("destroying descriptor pool")
-        vkDestroyDescriptorPool(self.vkDevice, self.vkDescriptorPool, None)
+        if hasattr(self, "vkDescriptorPool"):
+            vkDestroyDescriptorPool(self.vkDevice, self.vkDescriptorPool, None)
 
 
 class DescriptorSet(Sinode):
@@ -196,7 +197,8 @@ class DescriptorSet(Sinode):
         for b in self.buffers:
             b.release()
         self.device.instance.debug("destroying descriptor set")
-        vkDestroyDescriptorSetLayout(self.vkDevice, self.vkDescriptorSetLayout, None)
+        if hasattr(self, "vkDescriptorSetLayout"):
+            vkDestroyDescriptorSetLayout(self.vkDevice, self.vkDescriptorSetLayout, None)
 
 
 # 	def updateDescriptorSet():

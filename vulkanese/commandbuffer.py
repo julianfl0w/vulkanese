@@ -165,7 +165,7 @@ class ComputeCommandBuffer(CommandBuffer):
     def __init__(
         self,
         pipeline,
-        workgroupShape,
+        workgroupCount,
         flags=VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT,
     ):
         CommandBuffer.__init__(self, pipeline)
@@ -206,9 +206,9 @@ class ComputeCommandBuffer(CommandBuffer):
             self.vkCommandBuffer,
             # int(math.ceil(WIDTH / float(WORKGROUP_SIZE))),  # int for py2 compatible
             # int(math.ceil(HEIGHT / float(WORKGROUP_SIZE))),  # int for py2 compatible
-            workgroupShape[0],  # int for py2 compatible
-            workgroupShape[1],  # int for py2 compatible
-            workgroupShape[2],
+            workgroupCount[0],  # int for py2 compatible
+            workgroupCount[1],  # int for py2 compatible
+            workgroupCount[2],
         )
 
         vkEndCommandBuffer(self.vkCommandBuffer)

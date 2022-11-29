@@ -132,10 +132,12 @@ class Instance(Sinode):
         self.debug(type(self.physical_devices))
         devdict = {}
         for i, physical_device in enumerate(self.physical_devices):
+            #subgroupProperties = VkPhysicalDeviceSubgroupProperties()
             pProperties = vkGetPhysicalDeviceProperties(physical_device)
-            memprops = Device.getMemoryProperties(physical_device)
+            device = self.getDevice(i)
+            memprops = Device.getMemoryProperties(device)
             processorType = Device.getProcessorType(physical_device)
-            limits = Device.getLimits(physical_device)
+            limits = Device.getLimits(device)
             devdict[pProperties.deviceName] = {
                 "processorType": processorType,
                 "memProperties": memprops,

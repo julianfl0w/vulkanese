@@ -485,7 +485,7 @@ class DebugBuffer(Buffer):
             
             
             self,
-            debug=True,
+            DEBUG=True,
             device=device,
             name=name,
             location=0,
@@ -545,6 +545,43 @@ class StorageBuffer(Buffer):
             compressBuffers=True,
         )
         
+class UniformBuffer(Buffer):
+    
+    def __init__(
+        self,
+        device,
+        name,
+        dimensionVals,
+        DEBUG=False,
+        qualifier = "",
+        memProperties=0
+            | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+            | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+        memtype="float",
+        rate=VK_VERTEX_INPUT_RATE_VERTEX,
+        stride=12,
+    ):
+        Buffer.__init__(
+            
+            self,
+            DEBUG=False,
+            device=device,
+            name=name,
+            location=0,
+            descriptorSet=device.descriptorPool.descSetGlobal,
+            dimensionVals=dimensionVals,
+            format=VK_FORMAT_R64_SFLOAT,
+            readFromCPU=True,
+            usage=VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            memProperties=memProperties,
+            sharingMode=VK_SHARING_MODE_EXCLUSIVE,
+            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
+            qualifier=qualifier,
+            memtype=memtype,
+            rate=VK_VERTEX_INPUT_RATE_VERTEX,
+            stride=12,
+            compressBuffers=True,
+        )
 class AccelerationStructure(Buffer):
     def __init__(self, setupDict, shader):
         DescriptorSetBuffer.__init__(self, shader)

@@ -33,7 +33,7 @@ def getVulkanesePath():
 # shader
 # All in one. it is self-contained
 class ComputePipeline(Pipeline):
-    def __init__(self, computeShader, device, constantsDict, workgroupShape=[1, 1, 1]):
+    def __init__(self, computeShader, device, constantsDict, workgroupCount=[1, 1, 1]):
         Sinode.__init__(self)
         self.device = device
         device.children += [self]
@@ -85,7 +85,7 @@ class ComputePipeline(Pipeline):
 
         # self.children += [pipelines]
         # wrap it all up into a command buffer
-        self.commandBuffer = ComputeCommandBuffer(self, workgroupShape=workgroupShape)
+        self.commandBuffer = ComputeCommandBuffer(self, workgroupCount=workgroupCount)
 
         # Now we shall finally submit the recorded command buffer to a queue.
         self.submitInfo = VkSubmitInfo(

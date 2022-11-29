@@ -200,6 +200,7 @@ class Device(Sinode):
         self.descriptorPool = DescriptorPool(self)
         self.children += [self.descriptorPool]
 
+        
     def getMemoryProperties(self):
         self.instance.debug("getting memory properties")
         memoryProperties = vkGetPhysicalDeviceMemoryProperties(self.physical_device)

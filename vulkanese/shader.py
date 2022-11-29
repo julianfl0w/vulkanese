@@ -29,7 +29,7 @@ class Shader(Sinode):
         stage=VK_SHADER_STAGE_VERTEX_BIT,
         name="mandlebrot",
         DEBUG=False,
-        workgroupShape=[1, 1, 1],
+        workgroupCount=[1, 1, 1],
         memProperties=0
         | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
@@ -109,7 +109,7 @@ class Shader(Sinode):
                 computeShader=self,
                 device=self.device,
                 constantsDict=self.constantsDict,
-                workgroupShape=workgroupShape,
+                workgroupCount=workgroupCount,
             )
             self.computePipeline.children += [self]
 
@@ -169,7 +169,7 @@ class ComputeShader(Shader):
             # INITIALIZE TO 0 !
             for b in self.buffers:
                 if b.DEBUG:
-                    VARSDECL += var["type"] + " " + var["name"] + " = 0;\n"
+                    VARSDECL += b.type + " " + b.name + " = 0;\n"
 
         # put structs and buffers into the code
         glslCode = glslCode.replace("BUFFERS_STRING", BUFFERS_STRING).replace(
