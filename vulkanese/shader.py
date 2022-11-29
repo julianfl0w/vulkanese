@@ -215,7 +215,7 @@ class ComputeShader(Shader):
         outdict = {}
         for b in self.buffers:
             
-            if b.sizeBytes > 2 ** 14 or not b.DEBUG:
+            if not b.DEBUG:
                 continue
             rcvdArray = b.getAsNumpyArray()
             # convert to list to make it JSON serializable
