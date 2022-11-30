@@ -30,10 +30,6 @@ class Shader(Sinode):
         name="mandlebrot",
         DEBUG=False,
         workgroupCount=[1, 1, 1],
-        memProperties=0
-        | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-        | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
         compressBuffers=True,
     ):
         self.constantsDict = constantsDict

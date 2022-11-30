@@ -478,6 +478,9 @@ class DebugBuffer(Buffer):
         name,
         dimensionVals,
         memtype="vec3",
+        memProperties=0
+        | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
         rate=VK_VERTEX_INPUT_RATE_VERTEX,
         stride=12,
     ):
