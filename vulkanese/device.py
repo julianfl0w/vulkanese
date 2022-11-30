@@ -197,6 +197,17 @@ class Device(Sinode):
             self.vkDevice, command_pool_create, None
         )
 
+        # poor man's subgroup size query
+        if "nvidia" in self.name.lower():
+            self.subgroupSize = 32
+        elif "amd" in self.name.lower():
+            self.subgroupSize = 64
+        elif "intel" in self.name.lower():
+            self.subgroupSize = 128
+        else:
+            print("SUBGROUP SIZE UNKNOWN. DEFAULTING TO 32")
+            self.subgroupSize = 32
+            
         self.descriptorPool = DescriptorPool(self)
         self.children += [self.descriptorPool]
 
