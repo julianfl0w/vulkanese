@@ -198,6 +198,7 @@ class Device(Sinode):
         )
 
         # poor man's subgroup size query
+        print(self.name.lower())
         if "nvidia" in self.name.lower():
             self.subgroupSize = 32
         elif "amd" in self.name.lower():
@@ -205,7 +206,7 @@ class Device(Sinode):
         elif "intel" in self.name.lower():
             self.subgroupSize = 128
         else:
-            print("SUBGROUP SIZE UNKNOWN. DEFAULTING TO 32")
+            print("    SUBGROUP SIZE UNKNOWN. DEFAULTING TO 32")
             self.subgroupSize = 32
             
         self.descriptorPool = DescriptorPool(self)
@@ -300,6 +301,7 @@ class Device(Sinode):
 
     def getLimits(self):
         pProperties = vkGetPhysicalDeviceProperties(self.physical_device)
+        self.name = pProperties.deviceName
         self.instance.debug("Device Name: " + pProperties.deviceName)
 
         devPropsDict = {}
