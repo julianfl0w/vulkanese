@@ -15,6 +15,10 @@ from pathlib import Path
 
 here = os.path.dirname(os.path.abspath(__file__))
 
+class Empty:
+    def __init__(self):
+        pass
+    
 
 class Shader(Sinode):
     def __init__(
@@ -38,14 +42,16 @@ class Shader(Sinode):
         self.vkDevice = device.vkDevice
         self.device = device
         self.name = name
+        self.basename = sourceFilename[:-2] # take out ".c"
         self.stage = stage
         self.dim2index = dim2index
         self.buffers = buffers
+        self.gpuBuffers = Empty()
         
         self.debugBuffers = []
         for b in buffers:
             # make the buffer accessable as a local attribute
-            exec("self." + b.name + "= b")
+            exec("self.gpuBuffers." + b.name + "= b")
 
             # keep the debug buffers separately
             if type(b) == "DebugBuffer":
@@ -53,7 +59,7 @@ class Shader(Sinode):
 
         self.buffers = buffers
 
-        outfilename = self.name + ".spv"
+        outfilename = self.basename + ".spv"
         # if its spv (compiled), just run it
         if sourceFilename != "":
 
@@ -181,7 +187,7 @@ class ComputeShader(Shader):
 
         # COMPILE GLSL TO SPIR-V
         self.device.instance.debug("compiling Stage")
-        glslFilename = os.path.join(self.name + ".comp")
+        glslFilename = os.path.join(self.basename + ".comp")
         with open(glslFilename, "w+") as f:
             f.write(glslCode)
 

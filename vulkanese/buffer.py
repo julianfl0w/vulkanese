@@ -281,7 +281,7 @@ class Buffer(Sinode):
         self.device.instance.debug("sizeBytes " + str(self.sizeBytes))
 
     def zeroInitialize(self):
-        self.setBuffer(np.zeros((self.itemCount), dtype=self.pythonType))
+        self.set(np.zeros((self.itemCount), dtype=self.pythonType))
 
     def getAsNumpyArray(self, asComplex=False):
         # glsl to python
@@ -433,7 +433,7 @@ class Buffer(Sinode):
         endByte = index * self.itemSize * self.skipval + self.itemSize
         return np.frombuffer(self.pmap[startByte:endByte], dtype=self.pythonType)
 
-    def setBuffer(self, data):
+    def set(self, data):
         # self.pmap[:] = data.astype(self.pythonType)
         try:
             if self.skipval == 1:
@@ -587,7 +587,7 @@ class UniformBuffer(Buffer):
         )
 class AccelerationStructure(Buffer):
     def __init__(self, setupDict, shader):
-        DescriptorSetBuffer.__init__(self, shader)
+        Descriptorset.__init__(self, shader)
         self.pipeline = shader.pipeline
         self.pipelineDict = self.pipeline.setupDict
         self.vkCommandPool = self.pipeline.device.vkCommandPool
