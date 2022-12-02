@@ -25,7 +25,7 @@ https://github.com/julianfl0w/gpuPitchDetect
 
 Here is a snapshot of that code, which shows how to use Vulkanese to manage compute shaders:
 
-'''
+```python
 import os
 import sys
 import pkg_resources
@@ -238,7 +238,7 @@ if __name__ == "__main__":
     
     plt.show()
     
-'''
+```
 
 We have sucessfully detected the 440Hz signal in this simple example:
 ![image](https://user-images.githubusercontent.com/8158655/205408263-2ab2236b-1b76-4f7d-9f6c-e4813ccb12d7.png)
