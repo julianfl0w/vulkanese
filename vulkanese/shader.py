@@ -158,15 +158,8 @@ class ComputeShader(Shader):
             else:
                 BUFFERS_STRING += buffer.getComputeDeclaration()
 
-        VARSDECL = ""
         if self.DEBUG:
             glslCode = self.addIndicesToOutputs(self.debuggableVars, glslCode)
-        else:
-            # otherwise, just declare the variable type
-            # INITIALIZE TO 0 !
-            for b in self.buffers:
-                if b.DEBUG:
-                    VARSDECL += b.type + " " + b.name + " = 0;\n"
 
         # put structs and buffers into the code
         glslCode = glslCode.replace("BUFFERS_STRING", BUFFERS_STRING).replace(
@@ -178,7 +171,6 @@ class ComputeShader(Shader):
         for k, v in self.constantsDict.items():
             DEFINE_STRING += "#define " + k + " " + str(v) + "\n"
         glslCode = glslCode.replace("DEFINE_STRING", DEFINE_STRING)
-        glslCode = glslCode.replace("VARIABLEDECLARATIONS", VARSDECL)
 
         # COMPILE GLSL TO SPIR-V
         self.device.instance.debug("compiling Stage")
@@ -244,7 +236,7 @@ class ComputeShader(Shader):
         outShaderGLSL = ""
         for line in shaderGLSL.split("\n"):
             # replace all non-comments
-            if not line.strip().startswith("//"):
+            if not line.strip().startswith("//") and not line.strip().endswith("debug")
                 # whole-word replacement
                 for iv in indexedVarStrings:
                     line = re.sub(r"\b{}\b".format(iv[0]), iv[1], line)

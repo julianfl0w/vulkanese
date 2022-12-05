@@ -74,9 +74,10 @@ class Device(Sinode):
 
         self.propertiesDict = self.getLimits()
 
-        # self.pProperties2 = vkGetPhysicalDeviceProperties2(self.physical_device)
-        # self.instance.debug("pProperties2")
-        # self.instance.debug(self.pProperties2)
+        #subgroupProperties = VkPhysicalDeviceSubgroupProperties()
+        #self.pProperties2 = vkGetPhysicalDeviceProperties2(self.physical_device, pNext = [subgroupProperties])
+        #self.instance.debug("pProperties2")
+        #self.instance.debug(self.pProperties2)
 
         self.instance.debug("Select queue family")
         # ----------
