@@ -191,7 +191,7 @@ class DescriptorSet(Sinode):
         self.vkDescriptorSetLayout = vkCreateDescriptorSetLayout(
             self.vkDevice, descriptorSetLayoutCreateInfo, None
         )
-        self.device.instance.debug("finalized desc set " + self.name)
+        self.device.instance.debug("finalized desc set " + self.name + " with " + str(len(self.buffers)) + " buffers")
 
     def release(self):
         for b in self.buffers:

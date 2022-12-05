@@ -4,16 +4,19 @@ import os
 import re
 from vulkan import *
 
-try:
+import pkg_resources
+if "vulkanese" not in [pkg.key for pkg in pkg_resources.working_set]:
     from buffer import *
     from computepipeline import *
-except:
+    DEV = True
+else:
     from .buffer import *
     from .computepipeline import *
+    DEV = False
 
 from pathlib import Path
-
 here = os.path.dirname(os.path.abspath(__file__))
+
 
 class Empty:
     def __init__(self):
@@ -57,22 +60,18 @@ class Shader(Sinode):
             if type(b) == "DebugBuffer":
                 self.debugBuffers += [b]
 
-        self.buffers = buffers
-
         outfilename = self.basename + ".spv"
         # if its spv (compiled), just run it
-        if sourceFilename != "":
-
-            if sourceFilename.endswith(".spv"):
-                with open(sourceFilename, "rb") as f:
-                    spirv = f.read()
-            # if its not an spv, compile it
-            else:
-                with open(sourceFilename, "r") as f:
-                    glslSource = f.read()
-                spirv = self.compile(glslSource)
-                with open(outfilename, "wb+") as f:
-                    f.write(spirv)
+        if sourceFilename.endswith(".spv"):
+            with open(sourceFilename, "rb") as f:
+                spirv = f.read()
+        # if its not an spv, compile it
+        elif sourceFilename.endswith(".c"):
+            with open(sourceFilename, "r") as f:
+                glslSource = f.read()
+            spirv = self.compile(glslSource)
+            with open(outfilename, "wb+") as f:
+                f.write(spirv)
         # allow the simple passing of code
         elif shaderCode != "":
             spirv = self.compile(shaderCode)
@@ -126,10 +125,6 @@ class Shader(Sinode):
 
 
 class ComputeShader(Shader):
-    def getBufferByName(self, name):
-        for b in self.buffers:
-            if name == b.name:
-                return b
 
     def compile(self, glslCode):
 
