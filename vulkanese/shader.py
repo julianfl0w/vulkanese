@@ -236,7 +236,7 @@ class ComputeShader(Shader):
         outShaderGLSL = ""
         for line in shaderGLSL.split("\n"):
             # replace all non-comments
-            if not line.strip().startswith("//") and not line.strip().endswith("debug")
+            if not line.strip().startswith("//") and not line.strip().endswith("debug"):
                 # whole-word replacement
                 for iv in indexedVarStrings:
                     line = re.sub(r"\b{}\b".format(iv[0]), iv[1], line)
