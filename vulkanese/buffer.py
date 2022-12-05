@@ -571,7 +571,7 @@ class UniformBuffer(Buffer):
             device=device,
             name=name,
             location=0,
-            descriptorSet=device.descriptorPool.descSetGlobal,
+            descriptorSet=device.descriptorPool.descSetUniform,
             dimensionVals=dimensionVals,
             format=VK_FORMAT_R64_SFLOAT,
             readFromCPU=True,
@@ -583,7 +583,7 @@ class UniformBuffer(Buffer):
             memtype=memtype,
             rate=VK_VERTEX_INPUT_RATE_VERTEX,
             stride=12,
-            compressBuffers=True,
+            compressBuffers=False,
         )
 class AccelerationStructure(Buffer):
     def __init__(self, setupDict, shader):
