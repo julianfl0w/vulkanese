@@ -283,6 +283,9 @@ class Buffer(Sinode):
     def zeroInitialize(self):
         self.set(np.zeros((self.itemCount), dtype=self.pythonType))
 
+    def oneInitialize(self):
+        self.set(np.ones((self.itemCount), dtype=self.pythonType))
+
     def getAsNumpyArray(self, asComplex=False):
         # glsl to python
         flatArray = np.frombuffer(self.pmap, self.pythonType)
@@ -476,6 +479,7 @@ class DebugBuffer(Buffer):
         self,
         device,
         name,
+        dimIndexNames,
         dimensionVals,
         memtype="vec3",
         memProperties=0
@@ -484,6 +488,7 @@ class DebugBuffer(Buffer):
         rate=VK_VERTEX_INPUT_RATE_VERTEX,
         stride=12,
     ):
+        self.dimIndexNames = dimIndexNames
         Buffer.__init__(
             
             
@@ -503,7 +508,7 @@ class DebugBuffer(Buffer):
             sharingMode=VK_SHARING_MODE_EXCLUSIVE,
             stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
             qualifier="",
-            memtype="float",
+            memtype=memtype,
             rate=VK_VERTEX_INPUT_RATE_VERTEX,
             stride=12,
             compressBuffers=True,

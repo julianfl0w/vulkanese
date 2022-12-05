@@ -28,7 +28,6 @@ class Shader(Sinode):
         self,
         parent,
         device,
-        dim2index,
         constantsDict,
         buffers,
         shaderCode="",
@@ -47,7 +46,6 @@ class Shader(Sinode):
         self.name = name
         self.basename = sourceFilename[:-2] # take out ".c"
         self.stage = stage
-        self.dim2index = dim2index
         self.buffers = buffers
         self.gpuBuffers = Empty()
         
@@ -57,7 +55,7 @@ class Shader(Sinode):
             exec("self.gpuBuffers." + b.name + "= b")
 
             # keep the debug buffers separately
-            if type(b) == "DebugBuffer":
+            if b.DEBUG:
                 self.debugBuffers += [b]
 
         outfilename = self.basename + ".spv"
@@ -159,7 +157,7 @@ class ComputeShader(Shader):
                 BUFFERS_STRING += buffer.getComputeDeclaration()
 
         if self.DEBUG:
-            glslCode = self.addIndicesToOutputs(self.debuggableVars, glslCode)
+            glslCode = self.addIndicesToOutputs(glslCode)
 
         # put structs and buffers into the code
         glslCode = glslCode.replace("BUFFERS_STRING", BUFFERS_STRING).replace(
@@ -206,7 +204,7 @@ class ComputeShader(Shader):
             
             if not b.DEBUG:
                 continue
-            rcvdArray = b.getAsNumpyArray()
+            rcvdArray = b.getAsNumpyArray()[0]
             # convert to list to make it JSON serializable
             outdict[b.name] = rcvdArray.tolist()  # nested lists with same data, indices
         with open(filename, "w+") as f:
@@ -216,22 +214,22 @@ class ComputeShader(Shader):
     # take the template GLSL file
     # and add output indices
     # mostly for debugging
-    def addIndicesToOutputs(self, outvars, shaderGLSL):
+    def addIndicesToOutputs(self, shaderGLSL):
         indexedVarStrings = []
         # if this is debug mode, all vars have already been declared as output buffers
         # intermediate variables must be indexed
-        for var in outvars:
-            indexedVarString = var["name"] + "["
-            for i, d in enumerate(var["dims"]):
-                indexedVarString += self.dim2index[d]
+        for b in self.debugBuffers:
+            indexedVarString = b.name + "["
+            for i, d in enumerate(b.dimIndexNames):
+                indexedVarString += d
                 # since GLSL doesnt allow multidim arrays (kinda, see gl_arb_arrays_of_arrays)
                 # ok i dont understand Vulkan multidim
-                for j, rd in enumerate(var["dims"][i + 1 :]):
-                    indexedVarString += "*" + rd
-                if i < (len(var["dims"]) - 1):
+                for j, rd in enumerate(b.dimensionVals[i + 1 :]):
+                    indexedVarString += "*" + str(rd)
+                if i < (len(b.dimIndexNames) - 1):
                     indexedVarString += "+"
             indexedVarString += "]"
-            indexedVarStrings += [(var["name"], indexedVarString)]
+            indexedVarStrings += [(b.name, indexedVarString)]
 
         outShaderGLSL = ""
         for line in shaderGLSL.split("\n"):
