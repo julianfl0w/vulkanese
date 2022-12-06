@@ -7,6 +7,7 @@ This repository
 * is pure python
 * runs SPIR-V compute shaders efficiently, across all modern GPUs
 * makes compute shader debugging easy
+* easily integrates with Numpy
 
 ## Installation  
 1. python -m pip install git+https://github.com/julianfl0w/vulkanese #Install this repo
