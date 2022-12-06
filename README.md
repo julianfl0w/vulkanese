@@ -2,12 +2,13 @@
 ## It's Vulkan-Ease!  
 
 This repository  
-* imposes a hierarchical structure on Vulkan
-* dramatically simplifies Vulkan usage
-* is pure python
-* runs SPIR-V compute shaders efficiently, across all modern GPUs
-* makes compute shader debugging easy
-* easily integrates with Numpy
+* Imposes a hierarchical structure on Vulkan
+* Dramatically simplifies Vulkan usage
+* Is pure python
+* Runs SPIR-V compute shaders efficiently, across all modern GPUs
+* Makes compute shader debugging easy
+* Easily integrates with Numpy
+* Easily chain up GPU operations
 
 ## Installation  
 1. python -m pip install git+https://github.com/julianfl0w/vulkanese #Install this repo
@@ -118,7 +119,7 @@ def numpyTest(X, Y):
         nstart = time.time()
         nval = np.add(X, Y)
         nlen = time.time() - nstart
-        print("nlen " + str(nlen))
+        print("Time " + str(nlen) + " seconds")
     return nval
 
 
@@ -142,7 +143,7 @@ def floatTest(X, Y, device, expectation):
         vstart = time.time()
         s.run()
         vlen = time.time() - vstart
-        print("vlen " + str(vlen))
+        print("Time " + str(vlen) + " seconds")
     vval = s.gpuBuffers.sumOut.getAsNumpyArray()
     print("--- Testing for accuracy ---")
     print(np.allclose(expectation, vval))
@@ -188,27 +189,27 @@ This prints
 ```
 nvidia geforce rtx 3060
 --- RUNNING NUMPY TEST ---
-nlen 0.008222579956054688
-nlen 0.008760213851928711
-nlen 0.008798837661743164
-nlen 0.008816957473754883
-nlen 0.00856637954711914
-nlen 0.008831024169921875
-nlen 0.008849382400512695
-nlen 0.008779525756835938
-nlen 0.008603811264038086
-nlen 0.008995294570922852
+Time 0.00852656364440918 seconds
+Time 0.009359598159790039 seconds
+Time 0.008919477462768555 seconds
+Time 0.009154319763183594 seconds
+Time 0.008898258209228516 seconds
+Time 0.00908970832824707 seconds
+Time 0.008948564529418945 seconds
+Time 0.009116411209106445 seconds
+Time 0.008869409561157227 seconds
+Time 0.009161949157714844 seconds
 --- RUNNING GPU TEST ---
-vlen 0.0005350112915039062
-vlen 0.0007109642028808594
-vlen 0.0005543231964111328
-vlen 0.0004913806915283203
-vlen 0.0005643367767333984
-vlen 0.0004944801330566406
-vlen 0.0004496574401855469
-vlen 0.00060272216796875
-vlen 0.0004744529724121094
-vlen 0.00045108795166015625
+Time 0.00054168701171875 seconds
+Time 0.0017757415771484375 seconds
+Time 0.0010421276092529297 seconds
+Time 0.0005292892456054688 seconds
+Time 0.0005803108215332031 seconds
+Time 0.00047397613525390625 seconds
+Time 0.0004668235778808594 seconds
+Time 0.0005946159362792969 seconds
+Time 0.0004737377166748047 seconds
+Time 0.0005123615264892578 seconds
 --- Testing for accuracy ---
 True
 ```
