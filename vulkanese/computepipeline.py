@@ -33,9 +33,10 @@ def getVulkanesePath():
 # shader
 # All in one. it is self-contained
 class ComputePipeline(Pipeline):
-    def __init__(self, computeShader, device, constantsDict, workgroupCount=[1, 1, 1]):
+    def __init__(self, computeShader, device, constantsDict, workgroupCount=[1, 1, 1],waitSemaphores=[]):
         Sinode.__init__(self)
         self.device = device
+        self.computeShader = computeShader
         device.children += [self]
 
         #######################################################
@@ -87,19 +88,46 @@ class ComputePipeline(Pipeline):
         # wrap it all up into a command buffer
         self.commandBuffer = ComputeCommandBuffer(self, workgroupCount=workgroupCount)
 
-        # Now we shall finally submit the recorded command buffer to a queue.
-        self.submitInfo = VkSubmitInfo(
-            sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            commandBufferCount=1,  # submit a single command buffer
-            pCommandBuffers=[
-                self.commandBuffer.vkCommandBuffers[0]
-            ],  # the command buffer to submit.
-        )
-
         # We create a fence.
         # So the CPU can know when processing is done
         self.fence = Fence(device=self.device)
+        self.semaphore = Semaphore(device=self.device)
         self.fences = [self.fence]
+        self.semaphores = [self.semaphore]
+        
+        print(self.computeShader.name)
+        print("wait")
+        print(waitSemaphores)
+        print(len(waitSemaphores))
+        print("own")
+        print(self.semaphores)
+        print(len(self.semaphores))
+
+        # Now we shall finally submit the recorded command buffer to a queue.
+        if waitSemaphores == [] or True:
+            self.submitInfo = VkSubmitInfo(
+                sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                commandBufferCount=1,  # submit a single command buffer
+                pCommandBuffers=[
+                    self.commandBuffer.vkCommandBuffers[0]
+                ],  # the command buffer to submit.
+                signalSemaphoreCount = len(self.semaphores),
+                pSignalSemaphores = [s.vkSemaphore for s in self.semaphores]
+            )
+        else:
+            self.submitInfo = VkSubmitInfo(
+                sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                commandBufferCount=1,  # submit a single command buffer
+                pCommandBuffers=[
+                    self.commandBuffer.vkCommandBuffers[0]
+                ],  # the command buffer to submit.
+                waitSemaphoreCount = int(len(waitSemaphores)),
+                pWaitSemaphores = [s.vkSemaphore for s in waitSemaphores],
+                signalSemaphoreCount = len(self.semaphores),
+                pSignalSemaphores = [s.vkSemaphore for s in self.semaphores]
+            )
+            
+
 
     # this help if you run the main loop in C/C++
     # just use the Vulkan addresses!
@@ -133,6 +161,9 @@ class ComputePipeline(Pipeline):
     def release(self):
         for fence in self.fences:
             fence.release()
+            
+        for semaphore in self.semaphores:
+            semaphore.release()
 
         self.device.instance.debug("destroying pipeline")
         Pipeline.release(self)

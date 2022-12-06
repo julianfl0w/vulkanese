@@ -37,6 +37,7 @@ class Shader(Sinode):
         DEBUG=False,
         workgroupCount=[1, 1, 1],
         compressBuffers=True,
+        waitSemaphores=[]
     ):
         self.constantsDict = constantsDict
         self.DEBUG = DEBUG
@@ -109,12 +110,13 @@ class Shader(Sinode):
                 device=self.device,
                 constantsDict=self.constantsDict,
                 workgroupCount=workgroupCount,
+                waitSemaphores=waitSemaphores
             )
             self.computePipeline.children += [self]
 
         # first run is always slow
         # run once in init so people dont judge the first run
-        self.run()
+        # self.run()
 
     def release(self):
         self.device.instance.debug("destroying Stage")
