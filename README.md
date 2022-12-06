@@ -8,23 +8,184 @@ This repository
 * runs SPIR-V compute shaders efficiently, across all modern GPUs
 * makes compute shader debugging easy
 
-python helloTriangle.py   
-![163123559-2410ed19-96be-495f-a172-f0221c8d9167](https://user-images.githubusercontent.com/8158655/163700475-7c18ba31-1e61-48d5-986c-08da9fec427d.png)
-  
+## Installation  
+1. python -m pip install git+https://github.com/julianfl0w/vulkanese #Install this repo
+
 ## The Hierarchy  
 ![vulkanese](https://user-images.githubusercontent.com/8158655/153063082-69028462-39de-4640-93ca-a3055b57a9ce.png)
 
-## Installation  
-1. python -m pip install git+https://github.com/julianfl0w/vulkan #Install the latest Vulkan Python wrapper
-2. python -m pip install git+https://github.com/julianfl0w/vulkanese #Install this repo
+## GPGPU Example: Simple Addition
 
-## GPGPU Example  
+This code shows that GPU buffer addition runs about 20x faster in GPU (Nvidia 3060) than in Numpy. However, this figure does not include buffer transfer times. So it's great if you can do all processing in GPU, or can feed the input buffer piecewise (like in the second example). 
+
+```python
+import os
+import sys
+import time
+import numpy as np
+
+arith_home = os.path.dirname(os.path.abspath(__file__))
+
+# if vulkanese isn't installed, check for a development version parallel to this repo ;)
+import pkg_resources
+if "vulkanese" not in [pkg.key for pkg in pkg_resources.working_set]:
+    sys.path = [os.path.join(arith_home, "..", "vulkanese", "vulkanese")] + sys.path
+from vulkanese import *
+
+class ARITH(ComputeShader):
+    def __init__(
+        self,
+        constantsDict,
+        device,
+        X,
+        Y,
+        DEBUG=False,
+        buffType="float64_t",
+        shader_basename="shaders/arith",
+        memProperties=(
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+            | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+            | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        ),
+    ):
+
+        constantsDict["PROCTYPE"] = buffType
+        constantsDict["YLEN"] = np.prod(np.shape(Y))
+        constantsDict["LG_WG_SIZE"] = 7  # corresponding to 128 threads, a good number
+        constantsDict["THREADS_PER_WORKGROUP"] = 1 << constantsDict["LG_WG_SIZE"]
+
+        # device selection and instantiation
+        self.instance = device.instance
+        self.device = device
+        self.constantsDict = constantsDict
+
+        buffers = [
+            StorageBuffer(
+                device=self.device,
+                name="x",
+                memtype=buffType,
+                qualifier="readonly",
+                dimensionVals=np.shape(X),
+                memProperties=memProperties,
+            ),
+            StorageBuffer(
+                device=self.device,
+                name="y",
+                memtype=buffType,
+                qualifier="readonly",
+                dimensionVals=np.shape(Y),
+                memProperties=memProperties,
+            ),
+            StorageBuffer(
+                device=self.device,
+                name="sumOut",
+                memtype=buffType,
+                qualifier="writeonly",
+                dimensionVals=np.shape(X),
+                memProperties=memProperties,
+            ),
+        ]
+
+        # Compute Stage: the only stage
+        ComputeShader.__init__(
+            self,
+            sourceFilename=os.path.join(
+                arith_home, shader_basename + ".c"
+            ),  # can be GLSL or SPIRV
+            parent=self.instance,
+            constantsDict=self.constantsDict,
+            device=self.device,
+            name=shader_basename,
+            stage=VK_SHADER_STAGE_COMPUTE_BIT,
+            buffers=buffers,
+            DEBUG=DEBUG,
+            workgroupCount=[
+                int(np.prod(np.shape(X)) / (constantsDict["THREADS_PER_WORKGROUP"])),
+                1,
+                1,
+            ],
+        )
+
+
+def numpyTest(X, Y):
+
+    # get numpy time, for comparison
+    print("--- RUNNING NUMPY TEST ---")
+    for i in range(10):
+        nstart = time.time()
+        nval = np.add(X, Y)
+        nlen = time.time() - nstart
+        print("nlen " + str(nlen))
+    return nval
+
+
+def floatTest(X, Y, device, expectation):
+
+    print("--- RUNNING FLOAT TEST ---")
+    s = ARITH(
+        {"OPERATION": "+"},
+        device=device,
+        X=X.astype(np.float32),
+        Y=Y.astype(np.float32),
+        buffType="float",
+        memProperties=0 | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+        # | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+    )
+    
+    s.gpuBuffers.x.set(X)
+    s.gpuBuffers.y.set(Y)
+    for i in range(10):
+        vstart = time.time()
+        s.run()
+        vlen = time.time() - vstart
+        print("vlen " + str(vlen))
+    vval = s.gpuBuffers.sumOut.getAsNumpyArray()
+    print(np.allclose(expectation, vval))
+    s.release()
+
+
+if __name__ == "__main__":
+
+    signalLen = 2 ** 23
+    X = np.random.random((signalLen))
+    Y = np.random.random((signalLen))
+
+    # begin GPU test
+    instance = Instance(verbose=False)
+    device = instance.getDevice(0)
+    nval = numpyTest(X, Y)
+    floatTest(X, Y, device, expectation=nval)
+    
+    instance.release()
+```
+
+And the associated GLSL code:
+
+```c
+#version 450
+#extension GL_EXT_shader_explicit_arithmetic_types_float64 : require
+#extension GL_ARB_separate_shader_objects : enable
+DEFINE_STRING// This will be (or has been) replaced by constant definitions
+    
+BUFFERS_STRING// This will be (or has been) replaced by buffer definitions
+    
+layout (local_size_x = THREADS_PER_WORKGROUP, local_size_y = 1, local_size_z = 1 ) in;
+
+void main() {
+    uint workgroup_ix = gl_GlobalInvocationID.x;
+    sumOut[workgroup_ix] = x[workgroup_ix] OPERATION y[workgroup_ix%YLEN];
+}
+```
+
+## Another GPGPU Example: Pitch Detection 
 I've implemented a world class pitch detector in GPU, based on the Loiacono Transform. That work can be found in the following repositories:
 https://github.com/julianfl0w/loiacono
 https://github.com/julianfl0w/gpuPitchDetect
 
 Here is a snapshot of that code, which shows how to use Vulkanese to manage compute shaders:
 
+### loiacono_gpu.py
 ```python
 import os
 import sys
@@ -244,6 +405,9 @@ We have sucessfully detected the 440Hz signal in this simple example:
 ![image](https://user-images.githubusercontent.com/8158655/205408263-2ab2236b-1b76-4f7d-9f6c-e4813ccb12d7.png)
 
 For completeness, here is the associated GLSL template
+
+### loiacono.c
+
 ```c
 // From https://github.com/linebender/piet-gpu/blob/prefix/piet-gpu-hal/examples/shader/prefix.comp
 // See https://research.nvidia.com/sites/default/files/pubs/2016-03_Single-pass-Parallel-Prefix/nvr-2016-002.pdf
@@ -336,4 +500,8 @@ void main(){
     }
 }
 ```
+  
+## NOTE: Graphics Pipeline is currently Broken
+python helloTriangle.py   
+![163123559-2410ed19-96be-495f-a172-f0221c8d9167](https://user-images.githubusercontent.com/8158655/163700475-7c18ba31-1e61-48d5-986c-08da9fec427d.png)
   
