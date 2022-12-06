@@ -93,7 +93,7 @@ class Buffer(Sinode):
         qualifier="",
         memtype="float",
         rate=VK_VERTEX_INPUT_RATE_VERTEX,
-        stride=12,
+        stride=4,
         compressBuffers=True,
     ):
         self.DEBUG = DEBUG
@@ -286,7 +286,7 @@ class Buffer(Sinode):
     def oneInitialize(self):
         self.set(np.ones((self.itemCount), dtype=self.pythonType))
 
-    def getAsNumpyArray(self, asComplex=False):
+    def getAsNumpyArray(self, asComplex=False, flat=False, order="C"):
         # glsl to python
         flatArray = np.frombuffer(self.pmap, self.pythonType)
         # because GLSL only allows 16-byte access,
@@ -308,9 +308,16 @@ class Buffer(Sinode):
             )
 
         else:
-            rcvdArray = list(flatArray.astype(float))[:: self.skipval]
-            # finally, reshape according to the expected dims
-            rcvdArray = np.array(rcvdArray).reshape(self.dimensionVals)
+            if self.compressBuffers:
+                if flat:
+                    rcvdArray = flatArray
+                else:
+                    rcvdArray = flatArray.reshape(self.dimensionVals, order=order)
+                    
+            else:
+                rcvdArray = list(flatArray.astype(float))[:: self.skipval]
+                # finally, reshape according to the expected dims
+                rcvdArray = np.array(rcvdArray).reshape(self.dimensionVals)
         return rcvdArray
 
     def saveAsImage(self, height, width, path="mandelbrot.png"):
@@ -526,7 +533,8 @@ class StorageBuffer(Buffer):
         qualifier = "",
         memProperties=0
             | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-            | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+            | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         memtype="float",
         rate=VK_VERTEX_INPUT_RATE_VERTEX,
         stride=12,
@@ -549,7 +557,7 @@ class StorageBuffer(Buffer):
             qualifier=qualifier,
             memtype=memtype,
             rate=VK_VERTEX_INPUT_RATE_VERTEX,
-            stride=12,
+            stride=4,
             compressBuffers=True,
         )
         
