@@ -188,8 +188,11 @@ class ComputeShader(Shader):
             spirv = f.read()
         return spirv
 
-    def run(self):
-        self.computePipeline.run()
+    def run(self, blocking=True):
+        self.computePipeline.run(blocking = blocking)
+        
+    def wait(self):
+        self.computePipeline.wait()
 
     def getVertexBuffers(self):
         allVertexBuffers = []

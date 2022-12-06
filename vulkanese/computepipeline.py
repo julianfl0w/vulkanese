@@ -113,7 +113,7 @@ class ComputePipeline(Pipeline):
         return addrDict
 
     # the main loop
-    def run(self):
+    def run(self, blocking=True):
 
         # We submit the command buffer on the queue, at the same time giving a fence.
         vkQueueSubmit(
@@ -122,9 +122,14 @@ class ComputePipeline(Pipeline):
             pSubmits=self.submitInfo,
             fence=self.fence.vkFence,
         )
+        
+        if blocking:
+            self.wait()
+        
+    def wait(self):
         for fence in self.fences:
             fence.wait()
-
+        
     def release(self):
         for fence in self.fences:
             fence.release()
