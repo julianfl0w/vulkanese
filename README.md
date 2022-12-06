@@ -29,9 +29,11 @@ arith_home = os.path.dirname(os.path.abspath(__file__))
 
 # if vulkanese isn't installed, check for a development version parallel to this repo ;)
 import pkg_resources
+
 if "vulkanese" not in [pkg.key for pkg in pkg_resources.working_set]:
     sys.path = [os.path.join(arith_home, "..", "vulkanese", "vulkanese")] + sys.path
 from vulkanese import *
+
 
 class ARITH(ComputeShader):
     def __init__(
@@ -122,7 +124,7 @@ def numpyTest(X, Y):
 
 def floatTest(X, Y, device, expectation):
 
-    print("--- RUNNING FLOAT TEST ---")
+    print("--- RUNNING GPU TEST ---")
     s = ARITH(
         {"OPERATION": "+"},
         device=device,
@@ -142,6 +144,7 @@ def floatTest(X, Y, device, expectation):
         vlen = time.time() - vstart
         print("vlen " + str(vlen))
     vval = s.gpuBuffers.sumOut.getAsNumpyArray()
+    print("--- Testing for accuracy ---")
     print(np.allclose(expectation, vval))
     s.release()
 
@@ -159,6 +162,7 @@ if __name__ == "__main__":
     floatTest(X, Y, device, expectation=nval)
     
     instance.release()
+
 ```
 
 And the associated GLSL code:
@@ -177,6 +181,36 @@ void main() {
     uint workgroup_ix = gl_GlobalInvocationID.x;
     sumOut[workgroup_ix] = x[workgroup_ix] OPERATION y[workgroup_ix%YLEN];
 }
+```
+
+This prints
+
+```
+nvidia geforce rtx 3060
+--- RUNNING NUMPY TEST ---
+nlen 0.008146524429321289
+nlen 0.009050846099853516
+nlen 0.008507013320922852
+nlen 0.00867915153503418
+nlen 0.008737564086914062
+nlen 0.008703470230102539
+nlen 0.008655309677124023
+nlen 0.008622407913208008
+nlen 0.009022235870361328
+nlen 0.008651971817016602
+--- RUNNING GPU TEST ---
+vlen 0.001384735107421875
+vlen 0.00066375732421875
+vlen 0.0004534721374511719
+vlen 0.0006022453308105469
+vlen 0.00047516822814941406
+vlen 0.00045037269592285156
+vlen 0.0006031990051269531
+vlen 0.0004756450653076172
+vlen 0.00044918060302734375
+vlen 0.0017361640930175781
+--- Testing for accuracy ---
+True
 ```
 
 ## Another GPGPU Example: Pitch Detection 
