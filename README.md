@@ -2,12 +2,13 @@
 ## It's Vulkan-Ease!  
 
 This repository  
-* imposes a hierarchical structure on Vulkan
-* dramatically simplifies Vulkan usage
-* is pure python
-* runs SPIR-V compute shaders efficiently, across all modern GPUs
-* makes compute shader debugging easy
-* easily integrates with Numpy
+* Imposes a hierarchical structure on Vulkan
+* Dramatically simplifies Vulkan usage
+* Is pure python
+* Runs SPIR-V compute shaders efficiently, across all modern GPUs
+* Makes compute shader debugging easy
+* Easily integrates with Numpy
+* Easily chain up GPU operations
 
 ## Installation  
 1. python -m pip install git+https://github.com/julianfl0w/vulkanese #Install this repo
@@ -29,9 +30,11 @@ arith_home = os.path.dirname(os.path.abspath(__file__))
 
 # if vulkanese isn't installed, check for a development version parallel to this repo ;)
 import pkg_resources
+
 if "vulkanese" not in [pkg.key for pkg in pkg_resources.working_set]:
     sys.path = [os.path.join(arith_home, "..", "vulkanese", "vulkanese")] + sys.path
 from vulkanese import *
+
 
 class ARITH(ComputeShader):
     def __init__(
@@ -116,18 +119,18 @@ def numpyTest(X, Y):
         nstart = time.time()
         nval = np.add(X, Y)
         nlen = time.time() - nstart
-        print("nlen " + str(nlen))
+        print("Time " + str(nlen) + " seconds")
     return nval
 
 
 def floatTest(X, Y, device, expectation):
 
-    print("--- RUNNING FLOAT TEST ---")
+    print("--- RUNNING GPU TEST ---")
     s = ARITH(
         {"OPERATION": "+"},
         device=device,
-        X=X.astype(np.float32),
-        Y=Y.astype(np.float32),
+        X=X,
+        Y=Y,
         buffType="float",
         memProperties=0 | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
         # | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
@@ -140,8 +143,9 @@ def floatTest(X, Y, device, expectation):
         vstart = time.time()
         s.run()
         vlen = time.time() - vstart
-        print("vlen " + str(vlen))
+        print("Time " + str(vlen) + " seconds")
     vval = s.gpuBuffers.sumOut.getAsNumpyArray()
+    print("--- Testing for accuracy ---")
     print(np.allclose(expectation, vval))
     s.release()
 
@@ -159,6 +163,7 @@ if __name__ == "__main__":
     floatTest(X, Y, device, expectation=nval)
     
     instance.release()
+
 ```
 
 And the associated GLSL code:
@@ -177,6 +182,36 @@ void main() {
     uint workgroup_ix = gl_GlobalInvocationID.x;
     sumOut[workgroup_ix] = x[workgroup_ix] OPERATION y[workgroup_ix%YLEN];
 }
+```
+
+This prints
+
+```
+nvidia geforce rtx 3060
+--- RUNNING NUMPY TEST ---
+Time 0.00852656364440918 seconds
+Time 0.009359598159790039 seconds
+Time 0.008919477462768555 seconds
+Time 0.009154319763183594 seconds
+Time 0.008898258209228516 seconds
+Time 0.00908970832824707 seconds
+Time 0.008948564529418945 seconds
+Time 0.009116411209106445 seconds
+Time 0.008869409561157227 seconds
+Time 0.009161949157714844 seconds
+--- RUNNING GPU TEST ---
+Time 0.00054168701171875 seconds
+Time 0.0017757415771484375 seconds
+Time 0.0010421276092529297 seconds
+Time 0.0005292892456054688 seconds
+Time 0.0005803108215332031 seconds
+Time 0.00047397613525390625 seconds
+Time 0.0004668235778808594 seconds
+Time 0.0005946159362792969 seconds
+Time 0.0004737377166748047 seconds
+Time 0.0005123615264892578 seconds
+--- Testing for accuracy ---
+True
 ```
 
 ## Another GPGPU Example: Pitch Detection 
