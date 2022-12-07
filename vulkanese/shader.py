@@ -5,23 +5,26 @@ import re
 import vulkan as vk
 
 import pkg_resources
-#if "vulkanese" not in [pkg.key for pkg in pkg_resources.working_set]:
+
+# if "vulkanese" not in [pkg.key for pkg in pkg_resources.working_set]:
 #    from buffer import *
 #    from computepipeline import *
 #    DEV = True
-#else:
+# else:
 from . import buffer
 from . import compute_pipeline
+
 DEV = False
 
 from pathlib import Path
+
 here = os.path.dirname(os.path.abspath(__file__))
 
 
 class Empty:
     def __init__(self):
         pass
-    
+
 
 class Shader(Sinode):
     def __init__(
@@ -37,7 +40,7 @@ class Shader(Sinode):
         DEBUG=False,
         workgroupCount=[1, 1, 1],
         compressBuffers=True,
-        waitSemaphores=[]
+        waitSemaphores=[],
     ):
         self.constantsDict = constantsDict
         self.DEBUG = DEBUG
@@ -45,11 +48,11 @@ class Shader(Sinode):
         self.vkDevice = device.vkDevice
         self.device = device
         self.name = name
-        self.basename = sourceFilename[:-2] # take out ".c"
+        self.basename = sourceFilename[:-2]  # take out ".c"
         self.stage = stage
         self.buffers = buffers
         self.gpuBuffers = Empty()
-        
+
         self.debugBuffers = []
         for b in buffers:
             # make the buffer accessable as a local attribute
@@ -110,7 +113,7 @@ class Shader(Sinode):
                 device=self.device,
                 constantsDict=self.constantsDict,
                 workgroupCount=workgroupCount,
-                waitSemaphores=waitSemaphores
+                waitSemaphores=waitSemaphores,
             )
             self.computePipeline.children += [self]
 
@@ -125,7 +128,6 @@ class Shader(Sinode):
 
 
 class ComputeShader(Shader):
-
     def compile(self, glslCode):
 
         # PREPROCESS THE SHADER CODE
@@ -136,10 +138,7 @@ class ComputeShader(Shader):
         for b in self.buffers:
             # THIS IS STUPID AND WRONG
             # FUCK
-            if (
-                self.stage == vk.VK_SHADER_STAGE_FRAGMENT_BIT
-                and b.name == "fragColor"
-            ):
+            if self.stage == vk.VK_SHADER_STAGE_FRAGMENT_BIT and b.name == "fragColor":
                 b.qualifier = "in"
             if self.stage != vk.VK_SHADER_STAGE_COMPUTE_BIT:
                 BUFFERS_STRING += b.getDeclaration()
@@ -177,8 +176,8 @@ class ComputeShader(Shader):
         return spirv
 
     def run(self, blocking=True):
-        self.computePipeline.run(blocking = blocking)
-        
+        self.computePipeline.run(blocking=blocking)
+
     def wait(self):
         self.computePipeline.wait()
 
@@ -192,7 +191,7 @@ class ComputeShader(Shader):
     def dumpMemory(self, filename="debug.json"):
         outdict = {}
         for b in self.buffers:
-            
+
             if not b.DEBUG:
                 continue
             rcvdArray = b.getAsNumpyArray()[0]

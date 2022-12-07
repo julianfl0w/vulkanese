@@ -6,7 +6,9 @@ import pkg_resources
 here = os.path.dirname(os.path.abspath(__file__))
 
 if "vulkanese" not in [pkg.key for pkg in pkg_resources.working_set]:
-    sys.path = [os.path.join(here, "..", "..", "..", "vulkanese", "vulkanese")] + sys.path
+    sys.path = [
+        os.path.join(here, "..", "..", "..", "vulkanese", "vulkanese")
+    ] + sys.path
 
 from vulkanese import *
 

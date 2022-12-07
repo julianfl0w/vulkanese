@@ -74,10 +74,10 @@ class Device(Sinode):
 
         self.propertiesDict = self.getLimits()
 
-        #subgroupProperties = VkPhysicalDeviceSubgroupProperties()
-        #self.pProperties2 = vkGetPhysicalDeviceProperties2(self.physical_device, pNext = [subgroupProperties])
-        #self.instance.debug("pProperties2")
-        #self.instance.debug(self.pProperties2)
+        # subgroupProperties = VkPhysicalDeviceSubgroupProperties()
+        # self.pProperties2 = vkGetPhysicalDeviceProperties2(self.physical_device, pNext = [subgroupProperties])
+        # self.instance.debug("pProperties2")
+        # self.instance.debug(self.pProperties2)
 
         self.instance.debug("Select queue family")
         # ----------
@@ -209,11 +209,10 @@ class Device(Sinode):
         else:
             print("    SUBGROUP SIZE UNKNOWN. DEFAULTING TO 32")
             self.subgroupSize = 32
-            
+
         self.descriptorPool = DescriptorPool(self)
         self.children += [self.descriptorPool]
 
-        
     def getMemoryProperties(self):
         self.instance.debug("getting memory properties")
         memoryProperties = vkGetPhysicalDeviceMemoryProperties(self.physical_device)

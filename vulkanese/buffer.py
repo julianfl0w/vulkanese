@@ -71,7 +71,6 @@ def glsltype2bytesize(glsltype):
 
 
 class Buffer(Sinode):
-
     def __init__(
         self,
         device,
@@ -79,7 +78,7 @@ class Buffer(Sinode):
         location,
         descriptorSet,
         dimensionVals,
-        DEBUG = False,
+        DEBUG=False,
         format=VK_FORMAT_R64_SFLOAT,
         readFromCPU=True,
         usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
@@ -313,7 +312,7 @@ class Buffer(Sinode):
                     rcvdArray = flatArray
                 else:
                     rcvdArray = flatArray.reshape(self.dimensionVals, order=order)
-                    
+
             else:
                 rcvdArray = list(flatArray.astype(float))[:: self.skipval]
                 die
@@ -385,7 +384,7 @@ class Buffer(Sinode):
                 std = "std430"
             else:
                 std = "std140"
-                
+
         return (
             "layout("
             + std
@@ -434,7 +433,7 @@ class Buffer(Sinode):
 
     def setByIndexStart(self, startIndex, data):
         if self.skipval != 1:
-            raise("You can only do this with new-format storage buffers!")
+            raise ("You can only do this with new-format storage buffers!")
         # self.device.instance.debug(self.name + " setting " + str(index) + " to " + str(data))
         startByte = startIndex * self.itemSize * self.skipval
         endByte = startIndex * self.itemSize * self.skipval + self.itemSize * len(data)
@@ -483,8 +482,8 @@ class Buffer(Sinode):
             size += 1
         return int(size)
 
+
 class DebugBuffer(Buffer):
-    
     def __init__(
         self,
         device,
@@ -500,8 +499,6 @@ class DebugBuffer(Buffer):
     ):
         self.dimIndexNames = dimIndexNames
         Buffer.__init__(
-            
-            
             self,
             DEBUG=True,
             device=device,
@@ -523,27 +520,25 @@ class DebugBuffer(Buffer):
             stride=12,
             compressBuffers=True,
         )
-        
+
 
 class StorageBuffer(Buffer):
-    
     def __init__(
         self,
         device,
         name,
         dimensionVals,
         DEBUG=False,
-        qualifier = "",
+        qualifier="",
         memProperties=0
-            | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-            | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-            | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+        | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         memtype="float",
         rate=VK_VERTEX_INPUT_RATE_VERTEX,
         stride=12,
     ):
         Buffer.__init__(
-            
             self,
             DEBUG=False,
             device=device,
@@ -563,25 +558,24 @@ class StorageBuffer(Buffer):
             stride=4,
             compressBuffers=True,
         )
-        
+
+
 class UniformBuffer(Buffer):
-    
     def __init__(
         self,
         device,
         name,
         dimensionVals,
         DEBUG=False,
-        qualifier = "",
+        qualifier="",
         memProperties=0
-            | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-            | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+        | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
         memtype="float",
         rate=VK_VERTEX_INPUT_RATE_VERTEX,
         stride=12,
     ):
         Buffer.__init__(
-            
             self,
             DEBUG=False,
             device=device,
@@ -601,6 +595,8 @@ class UniformBuffer(Buffer):
             stride=12,
             compressBuffers=False,
         )
+
+
 class AccelerationStructure(Buffer):
     def __init__(self, setupDict, shader):
         Descriptorset.__init__(self, shader)

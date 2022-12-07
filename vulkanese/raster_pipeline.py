@@ -2,21 +2,14 @@ import ctypes
 import os
 import time
 import json
-from vulkan import *
+import vulkan as vk
 
 from . import vulkanese
 from . import pipeline
 from . import buffer
 from . import shader
-    
+
 from sinode import *
-from PIL import Image as pilImage
-
-here = os.path.dirname(os.path.abspath(__file__))
-
-
-def getVulkanesePath():
-    return here
 
 
 class RasterPipeline(pipeline.Pipeline):
@@ -27,6 +20,8 @@ class RasterPipeline(pipeline.Pipeline):
         outputClass="surface",
         outputWidthPixels=700,
         outputHeightPixels=700,
+        culling=vk.VK_CULL_MODE_BACK_BIT,
+        oversample=vk.VK_SAMPLE_COUNT_1_BIT,
     ):
         self.outputClass = outputClass
         self.DEBUG = False
@@ -35,198 +30,6 @@ class RasterPipeline(pipeline.Pipeline):
 
         self.outputWidthPixels = outputWidthPixels
         self.outputHeightPixels = outputHeightPixels
-
-    def createVertexBuffers(self):
-
-        # if we're debugging, all intermediate variables become output buffers
-        allBufferDescriptions = (
-            self.vertexShaderInputBuffers
-            + self.vertexShaderInputBuffersNoDebug
-            + self.vertexShaderOutputBuffers
-        )
-
-        # if debugging, we make the internal variables into CPU-readable buffers
-        if self.DEBUG:
-            allBufferDescriptions += self.vertexShaderDebuggableVars
-
-        self.vertexBuffers = []
-        location = 0
-        for bd in allBufferDescriptions:
-            if bd in self.vertexShaderOutputBuffers:
-                qualifier = "out"
-            else:
-                qualifier = "in"
-            newBuff = Buffer(
-                device=self.device,
-                dimensionNames=bd["dims"],
-                dimensionVals=[self.constantsDict[d] for d in bd["dims"]],
-                name=bd["name"],
-                descriptorSet=self.device.descriptorPool.descSetGlobal,
-                location=location,
-                qualifier=qualifier,
-            )
-            location += newBuff.getSize()
-            self.vertexBuffers += [newBuff]
-
-        # in the vertex stage, we also need to create an index buffer
-
-        # add index buffer at end
-        # (was in middle before)
-        # actually this should probably belong to the pipeline
-        self.indexBuffer = Buffer(
-            name="index",
-            readFromCPU=True,
-            dimensionNames=["TRIANGLE_COUNT", "VERTS_PER_TRIANGLE"],
-            dimensionVals=[
-                self.constantsDict["TRIANGLE_COUNT"],
-                self.constantsDict["VERTS_PER_TRIANGLE"],
-            ],
-            location=location,
-            descriptorSet=self.device.descriptorPool.descSetGlobal,
-            device=self.device,
-            memtype="uint",
-            usage=VK_BUFFER_USAGE_TRANSFER_DST_BIT
-            | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
-            | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-            format=VK_FORMAT_R32_UINT,
-            stride=4,
-        )
-
-    def createFragmentBuffers(self):
-
-        # if we're debugging, all intermediate variables become output buffers
-        allBufferDescriptions = (
-            self.fragmentShaderInputBuffers + self.fragmentShaderOutputBuffers
-        )
-
-        # if debugging, we make the internal variables into CPU-readable buffers
-        if self.DEBUG:
-            allBufferDescriptions += self.fragmentShaderDebuggableVars
-
-        self.fragmentBuffers = []
-        location = 0
-        for bd in allBufferDescriptions:
-            if bd in self.fragmentShaderOutputBuffers:
-                qualifier = "out"
-            else:
-                qualifier = "in"
-
-            newBuff = Buffer(
-                device=self.device,
-                dimensionNames=bd["dims"],
-                dimensionVals=[self.constantsDict[d] for d in bd["dims"]],
-                name=bd["name"],
-                descriptorSet=self.device.descriptorPool.descSetGlobal,
-                location=location,
-                qualifier=qualifier,
-                memtype=bd["type"],
-            )
-            location += newBuff.getSize()
-            self.fragmentBuffers += [newBuff]
-
-    def createStandardBuffers(self):
-
-        # Input buffers to the shader
-        # These are Uniform Buffers normally,
-        # Storage Buffers in DEBUG Mode
-        # PIPELINE WILL CREATE ITS OWN INDEX BUFFER
-        self.vertexShaderInputBuffers = [
-            {
-                "name": "position",
-                "type": "vec3",
-                "dims": ["VERTEX_COUNT", "SPATIAL_DIMENSIONS"],
-            },
-            {
-                "name": "normal",
-                "type": "vec3",
-                "dims": ["VERTEX_COUNT", "SPATIAL_DIMENSIONS"],
-            },
-            {
-                "name": "color",
-                "type": "vec3",
-                "dims": ["VERTEX_COUNT", "COLOR_DIMENSIONS"],
-            },
-        ]
-
-        # any input buffers you want to exclude from debug
-        # for example, a sine lookup table
-        self.vertexShaderInputBuffersNoDebug = []
-
-        # variables that are usually intermediate variables in the shader
-        # but in DEBUG mode they are made visible to the CPU (as Storage Buffers)
-        # so that you can view shader intermediate values :)
-        self.vertexShaderDebuggableVars = []
-
-        # the output of the compute shader,
-        # which in our case is always a Storage Buffer
-        self.vertexShaderOutputBuffers = [
-            {
-                "name": "fragColor",
-                "type": "vec3",
-                "dims": ["VERTEX_COUNT", "COLOR_DIMENSIONS"],
-            }
-        ]
-
-        # location = 0
-        # outColor = Buffer(
-        #    device=device,
-        #    name="outColor",
-        #    qualifier="out",
-        #    binding=5,
-        #    type="vec4",
-        #    descriptorSet=device.descriptorPool.descSetGlobal,
-        #    usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        #    sharingMode=VK_SHARING_MODE_EXCLUSIVE,
-        #    SIZEBYTES=65536,
-        #    format=VK_FORMAT_R32G32B32_SFLOAT,
-        #    memProperties=VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        #    | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-        #    location=location,
-        # )
-
-        self.fragmentShaderInputBuffers = []
-        self.fragmentShaderDebuggableVars = []
-        self.fragmentShaderOutputBuffers = [
-            {"name": "outColor", "type": "vec4", "dims": ["VERTEX_COUNT"]}
-        ]
-
-        self.createVertexBuffers()
-        self.createFragmentBuffers()
-
-    def createStages(self):
-
-        # Stage
-        self.vertexStage = VertexStage(
-            device=self.device,
-            parent=self,
-            constantsDict=self.constantsDict,
-            buffers=self.vertexBuffers,
-            name="passthrough.vert",
-        )
-        #######################################################
-        # fragment stage
-        # buffers,
-        # location += fragColor.getSize()
-        # outColor.location = 0
-        # fragColor.location= 1
-        # fragColor.qualifier = "in"
-        # Stage
-        # idk, pipe one to the next
-        sharedBuffer = self.vertexStage.getBufferByName("fragColor")
-        self.fragmentBuffers += [sharedBuffer]
-        self.fragmentStage = FragmentStage(
-            device=self.device,
-            parent=self,
-            buffers=self.fragmentBuffers,
-            constantsDict=self.constantsDict,
-            name="passthrough.frag",
-        )
-
-        self.stages = [self.vertexStage, self.fragmentStage]
-
-    def createGraphicPipeline(
-        self, culling=VK_CULL_MODE_BACK_BIT, oversample=VK_SAMPLE_COUNT_1_BIT
-    ):
 
         # Create semaphores
         self.semaphore_image_available = Semaphore(device=self.device)
@@ -253,7 +56,6 @@ class RasterPipeline(pipeline.Pipeline):
             self.instance.vkInstance, "vkQueuePresentKHR"
         )
 
-        
         # compile all the stages
         [s.compile() for s in self.stages]
 
@@ -416,3 +218,13 @@ class RasterPipeline(pipeline.Pipeline):
 
         # wrap it all up into a command buffer
         self.commandBuffer = RasterCommandBuffer(self)
+
+    def draw_frame(self):
+        image_index = self.vkAcquireNextImageKHR(
+            self.vkDevice,
+            self.surface.swapchain,
+            UINT64_MAX,
+            self.semaphore_image_available.vkSemaphore,
+            None,
+        )
+        self.commandBuffer.draw_frame(image_index)

@@ -9,7 +9,7 @@ from . import buffer
 from . import command_buffer
 from . import pipeline
 from . import synchronization
-    
+
 from PIL import Image as pilImage
 import re
 
@@ -27,27 +27,30 @@ def getVulkanesePath():
 # shader
 # All in one. it is self-contained
 class ComputePipeline(pipeline.Pipeline):
-    def __init__(self, computeShader, device, constantsDict, workgroupCount=[1, 1, 1],waitSemaphores=[]):
+    def __init__(
+        self,
+        computeShader,
+        device,
+        constantsDict,
+        workgroupCount=[1, 1, 1],
+        waitSemaphores=[],
+    ):
         sinode.Sinode.__init__(self)
-        self.waitSemaphores = waitSemaphores
-        self.waitStages = []
-        
+
         self.device = device
         self.computeShader = computeShader
         device.children += [self]
-        
-        # We create a fence.
-        # So the CPU can know when processing is done
-        self.fence = synchronization.Fence(device=self.device)
-        self.semaphore = synchronization.Semaphore(device=self.device)
-        self.fences = [self.fence]
-        self.signalSemaphores = [self.semaphore]
-        
 
         #######################################################
         # Pipeline
         device.descriptorPool.finalize()
-        pipeline.Pipeline.__init__(self, device, stages=[computeShader], outputClass="image")
+        pipeline.Pipeline.__init__(
+            self,
+            device,
+            stages=[computeShader],
+            outputClass="image",
+            waitSemaphores=waitSemaphores,
+        )
 
         self.descriptorSet = device.descriptorPool.descSetGlobal
 
@@ -91,9 +94,10 @@ class ComputePipeline(pipeline.Pipeline):
 
         # self.children += [pipelines]
         # wrap it all up into a command buffer
-        self.commandBuffer = command_buffer.ComputeCommandBuffer(self, workgroupCount=workgroupCount)
+        self.commandBuffer = command_buffer.ComputeCommandBuffer(
+            self, workgroupCount=workgroupCount
+        )
 
-        
         # Now we shall finally submit the recorded command buffer to a queue.
         if waitSemaphores == [] or True:
             self.submitInfo = VkSubmitInfo(
@@ -102,8 +106,8 @@ class ComputePipeline(pipeline.Pipeline):
                 pCommandBuffers=[
                     self.commandBuffer.vkCommandBuffers[0]
                 ],  # the command buffer to submit.
-                signalSemaphoreCount = len(self.signalSemaphores),
-                pSignalSemaphores = [s.vkSemaphore for s in self.signalSemaphores]
+                signalSemaphoreCount=len(self.signalSemaphores),
+                pSignalSemaphores=[s.vkSemaphore for s in self.signalSemaphores],
             )
         else:
             self.submitInfo = VkSubmitInfo(
@@ -112,13 +116,11 @@ class ComputePipeline(pipeline.Pipeline):
                 pCommandBuffers=[
                     self.commandBuffer.vkCommandBuffers[0]
                 ],  # the command buffer to submit.
-                waitSemaphoreCount = int(len(waitSemaphores)),
-                pWaitSemaphores = [s.vkSemaphore for s in waitSemaphores],
-                signalSemaphoreCount = len(self.signalSemaphores),
-                pSignalSemaphores = [s.vkSemaphore for s in self.signalSemaphores]
+                waitSemaphoreCount=int(len(waitSemaphores)),
+                pWaitSemaphores=[s.vkSemaphore for s in waitSemaphores],
+                signalSemaphoreCount=len(self.signalSemaphores),
+                pSignalSemaphores=[s.vkSemaphore for s in self.signalSemaphores],
             )
-            
-
 
     # this help if you run the main loop in C/C++
     # just use the Vulkan addresses!
@@ -141,18 +143,18 @@ class ComputePipeline(pipeline.Pipeline):
             pSubmits=self.submitInfo,
             fence=self.fence.vkFence,
         )
-        
+
         if blocking:
             self.wait()
-        
+
     def wait(self):
         for fence in self.fences:
             fence.wait()
-        
+
     def release(self):
         for fence in self.fences:
             fence.release()
-            
+
         for semaphore in self.signalSemaphores:
             semaphore.release()
 

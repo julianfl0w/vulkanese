@@ -6,6 +6,7 @@ from scipy.signal import get_window
 sum_home = os.path.dirname(os.path.abspath(__file__))
 # if vulkanese isn't installed, check for a development version parallel to Loiacono repo ;)
 import pkg_resources
+
 if "vulkanese" not in [pkg.key for pkg in pkg_resources.working_set]:
     sys.path = [os.path.join(sum_home, "..", "vulkanese", "vulkanese")] + sys.path
 

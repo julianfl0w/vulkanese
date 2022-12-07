@@ -15,6 +15,7 @@ from . import buffer
 
 vulkanesehome = os.path.dirname(os.path.abspath(__file__))
 
+
 class Instance(sinode.Sinode):
     def __init__(self, verbose=False):
         sinode.Sinode.__init__(self, None)
@@ -113,7 +114,7 @@ class Instance(sinode.Sinode):
         self.debug(type(self.physical_devices))
         devdict = {}
         for i, physical_device in enumerate(self.physical_devices):
-            #subgroupProperties = VkPhysicalDeviceSubgroupProperties()
+            # subgroupProperties = VkPhysicalDeviceSubgroupProperties()
             pProperties = vk.vkGetPhysicalDeviceProperties(physical_device)
             device = self.getDevice(i)
             memprops = Device.getMemoryProperties(device)

@@ -30,7 +30,18 @@ class Pipeline(Sinode):
         outputClass="surface",
         outputWidthPixels=500,
         outputHeightPixels=500,
+        waitSemaphores=[],
     ):
+
+        # We create a fence.
+        # So the CPU can know when processing is done
+        self.waitSemaphores = waitSemaphores
+        self.waitStages = []
+        self.fence = synchronization.Fence(device=self.device)
+        self.semaphore = synchronization.Semaphore(device=self.device)
+        self.fences = [self.fence]
+        self.signalSemaphores = [self.semaphore]
+
         self.indexBuffer = indexBuffer
         Sinode.__init__(self, device)
         self.location = 0
@@ -47,16 +58,6 @@ class Pipeline(Sinode):
 
         # if not type(self) == "ComputePipeline":
         #    self.children += self.stages
-
-    def draw_frame(self):
-        image_index = self.vkAcquireNextImageKHR(
-            self.vkDevice,
-            self.surface.swapchain,
-            UINT64_MAX,
-            self.semaphore_image_available.vkSemaphore,
-            None,
-        )
-        self.commandBuffer.draw_frame(image_index)
 
     def getAllBuffers(self):
         allBuffers = []

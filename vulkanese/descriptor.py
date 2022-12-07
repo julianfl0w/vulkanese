@@ -191,14 +191,22 @@ class DescriptorSet(Sinode):
         self.vkDescriptorSetLayout = vkCreateDescriptorSetLayout(
             self.vkDevice, descriptorSetLayoutCreateInfo, None
         )
-        self.device.instance.debug("finalized desc set " + self.name + " with " + str(len(self.buffers)) + " buffers")
+        self.device.instance.debug(
+            "finalized desc set "
+            + self.name
+            + " with "
+            + str(len(self.buffers))
+            + " buffers"
+        )
 
     def release(self):
         for b in self.buffers:
             b.release()
         self.device.instance.debug("destroying descriptor set")
         if hasattr(self, "vkDescriptorSetLayout"):
-            vkDestroyDescriptorSetLayout(self.vkDevice, self.vkDescriptorSetLayout, None)
+            vkDestroyDescriptorSetLayout(
+                self.vkDevice, self.vkDescriptorSetLayout, None
+            )
 
 
 # 	def updateDescriptorSet():
