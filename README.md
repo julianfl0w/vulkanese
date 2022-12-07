@@ -25,18 +25,12 @@ import os
 import sys
 import time
 import numpy as np
-
 arith_home = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import vulkanese as ve
+import vulkan    as vk
 
-# if vulkanese isn't installed, check for a development version parallel to this repo ;)
-import pkg_resources
-
-if "vulkanese" not in [pkg.key for pkg in pkg_resources.working_set]:
-    sys.path = [os.path.join(arith_home, "..", "vulkanese", "vulkanese")] + sys.path
-from vulkanese import *
-
-
-class ARITH(ComputeShader):
+class ARITH(ve.shader.ComputeShader):
     def __init__(
         self,
         constantsDict,
@@ -47,9 +41,9 @@ class ARITH(ComputeShader):
         buffType="float64_t",
         shader_basename="shaders/arith",
         memProperties=(
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-            | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-            | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+            vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+            | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+            | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         ),
     ):
 
@@ -64,7 +58,7 @@ class ARITH(ComputeShader):
         self.constantsDict = constantsDict
 
         buffers = [
-            StorageBuffer(
+            ve.buffer.StorageBuffer(
                 device=self.device,
                 name="x",
                 memtype=buffType,
@@ -72,7 +66,7 @@ class ARITH(ComputeShader):
                 dimensionVals=np.shape(X),
                 memProperties=memProperties,
             ),
-            StorageBuffer(
+            ve.buffer.StorageBuffer(
                 device=self.device,
                 name="y",
                 memtype=buffType,
@@ -80,7 +74,7 @@ class ARITH(ComputeShader):
                 dimensionVals=np.shape(Y),
                 memProperties=memProperties,
             ),
-            StorageBuffer(
+            ve.buffer.StorageBuffer(
                 device=self.device,
                 name="sumOut",
                 memtype=buffType,
@@ -91,7 +85,7 @@ class ARITH(ComputeShader):
         ]
 
         # Compute Stage: the only stage
-        ComputeShader.__init__(
+        ve.shader.ComputeShader.__init__(
             self,
             sourceFilename=os.path.join(
                 arith_home, shader_basename + ".c"
@@ -100,7 +94,7 @@ class ARITH(ComputeShader):
             constantsDict=self.constantsDict,
             device=self.device,
             name=shader_basename,
-            stage=VK_SHADER_STAGE_COMPUTE_BIT,
+            stage=vk.VK_SHADER_STAGE_COMPUTE_BIT,
             buffers=buffers,
             DEBUG=DEBUG,
             workgroupCount=[
@@ -132,9 +126,9 @@ def floatTest(X, Y, device, expectation):
         X=X,
         Y=Y,
         buffType="float",
-        memProperties=0 | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-        # | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        memProperties=0 | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+        # | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
     )
     
     s.gpuBuffers.x.set(X)
@@ -157,7 +151,7 @@ if __name__ == "__main__":
     Y = np.random.random((signalLen))
 
     # begin GPU test
-    instance = Instance(verbose=False)
+    instance = ve.instance.Instance(verbose=False)
     device = instance.getDevice(0)
     nval = numpyTest(X, Y)
     floatTest(X, Y, device, expectation=nval)
