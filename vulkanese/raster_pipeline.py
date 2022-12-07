@@ -4,16 +4,11 @@ import time
 import json
 from vulkan import *
 
-try:
-    from vulkanese import *
-    from pipelines import *
-    from buffer import *
-    from shader import *
-except:
-    from .vulkanese import *
-    from .pipelines import *
-    from .buffer import *
-    from .shader import *
+from . import vulkanese
+from . import pipeline
+from . import buffer
+from . import shader
+    
 from sinode import *
 from PIL import Image as pilImage
 
@@ -24,7 +19,7 @@ def getVulkanesePath():
     return here
 
 
-class RasterPipeline(Pipeline):
+class RasterPipeline(pipeline.Pipeline):
     def __init__(
         self,
         device,
@@ -233,6 +228,32 @@ class RasterPipeline(Pipeline):
         self, culling=VK_CULL_MODE_BACK_BIT, oversample=VK_SAMPLE_COUNT_1_BIT
     ):
 
+        # Create semaphores
+        self.semaphore_image_available = Semaphore(device=self.device)
+        self.semaphore_render_finished = Semaphore(device=self.device)
+        self.semaphores = [
+            self.semaphore_image_available,
+            self.semaphore_render_finished,
+        ]
+
+        self.wait_stages = [VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT]
+        self.wait_semaphores = [self.semaphore_image_available]
+        self.signal_semaphores = [self.semaphore_render_finished]
+
+        # Create a surface, if indicated
+        if outputClass == "surface":
+            newSurface = Surface(self.device.instance, self.device, self)
+            self.surface = newSurface
+            self.children += [self.surface]
+
+        self.vkAcquireNextImageKHR = vkGetInstanceProcAddr(
+            self.instance.vkInstance, "vkAcquireNextImageKHR"
+        )
+        self.vkQueuePresentKHR = vkGetInstanceProcAddr(
+            self.instance.vkInstance, "vkQueuePresentKHR"
+        )
+
+        
         # compile all the stages
         [s.compile() for s in self.stages]
 

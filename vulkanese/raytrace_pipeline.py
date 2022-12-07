@@ -4,12 +4,8 @@ import time
 import json
 from vulkan import *
 
-try:
-    from vulkanese import *
-    from pipelines import *
-except:
-    from .vulkanese import *
-    from .pipelines import *
+from . import vulkanese
+from . import pipeline
 
 from sinode import *
 from PIL import Image as pilImage
@@ -36,7 +32,7 @@ class StageIndices(Enum):
     eShaderGroupCount = 4
 
 
-class RaytracePipeline(Pipeline):
+class RaytracePipeline(pipeline.Pipeline):
     def __init__(self, device, setupDict):
         Pipeline.__init__(self, device, setupDict)
 

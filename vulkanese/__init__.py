@@ -1,1 +1,1 @@
-from vulkanese.vulkanese import *
+from . import vulkanese

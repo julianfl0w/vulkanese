@@ -3,19 +3,13 @@ import os
 import time
 import json
 from vulkan import *
+import sinode
 
-try:
-    from vulkanese import *
-    from buffer import *
-
-    # from stage import *
-    from commandbuffer import *
-except:
-    from .vulkanese import *
-    from .buffer import *
-
-    # from .stage import *
-    from .commandbuffer import *
+from . import buffer
+from . import command_buffer
+from . import pipeline
+from . import synchronization
+    
 from PIL import Image as pilImage
 import re
 
@@ -32,17 +26,28 @@ def getVulkanesePath():
 # pipeline,
 # shader
 # All in one. it is self-contained
-class ComputePipeline(Pipeline):
+class ComputePipeline(pipeline.Pipeline):
     def __init__(self, computeShader, device, constantsDict, workgroupCount=[1, 1, 1],waitSemaphores=[]):
-        Sinode.__init__(self)
+        sinode.Sinode.__init__(self)
+        self.waitSemaphores = waitSemaphores
+        self.waitStages = []
+        
         self.device = device
         self.computeShader = computeShader
         device.children += [self]
+        
+        # We create a fence.
+        # So the CPU can know when processing is done
+        self.fence = synchronization.Fence(device=self.device)
+        self.semaphore = synchronization.Semaphore(device=self.device)
+        self.fences = [self.fence]
+        self.signalSemaphores = [self.semaphore]
+        
 
         #######################################################
         # Pipeline
         device.descriptorPool.finalize()
-        Pipeline.__init__(self, device, stages=[computeShader], outputClass="image")
+        pipeline.Pipeline.__init__(self, device, stages=[computeShader], outputClass="image")
 
         self.descriptorSet = device.descriptorPool.descSetGlobal
 
@@ -86,23 +91,9 @@ class ComputePipeline(Pipeline):
 
         # self.children += [pipelines]
         # wrap it all up into a command buffer
-        self.commandBuffer = ComputeCommandBuffer(self, workgroupCount=workgroupCount)
+        self.commandBuffer = command_buffer.ComputeCommandBuffer(self, workgroupCount=workgroupCount)
 
-        # We create a fence.
-        # So the CPU can know when processing is done
-        self.fence = Fence(device=self.device)
-        self.semaphore = Semaphore(device=self.device)
-        self.fences = [self.fence]
-        self.semaphores = [self.semaphore]
         
-        print(self.computeShader.name)
-        print("wait")
-        print(waitSemaphores)
-        print(len(waitSemaphores))
-        print("own")
-        print(self.semaphores)
-        print(len(self.semaphores))
-
         # Now we shall finally submit the recorded command buffer to a queue.
         if waitSemaphores == [] or True:
             self.submitInfo = VkSubmitInfo(
@@ -111,8 +102,8 @@ class ComputePipeline(Pipeline):
                 pCommandBuffers=[
                     self.commandBuffer.vkCommandBuffers[0]
                 ],  # the command buffer to submit.
-                signalSemaphoreCount = len(self.semaphores),
-                pSignalSemaphores = [s.vkSemaphore for s in self.semaphores]
+                signalSemaphoreCount = len(self.signalSemaphores),
+                pSignalSemaphores = [s.vkSemaphore for s in self.signalSemaphores]
             )
         else:
             self.submitInfo = VkSubmitInfo(
@@ -123,8 +114,8 @@ class ComputePipeline(Pipeline):
                 ],  # the command buffer to submit.
                 waitSemaphoreCount = int(len(waitSemaphores)),
                 pWaitSemaphores = [s.vkSemaphore for s in waitSemaphores],
-                signalSemaphoreCount = len(self.semaphores),
-                pSignalSemaphores = [s.vkSemaphore for s in self.semaphores]
+                signalSemaphoreCount = len(self.signalSemaphores),
+                pSignalSemaphores = [s.vkSemaphore for s in self.signalSemaphores]
             )
             
 
@@ -162,7 +153,7 @@ class ComputePipeline(Pipeline):
         for fence in self.fences:
             fence.release()
             
-        for semaphore in self.semaphores:
+        for semaphore in self.signalSemaphores:
             semaphore.release()
 
         self.device.instance.debug("destroying pipeline")

@@ -51,13 +51,13 @@ class CommandBuffer(Sinode):
         # Information describing the queue submission
         self.submit_create = VkSubmitInfo(
             sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            waitSemaphoreCount=len(self.pipeline.wait_semaphores),
-            pWaitSemaphores=[s.vkSemaphore for s in self.pipeline.wait_semaphores],
-            pWaitDstStageMask=self.pipeline.wait_stages,
+            waitSemaphoreCount=len(self.pipeline.waitSemaphores),
+            pWaitSemaphores=[s.vkSemaphore for s in self.pipeline.waitSemaphores],
+            pWaitDstStageMask=self.pipeline.waitStages,
             commandBufferCount=1,
             pCommandBuffers=[self.vkCommandBuffers[0]],
-            signalSemaphoreCount=len(self.pipeline.signal_semaphores),
-            pSignalSemaphores=[s.vkSemaphore for s in self.pipeline.signal_semaphores],
+            signalSemaphoreCount=len(self.pipeline.signalSemaphores),
+            pSignalSemaphores=[s.vkSemaphore for s in self.pipeline.signalSemaphores],
         )
 
 

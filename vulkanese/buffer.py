@@ -316,6 +316,7 @@ class Buffer(Sinode):
                     
             else:
                 rcvdArray = list(flatArray.astype(float))[:: self.skipval]
+                die
                 # finally, reshape according to the expected dims
                 rcvdArray = np.array(rcvdArray).reshape(self.dimensionVals)
         return rcvdArray
@@ -432,6 +433,8 @@ class Buffer(Sinode):
         self.pmap[startByte:endByte] = np.array(data, dtype=self.pythonType)
 
     def setByIndexStart(self, startIndex, data):
+        if self.skipval != 1:
+            raise("You can only do this with new-format storage buffers!")
         # self.device.instance.debug(self.name + " setting " + str(index) + " to " + str(data))
         startByte = startIndex * self.itemSize * self.skipval
         endByte = startIndex * self.itemSize * self.skipval + self.itemSize * len(data)

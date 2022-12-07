@@ -2,17 +2,17 @@ import json
 from sinode import *
 import os
 import re
-from vulkan import *
+import vulkan as vk
 
 import pkg_resources
-if "vulkanese" not in [pkg.key for pkg in pkg_resources.working_set]:
-    from buffer import *
-    from computepipeline import *
-    DEV = True
-else:
-    from .buffer import *
-    from .computepipeline import *
-    DEV = False
+#if "vulkanese" not in [pkg.key for pkg in pkg_resources.working_set]:
+#    from buffer import *
+#    from computepipeline import *
+#    DEV = True
+#else:
+from . import buffer
+from . import compute_pipeline
+DEV = False
 
 from pathlib import Path
 here = os.path.dirname(os.path.abspath(__file__))
@@ -32,7 +32,7 @@ class Shader(Sinode):
         buffers,
         shaderCode="",
         sourceFilename="",
-        stage=VK_SHADER_STAGE_VERTEX_BIT,
+        stage=vk.VK_SHADER_STAGE_VERTEX_BIT,
         name="mandlebrot",
         DEBUG=False,
         workgroupCount=[1, 1, 1],
@@ -80,20 +80,20 @@ class Shader(Sinode):
             raise ("either source filename or shader text must be provided")
 
         # Create Stage
-        self.shader_create = VkShaderModuleCreateInfo(
-            sType=VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        self.shader_create = vk.VkShaderModuleCreateInfo(
+            sType=vk.VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
             # flags=0,
             codeSize=len(spirv),
             pCode=spirv,
         )
 
-        self.vkShaderModule = vkCreateShaderModule(
+        self.vkShaderModule = vk.vkCreateShaderModule(
             self.vkDevice, self.shader_create, None
         )
 
         # Create Shader stage
-        self.shader_stage_create = VkPipelineShaderStageCreateInfo(
-            sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        self.shader_stage_create = vk.VkPipelineShaderStageCreateInfo(
+            sType=vk.VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
             stage=self.stage,
             module=self.vkShaderModule,
             flags=0,
@@ -103,9 +103,9 @@ class Shader(Sinode):
         self.device.instance.debug("creating Stage " + str(stage))
 
         # if this is a compute shader, it corresponds with a single pipeline. we create that here
-        if stage == VK_SHADER_STAGE_COMPUTE_BIT:
+        if stage == vk.VK_SHADER_STAGE_COMPUTE_BIT:
             # generate a compute cmd buffer
-            self.computePipeline = ComputePipeline(
+            self.computePipeline = compute_pipeline.ComputePipeline(
                 computeShader=self,
                 device=self.device,
                 constantsDict=self.constantsDict,
@@ -120,7 +120,7 @@ class Shader(Sinode):
 
     def release(self):
         self.device.instance.debug("destroying Stage")
-        vkDestroyShaderModule(self.vkDevice, self.vkShaderModule, None)
+        vk.vkDestroyShaderModule(self.vkDevice, self.vkShaderModule, None)
         Sinode.release(self)
 
 
@@ -130,41 +130,27 @@ class ComputeShader(Shader):
 
         # PREPROCESS THE SHADER CODE
         # RELATIVE TO DEFINED BUFFERS
-        STRUCTS_STRING = "\n"
-        # Create STRUCTS for each structured datatype
-        reqdTypes = [b.type for b in self.buffers]
-        with open(os.path.join(here, "derivedtypes.json"), "r") as f:
-            derivedDict = json.loads(f.read())
-            for structName, composeDict in derivedDict.items():
-                if structName in reqdTypes:
-                    STRUCTS_STRING += "struct " + structName + "{\n"
-                    for name, ctype in composeDict.items():
-                        STRUCTS_STRING += "  " + ctype + " " + name + ";\n"
-
-                    STRUCTS_STRING += "};\n\n"
 
         BUFFERS_STRING = ""
         # novel INPUT buffers belong to THIS Stage (others are linked)
-        for buffer in self.buffers:
+        for b in self.buffers:
             # THIS IS STUPID AND WRONG
             # FUCK
             if (
-                self.stage == VK_SHADER_STAGE_FRAGMENT_BIT
-                and buffer.name == "fragColor"
+                self.stage == vk.VK_SHADER_STAGE_FRAGMENT_BIT
+                and b.name == "fragColor"
             ):
-                buffer.qualifier = "in"
-            if self.stage != VK_SHADER_STAGE_COMPUTE_BIT:
-                BUFFERS_STRING += buffer.getDeclaration()
+                b.qualifier = "in"
+            if self.stage != vk.VK_SHADER_STAGE_COMPUTE_BIT:
+                BUFFERS_STRING += b.getDeclaration()
             else:
-                BUFFERS_STRING += buffer.getComputeDeclaration()
+                BUFFERS_STRING += b.getComputeDeclaration()
 
         if self.DEBUG:
             glslCode = self.addIndicesToOutputs(glslCode)
 
         # put structs and buffers into the code
-        glslCode = glslCode.replace("BUFFERS_STRING", BUFFERS_STRING).replace(
-            "STRUCTS_STRING", STRUCTS_STRING
-        )
+        glslCode = glslCode.replace("BUFFERS_STRING", BUFFERS_STRING)
 
         # add definitions from constants dict
         DEFINE_STRING = ""
@@ -256,7 +242,6 @@ class VertexStage(Shader):
         glslCode = """
 #version 450
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
-STRUCTS_STRING
 BUFFERS_STRING
 void main() {                         
     gl_Position = vec4(position, 1.0);
@@ -270,7 +255,7 @@ void main() {
             device,
             buffers,
             constantsDict,
-            stage=VK_SHADER_STAGE_VERTEX_BIT,
+            stage=vk.VK_SHADER_STAGE_VERTEX_BIT,
             name="vertex.vert",
             DEBUG=False,
         )
@@ -286,7 +271,7 @@ class FragmentStage(Shader):
         device,
         buffers,
         constantsDict,
-        stage=VK_SHADER_STAGE_VERTEX_BIT,
+        stage=vk.VK_SHADER_STAGE_VERTEX_BIT,
         name="mandlebrot",
         DEBUG=False,
     ):
@@ -294,7 +279,6 @@ class FragmentStage(Shader):
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
-STRUCTS_STRING
 BUFFERS_STRING
 void main() {
     outColor = vec4(fragColor, 1.0);
