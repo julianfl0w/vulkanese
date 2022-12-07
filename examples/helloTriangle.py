@@ -32,6 +32,13 @@ class HelloTriangle:
                 stride=12,
             ),
         )
+        self.indexBuffer = ve.buffer.IndexBuffer(
+                device=self.device,
+                name="index",
+                dimensionVals=[self.TRIANGLE_COUNT, self.VERTS_PER_TRIANGLE],
+                memtype="uint",
+                stride=4,
+            )
         # Input buffers to the shader
         # These are Uniform Buffers normally,
         # Storage Buffers in DEBUG Mode
@@ -61,17 +68,7 @@ class HelloTriangle:
                 dimensionVals=[self.VERTEX_COUNT, self.SPATIAL_DIMENSIONS],
                 stride=12,
             ),
-            ve.buffer.VertexBuffer(
-                device=self.device,
-                name="index",
-                dimensionVals=[self.TRIANGLE_COUNT, self.VERTS_PER_TRIANGLE],
-                memtype="uint",
-                usage=vk.VK_BUFFER_USAGE_TRANSFER_DST_BIT
-                | vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
-                | vk.VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                format=vk.VK_FORMAT_R32_UINT,
-                stride=4,
-            ),
+            self.indexBuffer,
             FragBuffer,
         ]
 
@@ -112,6 +109,7 @@ class HelloTriangle:
         # create the standard set
         self.rasterPipeline = RasterPipeline(
             device=self.device,
+            indexBuffer = self.indexBuffer,
             constantsDict=self.constantsDict,
             outputClass="surface",
             outputWidthPixels=700,

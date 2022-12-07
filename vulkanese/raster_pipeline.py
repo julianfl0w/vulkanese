@@ -17,6 +17,7 @@ class RasterPipeline(pipeline.Pipeline):
         self,
         device,
         constantsDict,
+        indexBuffer,
         outputClass="surface",
         outputWidthPixels=700,
         outputHeightPixels=700,
