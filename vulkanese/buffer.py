@@ -375,7 +375,7 @@ class Buffer(Sinode):
             )
 
     def getComputeDeclaration(self):
-        if self.usage == VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT:
+        if self.usage == vk.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT:
             b = "uniform "
             std = "std140"
         else:
