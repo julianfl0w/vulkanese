@@ -142,4 +142,4 @@ class Instance(sinode.Sinode):
         self.vkDestroyDebugReportCallbackEXT(self.vkInstance, self.callback, None)
         if self.verbose:
             self.debug("destroying instance")
-        vkDestroyInstance(self.vkInstance, None)
+        vk.vkDestroyInstance(self.vkInstance, None)

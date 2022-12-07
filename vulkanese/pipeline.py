@@ -72,7 +72,7 @@ class Pipeline(Sinode):
         for shader in self.shaders:
             shader.release()
 
-        for semaphore in self.semaphores:
+        for semaphore in self.signalSemaphores:
             semaphore.release()
 
         vkDestroyPipeline(self.vkDevice, self.vkPipeline, None)
