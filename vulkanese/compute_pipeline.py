@@ -4,14 +4,11 @@ import time
 import json
 from vulkan import *
 import sinode
-
+import re
 from . import buffer
 from . import command_buffer
 from . import pipeline
 from . import synchronization
-
-from PIL import Image as pilImage
-import re
 
 here = os.path.dirname(os.path.abspath(__file__))
 
