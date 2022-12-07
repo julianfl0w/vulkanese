@@ -159,7 +159,7 @@ class ComputePipeline(pipeline.Pipeline):
             semaphore.release()
 
         self.device.instance.debug("destroying pipeline")
-        Pipeline.release(self)
+        pipeline.Pipeline.release(self)
 
         self.device.instance.debug("destroying children")
         for child in self.children:

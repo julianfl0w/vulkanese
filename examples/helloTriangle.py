@@ -9,12 +9,16 @@ import trimesh
 import cv2 as cv
 import open3d as o3d
 import copy
-from .. import vulkanese as ve
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import vulkanese as ve
+import vulkan    as vk
 
 
 class HelloTriangle:
-    def __init__(self, constantsDict):
-
+    def __init__(self, device, constantsDict):
+        self.device = device
+        self.constantsDict = constantsDict
         for k, v in self.constantsDict.items():
             exec("self." + k + " = " + str(v))
 
@@ -33,7 +37,7 @@ class HelloTriangle:
         # Storage Buffers in DEBUG Mode
         # PIPELINE WILL CREATE ITS OWN INDEX BUFFER
         self.vertexBuffers = [
-            ve.buffer.StorageBuffer(
+            ve.buffer.VertexBuffer(
                 device=self.device,
                 name="position",
                 memtype="vec3",
@@ -41,7 +45,7 @@ class HelloTriangle:
                 dimensionVals=[self.VERTEX_COUNT, self.SPATIAL_DIMENSIONS],
                 stride=12,
             ),
-            ve.buffer.StorageBuffer(
+            ve.buffer.VertexBuffer(
                 device=self.device,
                 name="normal",
                 memtype="vec3",
@@ -49,7 +53,7 @@ class HelloTriangle:
                 dimensionVals=[self.VERTEX_COUNT, self.SPATIAL_DIMENSIONS],
                 stride=12,
             ),
-            ve.buffer.StorageBuffer(
+            ve.buffer.VertexBuffer(
                 device=self.device,
                 name="color",
                 memtype="vec3",
@@ -57,15 +61,15 @@ class HelloTriangle:
                 dimensionVals=[self.VERTEX_COUNT, self.SPATIAL_DIMENSIONS],
                 stride=12,
             ),
-            ve.buffer.StorageBuffer(
+            ve.buffer.VertexBuffer(
                 device=self.device,
                 name="index",
                 dimensionVals=[self.TRIANGLE_COUNT, self.VERTS_PER_TRIANGLE],
                 memtype="uint",
-                usage=VK_BUFFER_USAGE_TRANSFER_DST_BIT
-                | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
-                | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                format=VK_FORMAT_R32_UINT,
+                usage=vk.VK_BUFFER_USAGE_TRANSFER_DST_BIT
+                | vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+                | vk.VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                format=vk.VK_FORMAT_R32_UINT,
                 stride=4,
             ),
             FragBuffer,
@@ -199,7 +203,7 @@ if __name__ == "__main__":
     }
 
     # device selection and instantiation
-    instance = Instance()
+    instance = ve.instance.Instance()
     print("naively choosing device 0")
     device = instance.getDevice(0)
 
