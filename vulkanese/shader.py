@@ -136,8 +136,6 @@ class ComputeShader(Shader):
         BUFFERS_STRING = ""
         # novel INPUT buffers belong to THIS Stage (others are linked)
         for b in self.buffers:
-            # THIS IS STUPID AND WRONG
-            # FUCK
             if self.stage == vk.VK_SHADER_STAGE_FRAGMENT_BIT and b.name == "fragColor":
                 b.qualifier = "in"
             if self.stage != vk.VK_SHADER_STAGE_COMPUTE_BIT:

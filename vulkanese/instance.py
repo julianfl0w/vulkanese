@@ -116,14 +116,11 @@ class Instance(sinode.Sinode):
         for i, physical_device in enumerate(self.physical_devices):
             # subgroupProperties = VkPhysicalDeviceSubgroupProperties()
             pProperties = vk.vkGetPhysicalDeviceProperties(physical_device)
-            device = self.getDevice(i)
-            memprops = Device.getMemoryProperties(device)
-            processorType = Device.getProcessorType(physical_device)
-            limits = Device.getLimits(device)
+            device_i = self.getDevice(i)
             devdict[pProperties.deviceName] = {
-                "processorType": processorType,
-                "memProperties": memprops,
-                "limits": limits,
+                "processorType": device_i.processorType,
+                "memProperties": device_i.memoryProperties,
+                "limits"       : device_i.limits,
             }
         return devdict
 

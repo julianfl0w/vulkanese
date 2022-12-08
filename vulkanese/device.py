@@ -3,17 +3,9 @@ import os
 import time
 import json
 from sinode import *
-from vulkan import *
-
-# prepend local imports with .
-try:
-    from vulkanese import *
-    from descriptor import *
-except:
-    from .vulkanese import *
-    from .descriptor import *
-from PIL import Image as pilImage
-
+import vulkan as vk
+from . import vulkanese as ve
+from cffi import FFI
 here = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -24,7 +16,7 @@ def getVulkanesePath():
 class Device(Sinode):
     def ctypes2dict(props, depth=0):
         outDict = dict()
-        type = ffi.typeof(props)
+        type = vk.ffi.typeof(props)
         if type.kind == "primitive":
             return props
         elif type.kind == "struct":
@@ -51,11 +43,14 @@ class Device(Sinode):
         self.deviceIndex = deviceIndex
 
         self.instance.debug("initializing device " + str(deviceIndex))
-        self.physical_device = vkEnumeratePhysicalDevices(self.instance.vkInstance)[
+        self.physical_device = vk.vkEnumeratePhysicalDevices(self.instance.vkInstance)[
             deviceIndex
         ]
 
+            
         self.memoryProperties = self.getMemoryProperties()
+        self.processorType    = self.getProcessorType()
+        self.limits           = self.getLimits()
 
         self.instance.debug("getting features list")
 
@@ -66,7 +61,7 @@ class Device(Sinode):
         #    self.vkInstance, "vkGetPhysicalDeviceProperties2KHR"
         # )
 
-        self.pFeatures = vkGetPhysicalDeviceFeatures(self.physical_device)
+        self.pFeatures = vk.vkGetPhysicalDeviceFeatures(self.physical_device)
 
         # self.pFeatures2 = vkGetPhysicalDeviceFeatures2(self.physical_device)
         # self.instance.debug("pFeatures2")
@@ -82,12 +77,12 @@ class Device(Sinode):
         self.instance.debug("Select queue family")
         # ----------
         # Select queue family
-        vkGetPhysicalDeviceSurfaceSupportKHR = vkGetInstanceProcAddr(
+        vkGetPhysicalDeviceSurfaceSupportKHR = vk.vkGetInstanceProcAddr(
             self.instance.vkInstance, "vkGetPhysicalDeviceSurfaceSupportKHR"
         )
 
         # queue_families = vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice=self.physical_device)
-        queue_families = vkGetPhysicalDeviceQueueFamilyProperties(
+        queue_families = vk.vkGetPhysicalDeviceQueueFamilyProperties(
             physicalDevice=self.physical_device
         )
 
@@ -104,7 +99,7 @@ class Device(Sinode):
             # 	surface=sdl_surface_inst.surface)
             if (
                 queue_family.queueCount > 0
-                and queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT
+                and queue_family.queueFlags & vk.VK_QUEUE_GRAPHICS_BIT
             ):
                 self.queue_family_graphic_index = i
                 self.queue_family_present_index = i
@@ -116,12 +111,12 @@ class Device(Sinode):
             % (self.queue_family_graphic_index, self.queue_family_present_index)
         )
 
-        self.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE
+        self.imageSharingMode = vk.VK_SHARING_MODE_EXCLUSIVE
         self.queueFamilyIndexCount = 0
         self.pQueueFamilyIndices = None
 
         if self.queue_family_graphic_index != self.queue_family_present_index:
-            self.imageSharingMode = VK_SHARING_MODE_CONCURRENT
+            self.imageSharingMode = vk.VK_SHARING_MODE_CONCURRENT
             self.queueFamilyIndexCount = 2
             self.pQueueFamilyIndices = [
                 device.queue_family_graphic_index,
@@ -130,18 +125,18 @@ class Device(Sinode):
 
         # ----------
         # Create logical device and queues
-        extensions = vkEnumerateDeviceExtensionProperties(
+        extensions = vk.vkEnumerateDeviceExtensionProperties(
             physicalDevice=self.physical_device, pLayerName=None
         )
         extensions = [e.extensionName for e in extensions]
         # self.instance.debug("available device extensions: %s\n" % extensions)
 
         # only use the extensions necessary
-        extensions = [VK_KHR_SWAPCHAIN_EXTENSION_NAME]
+        extensions = [vk.VK_KHR_SWAPCHAIN_EXTENSION_NAME]
 
         queues_create = [
-            VkDeviceQueueCreateInfo(
-                sType=VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            vk.VkDeviceQueueCreateInfo(
+                sType=vk.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
                 queueFamilyIndex=i,
                 queueCount=1,
                 pQueuePriorities=[1],
@@ -151,8 +146,8 @@ class Device(Sinode):
         ]
         # self.instance.debug(self.pFeatures.pNext)
         # die
-        self.device_create = VkDeviceCreateInfo(
-            sType=VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        self.device_create = vk.VkDeviceCreateInfo(
+            sType=vk.VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
             # pNext=self.pFeatures2,
             pNext=None,
             pQueueCreateInfos=queues_create,
@@ -165,36 +160,36 @@ class Device(Sinode):
             ppEnabledExtensionNames=extensions,
         )
 
-        self.vkDevice = vkCreateDevice(
+        self.vkDevice = vk.vkCreateDevice(
             physicalDevice=self.physical_device,
             pCreateInfo=self.device_create,
             pAllocator=None,
         )
 
-        self.graphic_queue = vkGetDeviceQueue(
+        self.graphic_queue = vk.vkGetDeviceQueue(
             device=self.vkDevice,
             queueFamilyIndex=self.queue_family_graphic_index,
             queueIndex=0,
         )
-        self.presentation_queue = vkGetDeviceQueue(
+        self.presentation_queue = vk.vkGetDeviceQueue(
             device=self.vkDevice,
             queueFamilyIndex=self.queue_family_present_index,
             queueIndex=0,
         )
-        self.compute_queue = vkGetDeviceQueue(
+        self.compute_queue = vk.vkGetDeviceQueue(
             device=self.vkDevice,
             queueFamilyIndex=self.getComputeQueueFamilyIndex(),
             queueIndex=0,
         )
 
         # Create command pool
-        command_pool_create = VkCommandPoolCreateInfo(
-            sType=VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        command_pool_create = vk.VkCommandPoolCreateInfo(
+            sType=vk.VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
             queueFamilyIndex=self.queue_family_graphic_index,
             flags=0,
         )
 
-        self.vkCommandPool = vkCreateCommandPool(
+        self.vkCommandPool = vk.vkCreateCommandPool(
             self.vkDevice, command_pool_create, None
         )
 
@@ -210,12 +205,12 @@ class Device(Sinode):
             print("    SUBGROUP SIZE UNKNOWN. DEFAULTING TO 32")
             self.subgroupSize = 32
 
-        self.descriptorPool = DescriptorPool(self)
+        self.descriptorPool = ve.descriptor.DescriptorPool(self)
         self.children += [self.descriptorPool]
 
     def getMemoryProperties(self):
         self.instance.debug("getting memory properties")
-        memoryProperties = vkGetPhysicalDeviceMemoryProperties(self.physical_device)
+        memoryProperties = vk.vkGetPhysicalDeviceMemoryProperties(self.physical_device)
         memoryPropertiesPre = Device.ctypes2dict(memoryProperties)
 
         # the following is complicated only because C/C++ is so basic
@@ -273,19 +268,19 @@ class Device(Sinode):
     # Returns the index of a queue family that supports compute operations.
     def getComputeQueueFamilyIndex(self):
         # Retrieve all queue families.
-        queueFamilies = vkGetPhysicalDeviceQueueFamilyProperties(self.physical_device)
+        queueFamilies = vk.vkGetPhysicalDeviceQueueFamilyProperties(self.physical_device)
 
         # Now find a family that supports compute.
         for i, props in enumerate(queueFamilies):
-            if props.queueCount > 0 and props.queueFlags & VK_QUEUE_COMPUTE_BIT:
+            if props.queueCount > 0 and props.queueFlags & vk.VK_QUEUE_COMPUTE_BIT:
                 # found a queue with compute. We're done!
                 return i
 
         return -1
 
-    def getProcessorType(physical_device):
+    def getProcessorType(self):
 
-        pProperties = vkGetPhysicalDeviceProperties(physical_device)
+        pProperties = vk.vkGetPhysicalDeviceProperties(self.physical_device)
         deviceType = pProperties.deviceType
         if deviceType == 0:
             deviceTypeStr = "VK_PHYSICAL_DEVICE_TYPE_OTHER"
@@ -300,16 +295,16 @@ class Device(Sinode):
         return deviceTypeStr
 
     def getLimits(self):
-        pProperties = vkGetPhysicalDeviceProperties(self.physical_device)
+        pProperties = vk.vkGetPhysicalDeviceProperties(self.physical_device)
         self.name = pProperties.deviceName
         self.instance.debug("Device Name: " + pProperties.deviceName)
 
         devPropsDict = {}
 
-        devPropsDict["deviceType"] = Device.getProcessorType(self.physical_device)
+        devPropsDict["deviceType"] = self.getProcessorType()
 
         limitsDict = {}
-        type = ffi.typeof(pProperties.limits)
+        type = vk.ffi.typeof(pProperties.limits)
         for fieldName, fieldType in type.fields:
             if fieldType.type.kind == "primitive":
                 fieldValue = eval("pProperties.limits." + fieldName)
@@ -322,9 +317,9 @@ class Device(Sinode):
 
     def getFeatures(self):
 
-        self.features = vkGetPhysicalDeviceFeatures(self.physical_device)
-        self.properties = vkGetPhysicalDeviceProperties(self.physical_device)
-        self.memoryProperties = vkGetPhysicalDeviceMemoryProperties(
+        self.features = vk.vkGetPhysicalDeviceFeatures(self.physical_device)
+        self.properties = vk.vkGetPhysicalDeviceProperties(self.physical_device)
+        self.memoryProperties = vk.vkGetPhysicalDeviceMemoryProperties(
             self.physical_device
         )
         return [self.features, self.properties, self.memoryProperties]

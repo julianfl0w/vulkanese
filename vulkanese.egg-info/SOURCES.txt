@@ -3,12 +3,13 @@ MANIFEST.in
 README.md
 pyproject.toml
 setup.py
+examples/__init__.py
+examples/helloTriangle.py
 examples/__pycache__/exutils.cpython-39.pyc
 examples/__pycache__/midiManager.cpython-39.pyc
 examples/helloTriangle/a.spv
 examples/helloTriangle/exutils.py
 examples/helloTriangle/fragment.frag
-examples/helloTriangle/helloTriangle.py
 examples/helloTriangle/mandlebrot
 examples/helloTriangle/passthrough.frag
 examples/helloTriangle/passthrough.vert
@@ -67,6 +68,9 @@ examples/simple/add.py
 examples/simple/list_devices.py
 examples/simple/shaders/add.comp
 examples/simple/shaders/add.spv
+math/__init__.py
+math/add.py
+math/sum.py
 vulkanese/__init__.py
 vulkanese/buffer.py
 vulkanese/command_buffer.py
