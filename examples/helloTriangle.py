@@ -13,25 +13,26 @@ import copy
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import vulkanese as ve
 import vulkan    as vk
+from sinode import Sinode
+here = os.path.dirname(os.path.abspath(__file__))
 
-
-class HelloTriangle:
+class HelloTriangle(Sinode):
     def __init__(self, device, constantsDict):
+        Sinode.__init__(self)
         self.device = device
         self.constantsDict = constantsDict
         for k, v in self.constantsDict.items():
             exec("self." + k + " = " + str(v))
 
-        FragBuffer = (
-            ve.buffer.StorageBuffer(
+        FragBuffer = ve.buffer.StorageBuffer(
                 device=self.device,
                 name="fragColor",
                 memtype="vec3",
                 qualifier="readonly",
                 dimensionVals=[self.VERTEX_COUNT, self.SPATIAL_DIMENSIONS],
                 stride=12,
-            ),
-        )
+            )
+        
         self.indexBuffer = ve.buffer.IndexBuffer(
                 device=self.device,
                 name="index",
@@ -68,12 +69,11 @@ class HelloTriangle:
                 dimensionVals=[self.VERTEX_COUNT, self.SPATIAL_DIMENSIONS],
                 stride=12,
             ),
-            self.indexBuffer,
-            FragBuffer,
+            FragBuffer
         ]
 
         self.fragmentBuffers = [
-            ve.buffer.StorageBuffer(
+            ve.buffer.VertexBuffer(
                 device=self.device,
                 name="outColor",
                 memtype="vec4",
@@ -81,34 +81,35 @@ class HelloTriangle:
                 dimensionVals=[self.VERTEX_COUNT],
                 stride=16,
             ),
-            FragBuffer,
+            FragBuffer
         ]
 
         # (vertex -> tesselate -> fragment)
-
         # Vertex Stage
-        self.vertexStage = VertexStage(
+        self.vertexStage = ve.shader.VertexStage(
             device=self.device,
             parent=self,
             constantsDict=self.constantsDict,
             buffers=self.vertexBuffers,
-            name="passthrough.vert",
+            name="vertex",
+            sourceFilename=os.path.join(here, "shaders", "passthrough_vert.c"),
         )
 
         # fragment stage
-        self.fragmentStage = FragmentStage(
+        self.fragmentStage = ve.shader.FragmentStage(
             device=self.device,
             parent=self,
             buffers=self.fragmentBuffers,
             constantsDict=self.constantsDict,
-            name="passthrough.frag",
+            name="fragment",
+            sourceFilename=os.path.join(here, "shaders", "passthrough_frag.c"),
         )
 
-        self.stages = [self.vertexStage, self.fragmentStage]
-
         # create the standard set
-        self.rasterPipeline = RasterPipeline(
+        self.rasterPipeline = ve.raster_pipeline.RasterPipeline(
             device=self.device,
+            buffers= self.vertexBuffers + self.fragmentBuffers,
+            stages = [self.vertexStage, self.fragmentStage],
             indexBuffer = self.indexBuffer,
             constantsDict=self.constantsDict,
             outputClass="surface",

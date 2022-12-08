@@ -25,7 +25,6 @@ class Pipeline(Sinode):
     def __init__(
         self,
         device,
-        indexBuffer=None,
         stages=[],
         outputClass="surface",
         outputWidthPixels=500,
@@ -33,6 +32,9 @@ class Pipeline(Sinode):
         waitSemaphores=[],
     ):
 
+        self.vkDevice = device.vkDevice
+        self.device = device
+        
         # We create a fence.
         # So the CPU can know when processing is done
         self.waitSemaphores = waitSemaphores
@@ -42,12 +44,9 @@ class Pipeline(Sinode):
         self.fences = [self.fence]
         self.signalSemaphores = [self.semaphore]
 
-        self.indexBuffer = indexBuffer
         Sinode.__init__(self, device)
         self.location = 0
         self.outputClass = outputClass
-        self.vkDevice = device.vkDevice
-        self.device = device
         self.instance = device.instance
         self.outputWidthPixels = outputWidthPixels
         self.outputHeightPixels = outputHeightPixels

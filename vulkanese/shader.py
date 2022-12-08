@@ -33,7 +33,6 @@ class Shader(Sinode):
         device,
         constantsDict,
         buffers,
-        shaderCode="",
         sourceFilename="",
         stage=vk.VK_SHADER_STAGE_VERTEX_BIT,
         name="mandlebrot",
@@ -63,24 +62,18 @@ class Shader(Sinode):
                 self.debugBuffers += [b]
 
         outfilename = self.basename + ".spv"
+        self.sourceFilename = sourceFilename
         # if its spv (compiled), just run it
         if sourceFilename.endswith(".spv"):
             with open(sourceFilename, "rb") as f:
                 spirv = f.read()
         # if its not an spv, compile it
         elif sourceFilename.endswith(".c"):
-            with open(sourceFilename, "r") as f:
-                glslSource = f.read()
-            spirv = self.compile(glslSource)
+            spirv = self.compile()
             with open(outfilename, "wb+") as f:
                 f.write(spirv)
-        # allow the simple passing of code
-        elif shaderCode != "":
-            spirv = self.compile(shaderCode)
-            with open(self.name + ".spv", "wb+") as f:
-                f.write(spirv)
         else:
-            raise ("either source filename or shader text must be provided")
+            raise Exception("source template filename must end with .c")
 
         # Create Stage
         self.shader_create = vk.VkShaderModuleCreateInfo(
@@ -126,10 +119,11 @@ class Shader(Sinode):
         vk.vkDestroyShaderModule(self.vkDevice, self.vkShaderModule, None)
         Sinode.release(self)
 
-
-class ComputeShader(Shader):
-    def compile(self, glslCode):
-
+    def compile(self):
+        
+        with open(self.sourceFilename, 'r') as f:
+            glslCode = f.read()
+        
         # PREPROCESS THE SHADER CODE
         # RELATIVE TO DEFINED BUFFERS
 
@@ -157,7 +151,12 @@ class ComputeShader(Shader):
 
         # COMPILE GLSL TO SPIR-V
         self.device.instance.debug("compiling Stage")
-        glslFilename = os.path.join(self.basename + ".comp")
+        if self.stage == vk.VK_SHADER_STAGE_VERTEX_BIT:
+            glslFilename = os.path.join(self.basename + ".vert")
+        elif self.stage == vk.VK_SHADER_STAGE_COMPUTE_BIT:
+            glslFilename = os.path.join(self.basename + ".comp")
+        elif self.stage == vk.VK_SHADER_STAGE_FRAGMENT_BIT:
+            glslFilename = os.path.join(self.basename + ".frag")
         with open(glslFilename, "w+") as f:
             f.write(glslCode)
 
@@ -234,31 +233,19 @@ class ComputeShader(Shader):
 
 class VertexStage(Shader):
     def __init__(
-        self, parent, device, buffers, constantsDict, name="mandlebrot", DEBUG=False
+        self, parent, device, buffers, constantsDict, sourceFilename, name="mandlebrot", DEBUG=False
     ):
-        glslCode = """
-#version 450
-#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
-BUFFERS_STRING
-void main() {                         
-    gl_Position = vec4(position, 1.0);
-    fragColor = color;                
-}                                     
-"""
-
         Shader.__init__(
             self,
-            parent,
-            device,
-            buffers,
-            constantsDict,
+            parent=parent,
+            device=device,
+            buffers=buffers,
+            constantsDict=constantsDict,
+            sourceFilename=sourceFilename,
             stage=vk.VK_SHADER_STAGE_VERTEX_BIT,
-            name="vertex.vert",
-            DEBUG=False,
+            name=name,
+            DEBUG=DEBUG,
         )
-
-        # shader code belongs to the stage
-        self.compile(glslCode)
 
 
 class FragmentStage(Shader):
@@ -268,30 +255,18 @@ class FragmentStage(Shader):
         device,
         buffers,
         constantsDict,
-        stage=vk.VK_SHADER_STAGE_VERTEX_BIT,
+        sourceFilename, 
         name="mandlebrot",
         DEBUG=False,
     ):
-        glslCode = """
-#version 450
-#extension GL_ARB_separate_shader_objects : enable
-#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
-BUFFERS_STRING
-void main() {
-    outColor = vec4(fragColor, 1.0);
-}
-"""
         Shader.__init__(
             self,
-            parent,
-            device,
-            buffers,
-            constantsDict,
-            stage=VK_SHADER_STAGE_FRAGMENT_BIT,
-            name="fragment.frag",
+            parent=parent,
+            device=device,
+            buffers=buffers,
+            constantsDict=constantsDict,
+            sourceFilename=sourceFilename,
+            stage=vk.VK_SHADER_STAGE_FRAGMENT_BIT,
+            name=name,
             DEBUG=False,
         )
-
-        self.compile(glslCode)
-
-        # shader code belongs to the stage

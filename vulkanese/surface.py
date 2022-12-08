@@ -1,7 +1,7 @@
-from vulkan import *
+import vulkan as vk
 from sinode import *
 
-# import sdl2
+import sdl2
 # import sdl2.ext
 import ctypes
 
@@ -14,38 +14,38 @@ class Surface(Sinode):
         for f in self.formats:
             print("FORMAT")
             print(f.format)
-            if f.format == VK_FORMAT_UNDEFINED:
+            if f.format == vk.VK_FORMAT_UNDEFINED:
                 print("FORMAT UNDEFINED")
                 return f
             if (
-                f.format == VK_FORMAT_B8G8R8A8_UNORM
-                and f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+                f.format == vk.VK_FORMAT_B8G8R8A8_UNORM
+                and f.colorSpace == vk.VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
             ):
-                print("FORMAT VK_FORMAT_B8G8R8A8_UNORM")
+                print("FORMAT vk.VK_FORMAT_B8G8R8A8_UNORM")
                 return f
         return self.formats[0]
 
     def get_surface_present_mode(self):
         for p in self.present_modes:
-            if p == VK_PRESENT_MODE_MAILBOX_KHR:
+            if p == vk.VK_PRESENT_MODE_MAILBOX_KHR:
                 return p
-        return VK_PRESENT_MODE_FIFO_KHR
+        return vk.VK_PRESENT_MODE_FIFO_KHR
 
     def get_swap_extent(self):
         uint32_max = 4294967295
         if self.capabilities.currentExtent.width != uint32_max:
-            return VkExtent2D(
+            return vk.VkExtent2D(
                 width=self.capabilities.currentExtent.width,
                 height=self.capabilities.currentExtent.height,
             )
 
     def surface_xlib(self):
         print("Create Xlib surface")
-        vkCreateXlibSurfaceKHR = vkGetInstanceProcAddr(
+        vkCreateXlibSurfaceKHR = vk.vkGetInstanceProcAddr(
             self.vkInstance, "vkCreateXlibSurfaceKHR"
         )
-        surface_create = VkXlibSurfaceCreateInfoKHR(
-            sType=VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
+        surface_create = vk.VkXlibSurfaceCreateInfoKHR(
+            sType=vk.VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
             dpy=self.wm_info.info.x11.display,
             window=self.wm_info.info.x11.window,
             flags=0,
@@ -58,7 +58,7 @@ class Surface(Sinode):
             self.vkInstance, "vkCreateWaylandSurfaceKHR"
         )
         surface_create = VkWaylandSurfaceCreateInfoKHR(
-            sType=VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
+            sType=vk.VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
             display=self.wm_info.info.wl.display,
             surface=self.wm_info.info.wl.surface,
             flags=0,
@@ -80,7 +80,7 @@ class Surface(Sinode):
             self.vkInstance, "vkCreateWin32SurfaceKHR"
         )
         surface_create = VkWin32SurfaceCreateInfoKHR(
-            sType=VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
+            sType=vk.VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
             hinstance=get_instance(self.wm_info.info.win.window),
             hwnd=self.wm_info.info.win.window,
             flags=0,
@@ -94,7 +94,7 @@ class Surface(Sinode):
 
         self.WIDTH = pipeline.outputWidthPixels
         self.HEIGHT = pipeline.outputHeightPixels
-        self.extent = VkExtent2D(width=self.WIDTH, height=self.HEIGHT)
+        self.extent = vk.VkExtent2D(width=self.WIDTH, height=self.HEIGHT)
 
         self.instance = instance
         self.vkInstance = instance.vkInstance
@@ -122,17 +122,17 @@ class Surface(Sinode):
         sdl2.SDL_VERSION(self.wm_info.version)
         sdl2.SDL_GetWindowWMInfo(window, ctypes.byref(self.wm_info))
 
-        extensions = ["VK_KHR_surface", "VK_EXT_debug_report"]
+        extensions = ["vk.VK_KHR_surface", "vk.VK_EXT_debug_report"]
         if self.wm_info.subsystem == sdl2.SDL_SYSWM_WINDOWS:
-            extensions.append("VK_KHR_win32_surface")
+            extensions.append("vk.VK_KHR_win32_surface")
         elif self.wm_info.subsystem == sdl2.SDL_SYSWM_X11:
-            extensions.append("VK_KHR_xlib_surface")
+            extensions.append("vk.VK_KHR_xlib_surface")
         elif self.wm_info.subsystem == sdl2.SDL_SYSWM_WAYLAND:
-            extensions.append("VK_KHR_wayland_surface")
+            extensions.append("vk.VK_KHR_wayland_surface")
         else:
             raise Exception("Platform not supported")
 
-        self.vkDestroySurfaceKHR = vkGetInstanceProcAddr(
+        self.vkDestroySurfaceKHR = vk.vkGetInstanceProcAddr(
             instance.vkInstance, "vkDestroySurfaceKHR"
         )
 
@@ -147,13 +147,13 @@ class Surface(Sinode):
 
         # ----------
         # Create swapchain
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR = vkGetInstanceProcAddr(
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR = vk.vkGetInstanceProcAddr(
             instance.vkInstance, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR"
         )
-        vkGetPhysicalDeviceSurfaceFormatsKHR = vkGetInstanceProcAddr(
+        vkGetPhysicalDeviceSurfaceFormatsKHR = vk.vkGetInstanceProcAddr(
             instance.vkInstance, "vkGetPhysicalDeviceSurfaceFormatsKHR"
         )
-        vkGetPhysicalDeviceSurfacePresentModesKHR = vkGetInstanceProcAddr(
+        vkGetPhysicalDeviceSurfacePresentModesKHR = vk.vkGetInstanceProcAddr(
             instance.vkInstance, "vkGetPhysicalDeviceSurfacePresentModesKHR"
         )
 
@@ -195,12 +195,12 @@ class Surface(Sinode):
         print("selected colorspace: %s" % self.surface_format.colorSpace)
         print("%s available swapchain present modes" % len(self.present_modes))
         print("image count " + str(imageCount))
-        self.vkDestroySwapchainKHR = vkGetInstanceProcAddr(
+        self.vkDestroySwapchainKHR = vk.vkGetInstanceProcAddr(
             instance.vkInstance, "vkDestroySwapchainKHR"
         )
 
-        swapchain_create = VkSwapchainCreateInfoKHR(
-            sType=VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        swapchain_create = vk.VkSwapchainCreateInfoKHR(
+            sType=vk.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
             flags=0,
             surface=self.vkSurface,
             minImageCount=imageCount,
@@ -208,22 +208,22 @@ class Surface(Sinode):
             imageColorSpace=self.surface_format.colorSpace,
             imageExtent=self.extent,
             imageArrayLayers=1,
-            imageUsage=VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            imageUsage=vk.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
             imageSharingMode=device.imageSharingMode,
             queueFamilyIndexCount=device.queueFamilyIndexCount,
             pQueueFamilyIndices=device.pQueueFamilyIndices,
-            compositeAlpha=VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+            compositeAlpha=vk.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
             presentMode=present_mode,
-            clipped=VK_TRUE,
+            clipped=vk.VK_TRUE,
             oldSwapchain=None,
             preTransform=self.capabilities.currentTransform,
         )
 
-        vkCreateSwapchainKHR = vkGetInstanceProcAddr(
+        vkCreateSwapchainKHR = vk.vkGetInstanceProcAddr(
             instance.vkInstance, "vkCreateSwapchainKHR"
         )
         self.swapchain = vkCreateSwapchainKHR(device.vkDevice, swapchain_create, None)
-        vkGetSwapchainImagesKHR = vkGetInstanceProcAddr(
+        vkGetSwapchainImagesKHR = vk.vkGetInstanceProcAddr(
             instance.vkInstance, "vkGetSwapchainImagesKHR"
         )
         self.vkSwapchainImages = vkGetSwapchainImagesKHR(
@@ -232,11 +232,12 @@ class Surface(Sinode):
         print("swapchain images " + str(self.vkSwapchainImages))
         self.children += [self.vkSwapchainImages]
 
-        # preesentation creator
-        self.present_create = VkPresentInfoKHR(
-            sType=VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-            waitSemaphoreCount=1,
-            pWaitSemaphores=self.pipeline.signal_semaphores,
+        print(self.swapchain)
+        # presentation creator
+        self.present_create = vk.VkPresentInfoKHR(
+            sType=vk.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+            waitSemaphoreCount=len(self.pipeline.signalSemaphores),
+            pWaitSemaphores=self.pipeline.signalSemaphores,
             swapchainCount=1,
             pSwapchains=[self.swapchain],
             pImageIndices=[0],
