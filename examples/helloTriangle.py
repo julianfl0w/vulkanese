@@ -1,14 +1,13 @@
 #!/bin/env python
-import ctypes
 import os
 import time
 import sys
 import numpy as np
 import json
-import trimesh
-import cv2 as cv
 import open3d as o3d
 import copy
+import sdl2
+import shapes
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import vulkanese as ve
@@ -16,6 +15,7 @@ import vulkan    as vk
 from sinode import Sinode
 here = os.path.dirname(os.path.abspath(__file__))
 
+            
 class HelloTriangle(Sinode):
     def __init__(self, device, constantsDict):
         Sinode.__init__(self)
@@ -31,13 +31,13 @@ class HelloTriangle(Sinode):
                 qualifier="readonly",
                 dimensionVals=[self.VERTEX_COUNT, self.SPATIAL_DIMENSIONS],
                 stride=12,
+                compress=False
             )
         
         self.indexBuffer = ve.buffer.IndexBuffer(
                 device=self.device,
                 name="index",
                 dimensionVals=[self.TRIANGLE_COUNT, self.VERTS_PER_TRIANGLE],
-                memtype="uint",
                 stride=4,
             )
         # Input buffers to the shader
@@ -52,6 +52,7 @@ class HelloTriangle(Sinode):
                 qualifier="readonly",
                 dimensionVals=[self.VERTEX_COUNT, self.SPATIAL_DIMENSIONS],
                 stride=12,
+                compress=False
             ),
             ve.buffer.VertexBuffer(
                 device=self.device,
@@ -60,6 +61,7 @@ class HelloTriangle(Sinode):
                 qualifier="readonly",
                 dimensionVals=[self.VERTEX_COUNT, self.SPATIAL_DIMENSIONS],
                 stride=12,
+                compress=False
             ),
             ve.buffer.VertexBuffer(
                 device=self.device,
@@ -68,6 +70,7 @@ class HelloTriangle(Sinode):
                 qualifier="readonly",
                 dimensionVals=[self.VERTEX_COUNT, self.SPATIAL_DIMENSIONS],
                 stride=12,
+                compress=False
             ),
             FragBuffer
         ]
@@ -80,6 +83,7 @@ class HelloTriangle(Sinode):
                 qualifier="readonly",
                 dimensionVals=[self.VERTEX_COUNT],
                 stride=16,
+                compress=False
             ),
             FragBuffer
         ]
@@ -91,7 +95,7 @@ class HelloTriangle(Sinode):
             parent=self,
             constantsDict=self.constantsDict,
             buffers=self.vertexBuffers,
-            name="vertex",
+            name="vertexStage",
             sourceFilename=os.path.join(here, "shaders", "passthrough_vert.c"),
         )
 
@@ -101,7 +105,7 @@ class HelloTriangle(Sinode):
             parent=self,
             buffers=self.fragmentBuffers,
             constantsDict=self.constantsDict,
-            name="fragment",
+            name="fragmentStage",
             sourceFilename=os.path.join(here, "shaders", "passthrough_frag.c"),
         )
 
@@ -127,21 +131,8 @@ class HelloTriangle(Sinode):
     def run(self):
 
         # create the pyramid
-        pyramidMesh = getPyramid()
-        TRANSLATION = (0.0, 0.5, 0.5)
-        pyramidMesh.translate(TRANSLATION)
-        pyramidVerticesColor = np.array(
-            [
-                [[1.0, 0.0, 0.0]] * 3
-                + [[1.0, 1.0, 0.0]] * 3
-                + [[0.0, 0.0, 1.0]] * 3
-                + [[0.0, 1.0, 1.0]] * 3
-            ],
-            dtype=np.float32,
-        )
-        pyramidVerticesColorHSV = cv.cvtColor(pyramidVerticesColor, cv.COLOR_BGR2HSV)
-        print(np.asarray(pyramidMesh.vertices))
-
+        self.pyramid = shapes.Pyramid()
+        
         # Main loop
         clock = time.perf_counter
         last_time = clock() * 1000
@@ -149,40 +140,35 @@ class HelloTriangle(Sinode):
         fps_last = 60
         running = True
         while running:
+            
             # timing
             fps += 1
-            if clock() * 1000 - last_time >= 1000:
-                last_time = clock() * 1000
+            if clock() - last_time >= 1:
+                last_time = clock()
                 print("FPS: %s" % fps)
                 fps_last = fps
                 fps = 0
 
+            self.pyramid.rotate(fps_last)
+            
             # get quit, mouse, keypress etc
             for event in self.rasterPipeline.surface.getEvents():
                 if event.type == sdl2.SDL_QUIT:
                     running = False
-                    vkDeviceWaitIdle(self.device.vkDevice)
+                    vk.vkDeviceWaitIdle(self.device.vkDevice)
                     break
 
-            # rotate the pyrimid
-            R = pyramidMesh.get_rotation_matrix_from_xyz(
-                (0, -np.pi / max(6 * fps_last, 1), 0)
-            )
-            pyramidMesh.rotate(R, center=(0, 0, TRANSLATION[2]))
-            meshVert = np.asarray(pyramidMesh.vertices, dtype="f4")
-            print(np.asarray(pyramidMesh.triangles, dtype="u4"))
             # the index buffer is the 3 vert indices of each triangle
-            self.rasterPipeline.indexBuffer.set(
-                np.asarray(pyramidMesh.triangles, dtype="u4").flatten()
-            )
-
-            self.rasterPipeline.vertexStage.gpuBuffers.position.set(meshVert)
-            pyramidVerticesColorHSV[:, :, 0] = np.fmod(
-                pyramidVerticesColorHSV[:, :, 0] + 0.01, 360
-            )
-            # pyramidVerticesColor =  cv.cvtColor(pyramidVerticesColorHSV, cv.COLOR_HSV2RGB)
-            vp = pyramidVerticesColor.flatten()
-            self.rasterPipeline.vertexStage.gpuBuffers.color.set(vp)
+            #print(self.pyramid.mesh.triangles)
+            trianglesShape = np.shape(np.array(self.pyramid.mesh.triangles))
+            trianglesLen   = np.prod(trianglesShape)
+            ii = (np.arange(trianglesLen*4)/4).astype(np.uint32)
+            #print(ii)
+            #print(np.array(self.pyramid.mesh.triangles))
+            self.rasterPipeline.indexBuffer.setByIndexStart(0,np.array(self.pyramid.mesh.triangles).flatten()[ii])
+            self.rasterPipeline.vertexStage.gpuBuffers.position.setByIndexStart(0, np.array(self.pyramid.mesh.vertices).flatten())
+            
+            self.rasterPipeline.vertexStage.gpuBuffers.color.set(self.pyramid.verticesColorBGR)
             # draw the frame!
             self.rasterPipeline.draw_frame()
 

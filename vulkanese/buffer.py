@@ -93,10 +93,10 @@ class Buffer(Sinode):
         memtype="float",
         rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
         stride=4,
-        compressBuffers=True,
+        compress=True,
     ):
         self.DEBUG = DEBUG
-        self.compressBuffers = compressBuffers
+        self.compress = compress
         self.dimensionVals = dimensionVals
         self.binding = descriptorSet.getBufferBinding()
         # this should be fixed in vulkan wrapper
@@ -258,7 +258,7 @@ class Buffer(Sinode):
 
     def getSkipval(self):
         if (
-            self.compressBuffers
+            self.compress
             and self.usage == vk.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
             and (self.type == "float64_t" or self.type == "float")
         ):
@@ -307,7 +307,7 @@ class Buffer(Sinode):
             )
 
         else:
-            if self.compressBuffers:
+            if self.compress:
                 if flat:
                     rcvdArray = flatArray
                 else:
@@ -380,7 +380,7 @@ class Buffer(Sinode):
             std = "std140"
         else:
             b = "buffer "
-            if self.compressBuffers:
+            if self.compress:
                 std = "std430"
             else:
                 std = "std140"
@@ -432,8 +432,8 @@ class Buffer(Sinode):
         self.pmap[startByte:endByte] = np.array(data, dtype=self.pythonType)
 
     def setByIndexStart(self, startIndex, data):
-        if self.skipval != 1:
-            raise ("You can only do this with new-format storage buffers!")
+        #if self.skipval != 1:
+        #    raise ("You can only do this with new-format storage buffers!")
         # self.device.instance.debug(self.name + " setting " + str(index) + " to " + str(data))
         startByte = startIndex * self.itemSize * self.skipval
         endByte = startIndex * self.itemSize * self.skipval + self.itemSize * len(data)
@@ -518,7 +518,7 @@ class DebugBuffer(Buffer):
             memtype=memtype,
             rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
             stride=12,
-            compressBuffers=True,
+            compress=True,
         )
 
 
@@ -537,6 +537,7 @@ class StorageBuffer(Buffer):
         memtype="float",
         rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
         stride=12,
+        compress=True,
     ):
         Buffer.__init__(
             self,
@@ -556,7 +557,7 @@ class StorageBuffer(Buffer):
             memtype=memtype,
             rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
             stride=4,
-            compressBuffers=True,
+            compress=compress,
         )
 
 class VertexBuffer(Buffer):
@@ -574,6 +575,7 @@ class VertexBuffer(Buffer):
         memtype="float",
         rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
         stride=12,
+        compress=False,
     ):
         Buffer.__init__(
             self,
@@ -593,7 +595,7 @@ class VertexBuffer(Buffer):
             memtype=memtype,
             rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
             stride=stride,
-            compressBuffers=True,
+            compress=compress,
         )
 
 class IndexBuffer(Buffer):
@@ -608,7 +610,6 @@ class IndexBuffer(Buffer):
         | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
         | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
         | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        memtype="float",
         rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
         stride=12,
     ):
@@ -623,16 +624,15 @@ class IndexBuffer(Buffer):
             format=vk.VK_FORMAT_R32_UINT,
             readFromCPU=True,
             usage=vk.VK_BUFFER_USAGE_TRANSFER_DST_BIT
-                | vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
                 | vk.VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
             memProperties=memProperties,
             sharingMode=vk.VK_SHARING_MODE_EXCLUSIVE,
             stageFlags=vk.VK_SHADER_STAGE_FRAGMENT_BIT,
             qualifier=qualifier,
-            memtype=memtype,
+            memtype="uint",
             rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
             stride=4,
-            compressBuffers=True,
+            compress=False,
         )
 
 class FragmentBuffer(Buffer):
@@ -650,6 +650,7 @@ class FragmentBuffer(Buffer):
         memtype="float",
         rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
         stride=12,
+        compress=False,
     ):
         Buffer.__init__(
             self,
@@ -669,7 +670,7 @@ class FragmentBuffer(Buffer):
             memtype=memtype,
             rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
             stride=stride,
-            compressBuffers=True,
+            compress=compress,
         )
         
 class UniformBuffer(Buffer):
@@ -705,7 +706,7 @@ class UniformBuffer(Buffer):
             memtype=memtype,
             rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
             stride=12,
-            compressBuffers=False,
+            compress=False,
         )
 
 

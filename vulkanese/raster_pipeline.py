@@ -11,6 +11,7 @@ from . import shader
 from . import synchronization
 from . import renderpass
 from . import surface
+from . import command_buffer
 
 from sinode import *
 
@@ -33,10 +34,12 @@ class RasterPipeline(pipeline.Pipeline):
         self.outputClass = outputClass
         self.DEBUG = False
         self.constantsDict = constantsDict
-
+        self.stages = stages
         self.outputWidthPixels = outputWidthPixels
         self.outputHeightPixels = outputHeightPixels
-
+        for stage in stages:
+            # make the buffer accessable as a local attribute
+            exec("self." + stage.name + "= stage")
         pipeline.Pipeline.__init__(
             self,
             device=device,
@@ -209,14 +212,14 @@ class RasterPipeline(pipeline.Pipeline):
         self.vkPipeline = pipelines[0]
 
         # wrap it all up into a command buffer
-        self.commandBuffer = RasterCommandBuffer(self)
+        self.commandBuffer = command_buffer.RasterCommandBuffer(self)
 
     def draw_frame(self):
         image_index = self.vkAcquireNextImageKHR(
             self.vkDevice,
             self.surface.swapchain,
-            UINT64_MAX,
-            self.semaphore_image_available.vkSemaphore,
+            vk.UINT64_MAX,
+            self.signalSemaphores[0].vkSemaphore,
             None,
         )
         self.commandBuffer.draw_frame(image_index)

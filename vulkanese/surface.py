@@ -2,7 +2,7 @@ import vulkan as vk
 from sinode import *
 
 import sdl2
-# import sdl2.ext
+import sdl2.ext
 import ctypes
 
 
@@ -234,10 +234,11 @@ class Surface(Sinode):
 
         print(self.swapchain)
         # presentation creator
+        print(self.pipeline.signalSemaphores)
         self.present_create = vk.VkPresentInfoKHR(
             sType=vk.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
             waitSemaphoreCount=len(self.pipeline.signalSemaphores),
-            pWaitSemaphores=self.pipeline.signalSemaphores,
+            pWaitSemaphores=[s.vkSemaphore for s in self.pipeline.signalSemaphores],
             swapchainCount=1,
             pSwapchains=[self.swapchain],
             pImageIndices=[0],

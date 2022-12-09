@@ -334,7 +334,7 @@ class Device(Sinode):
             child.release()
 
         self.instance.debug("destroying command pool")
-        vkDestroyCommandPool(self.vkDevice, self.vkCommandPool, None)
+        vk.vkDestroyCommandPool(self.vkDevice, self.vkCommandPool, None)
 
         self.instance.debug("destroying device")
-        vkDestroyDevice(self.vkDevice, None)
+        vk.vkDestroyDevice(self.vkDevice, None)
