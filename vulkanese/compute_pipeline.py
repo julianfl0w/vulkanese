@@ -31,6 +31,7 @@ class ComputePipeline(pipeline.Pipeline):
         constantsDict,
         workgroupCount=[1, 1, 1],
         waitSemaphores=[],
+        waitStages=[],
     ):
         sinode.Sinode.__init__(self)
 
@@ -40,16 +41,11 @@ class ComputePipeline(pipeline.Pipeline):
 
         #######################################################
         # Pipeline
-        device.descriptorPool.finalize()
         pipeline.Pipeline.__init__(
-            self,
-            device,
-            stages=[computeShader],
-            outputClass="image",
-            waitSemaphores=waitSemaphores,
+            self, device, stages=[computeShader], waitSemaphores=waitSemaphores,
         )
 
-        self.descriptorSet = device.descriptorPool.descSetGlobal
+        device.descriptorPool.finalize()
 
         # The pipeline layout allows the pipeline to access descriptor sets.
         # So we just specify the descriptor set layout we created earlier.
@@ -83,41 +79,21 @@ class ComputePipeline(pipeline.Pipeline):
         )
 
         # Now, we finally create the compute pipeline.
-        pipelines = vkCreateComputePipelines(
+        vkpipelines = vkCreateComputePipelines(
             self.vkDevice, VK_NULL_HANDLE, 1, self.pipelineCreateInfo, None
         )
-        if len(pipelines) == 1:
-            self.vkPipeline = pipelines[0]
+        if len(vkpipelines) == 1:
+            self.vkPipeline = vkpipelines[0]
 
         # self.children += [pipelines]
         # wrap it all up into a command buffer
         self.commandBuffer = command_buffer.ComputeCommandBuffer(
-            self, workgroupCount=workgroupCount
+            device=device,
+            pipeline=self,
+            workgroupCount=workgroupCount,
+            waitSemaphores=waitSemaphores,
+            waitStages=waitStages,
         )
-
-        # Now we shall finally submit the recorded command buffer to a queue.
-        if waitSemaphores == [] or True:
-            self.submitInfo = VkSubmitInfo(
-                sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                commandBufferCount=1,  # submit a single command buffer
-                pCommandBuffers=[
-                    self.commandBuffer.vkCommandBuffers[0]
-                ],  # the command buffer to submit.
-                signalSemaphoreCount=len(self.signalSemaphores),
-                pSignalSemaphores=[s.vkSemaphore for s in self.signalSemaphores],
-            )
-        else:
-            self.submitInfo = VkSubmitInfo(
-                sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                commandBufferCount=1,  # submit a single command buffer
-                pCommandBuffers=[
-                    self.commandBuffer.vkCommandBuffers[0]
-                ],  # the command buffer to submit.
-                waitSemaphoreCount=int(len(waitSemaphores)),
-                pWaitSemaphores=[s.vkSemaphore for s in waitSemaphores],
-                signalSemaphoreCount=len(self.signalSemaphores),
-                pSignalSemaphores=[s.vkSemaphore for s in self.signalSemaphores],
-            )
 
     # this help if you run the main loop in C/C++
     # just use the Vulkan addresses!
@@ -137,15 +113,15 @@ class ComputePipeline(pipeline.Pipeline):
         vkQueueSubmit(
             queue=self.device.compute_queue,
             submitCount=1,
-            pSubmits=self.submitInfo,
-            fence=self.fence.vkFence,
+            pSubmits=self.commandBuffer.submitInfo,
+            fence=self.commandBuffer.fence.vkFence,
         )
 
         if blocking:
             self.wait()
 
     def wait(self):
-        for fence in self.fences:
+        for fence in self.commandBuffer.fences:
             fence.wait()
 
     def release(self):

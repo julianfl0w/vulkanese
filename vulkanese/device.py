@@ -6,6 +6,7 @@ from sinode import *
 import vulkan as vk
 from . import vulkanese as ve
 from cffi import FFI
+
 here = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -47,10 +48,9 @@ class Device(Sinode):
             deviceIndex
         ]
 
-            
         self.memoryProperties = self.getMemoryProperties()
-        self.processorType    = self.getProcessorType()
-        self.limits           = self.getLimits()
+        self.processorType = self.getProcessorType()
+        self.limits = self.getLimits()
 
         self.instance.debug("getting features list")
 
@@ -268,7 +268,9 @@ class Device(Sinode):
     # Returns the index of a queue family that supports compute operations.
     def getComputeQueueFamilyIndex(self):
         # Retrieve all queue families.
-        queueFamilies = vk.vkGetPhysicalDeviceQueueFamilyProperties(self.physical_device)
+        queueFamilies = vk.vkGetPhysicalDeviceQueueFamilyProperties(
+            self.physical_device
+        )
 
         # Now find a family that supports compute.
         for i, props in enumerate(queueFamilies):

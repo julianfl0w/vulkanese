@@ -3,60 +3,59 @@ import os
 import time
 import json
 from sinode import *
-from vulkan import *
+import vulkan as vk
 
-from . import vulkanese
 from . import synchronization
 
-from PIL import Image as pilImage
-
-here = os.path.dirname(os.path.abspath(__file__))
-
-
-def getVulkanesePath():
-    return here
-
-
 # all pipelines contain:
-# references to instance, device, etc
-# at least 1 stage
-# an output size
+# at least 1 stage (shader)
 class Pipeline(Sinode):
     def __init__(
-        self,
-        device,
-        stages=[],
-        outputClass="surface",
-        outputWidthPixels=500,
-        outputHeightPixels=500,
-        waitSemaphores=[],
+        self, device, waitSemaphores, shaders,
     ):
 
-        self.vkDevice = device.vkDevice
-        self.device = device
-        
-        # We create a fence.
-        # So the CPU can know when processing is done
-        self.waitSemaphores = waitSemaphores
-        self.waitStages = []
-        self.fence = synchronization.Fence(device=self.device)
-        self.semaphore = synchronization.Semaphore(device=self.device)
-        self.fences = [self.fence]
-        self.signalSemaphores = [self.semaphore]
-
         Sinode.__init__(self, device)
-        self.location = 0
-        self.outputClass = outputClass
-        self.instance = device.instance
-        self.outputWidthPixels = outputWidthPixels
-        self.outputHeightPixels = outputHeightPixels
-        self.shaders = []
-        # Add Stages
-        # if not compute
-        # self.stages = stages
 
-        # if not type(self) == "ComputePipeline":
-        #    self.children += self.stages
+        self.shaders = shaders
+        self.device = device
+
+        push_constant_ranges = vk.VkPushConstantRange(stageFlags=0, offset=0, size=0)
+
+        self.pipelineCreateInfo = vk.VkPipelineLayoutCreateInfo(
+            sType=vk.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            flags=0,
+            setLayoutCount=0,
+            pSetLayouts=None,
+            pushConstantRangeCount=0,
+            pPushConstantRanges=[push_constant_ranges],
+        )
+
+        self.vkPipelineLayout = vk.vkCreatePipelineLayout(
+            device.vkDevice, self.pipelineCreateInfo, None
+        )
+
+        # Information describing the queue submission
+        # Now we shall finally submit the recorded command buffer to a queue.
+        if waitSemaphores == []:
+            self.submitInfo = vk.VkSubmitInfo(
+                sType=vk.VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                commandBufferCount=self.commandBuffer.commandBufferCount,
+                pCommandBuffers=self.vkCommandBuffers,
+                signalSemaphoreCount=len(self.signalSemaphores),
+                pSignalSemaphores=[s.vkSemaphore for s in self.signalSemaphores],
+                pWaitDstStageMask=waitStages,
+            )
+        else:
+            self.submitInfo = VkSubmitInfo(
+                sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                commandBufferCount=self.commandBufferCount,
+                pCommandBuffers=self.vkCommandBuffers,
+                waitSemaphoreCount=int(len(waitSemaphores)),
+                pWaitSemaphores=[s.vkSemaphore for s in waitSemaphores],
+                signalSemaphoreCount=len(self.signalSemaphores),
+                pSignalSemaphores=[s.vkSemaphore for s in self.signalSemaphores],
+                pWaitDstStageMask=waitStages,
+            )
 
     def getAllBuffers(self):
         allBuffers = []

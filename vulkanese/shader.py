@@ -40,7 +40,9 @@ class Shader(Sinode):
         workgroupCount=[1, 1, 1],
         compressBuffers=True,
         waitSemaphores=[],
+        waitStages=None,
     ):
+        self.waitStages = waitStages
         self.constantsDict = constantsDict
         self.DEBUG = DEBUG
         Sinode.__init__(self, parent)
@@ -120,10 +122,10 @@ class Shader(Sinode):
         Sinode.release(self)
 
     def compile(self):
-        
-        with open(self.sourceFilename, 'r') as f:
+
+        with open(self.sourceFilename, "r") as f:
             glslCode = f.read()
-        
+
         # PREPROCESS THE SHADER CODE
         # RELATIVE TO DEFINED BUFFERS
 
@@ -233,7 +235,14 @@ class Shader(Sinode):
 
 class VertexStage(Shader):
     def __init__(
-        self, parent, device, buffers, constantsDict, sourceFilename, name="mandlebrot", DEBUG=False
+        self,
+        parent,
+        device,
+        buffers,
+        constantsDict,
+        sourceFilename,
+        name="mandlebrot",
+        DEBUG=False,
     ):
         Shader.__init__(
             self,
@@ -255,7 +264,7 @@ class FragmentStage(Shader):
         device,
         buffers,
         constantsDict,
-        sourceFilename, 
+        sourceFilename,
         name="mandlebrot",
         DEBUG=False,
     ):

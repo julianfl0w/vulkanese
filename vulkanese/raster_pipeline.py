@@ -22,54 +22,153 @@ class RasterPipeline(pipeline.Pipeline):
         device,
         constantsDict,
         indexBuffer,
-        stages,
+        shaders,
         buffers,
         outputClass="surface",
         outputWidthPixels=700,
         outputHeightPixels=700,
         culling=vk.VK_CULL_MODE_BACK_BIT,
         oversample=vk.VK_SAMPLE_COUNT_1_BIT,
+        waitSemaphores=[],
     ):
+
+        # We create a fence.
+        # So the CPU can know when processing is done
+        self.waitSemaphores = waitSemaphores
+        self.waitStages = waitStages
+        self.fence = synchronization.Fence(device=self.device)
+        self.semaphore = synchronization.Semaphore(device=self.device)
+        self.fences = [self.fence]
+        self.signalSemaphores = [self.semaphore]
+
+        self.commandBufferCount = 0
+        # assume triple-buffering for surfaces
+        if pipeline.outputClass == "surface":
+            self.device.instance.debug(
+                "allocating 3 command buffers, one for each image"
+            )
+            self.commandBufferCount += 3
+        # single-buffering for images
+        else:
+            self.commandBufferCount += 1
+
         self.indexBuffer = indexBuffer
         self.outputClass = outputClass
         self.DEBUG = False
         self.constantsDict = constantsDict
-        self.stages = stages
+        self.shaders = shaders
         self.outputWidthPixels = outputWidthPixels
         self.outputHeightPixels = outputHeightPixels
-        for stage in stages:
+        for shader in shaders:
             # make the buffer accessable as a local attribute
-            exec("self." + stage.name + "= stage")
+            exec("self." + shader.name + "= shader")
+
+        # optimization to avoid creating a new array each time
+        self.submit_list = ffi.new("VkSubmitInfo[1]", [self.submit_create])
+        self.commandBuffers = []
+
+        # Record command buffer
+        for i, vkCommandBuffer in enumerate(self.vkCommandBuffers):
+            # create a command buffer
+            thisCommandBuffer = command_buffer.CommandBuffer(device=device)
+            self.commandBuffers += [thisCommandBuffer]
+            vkCommandBuffer = thisCommandBuffer.vkCommandBuffer
+
+            # start recording commands into it
+            vkCommandBuffer_begin_create = VkCommandBufferBeginInfo(
+                sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                flags=VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
+                pInheritanceInfo=None,
+            )
+
+            vkBeginCommandBuffer(vkCommandBuffer, vkCommandBuffer_begin_create)
+            vkCmdBeginRenderPass(
+                vkCommandBuffer,
+                self.pipeline.renderPass.render_pass_begin_create[i],
+                VK_SUBPASS_CONTENTS_INLINE,
+            )
+            # Bind graphicsPipeline
+            vkCmdBindPipeline(
+                vkCommandBuffer,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                self.pipeline.vkPipeline,
+            )
+
+            # Provided by VK_VERSION_1_0
+            allBuffers = self.pipeline.getAllBuffers()
+
+            self.device.instance.debug("--- ALL BUFFERS ---")
+            for i, buffer in enumerate(allBuffers):
+                self.device.instance.debug("-------------------------")
+                self.device.instance.debug(i)
+            allVertexBuffers = [
+                b
+                for b in allBuffers
+                if (b.usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or b.name == "index")
+            ]
+            self.device.instance.debug("--- ALL VERTEX BUFFERS ---")
+            for i, buffer in enumerate(allVertexBuffers):
+                self.device.instance.debug("-------------------------")
+                self.device.instance.debug(i)
+
+            allVertexBuffersVk = [b.vkBuffer for b in allVertexBuffers]
+
+            pOffsets = [0] * len(allVertexBuffersVk)
+            self.device.instance.debug("pOffsets")
+            self.device.instance.debug(pOffsets)
+            vkCmdBindVertexBuffers(
+                commandBuffer=vkCommandBuffer,
+                firstBinding=0,
+                bindingCount=len(allVertexBuffersVk),
+                pBuffers=allVertexBuffersVk,
+                pOffsets=pOffsets,
+            )
+
+            vkCmdBindIndexBuffer(
+                commandBuffer=vkCommandBuffer,
+                buffer=pipeline.indexBuffer.vkBuffer,
+                offset=0,
+                indexType=VK_INDEX_TYPE_UINT32,
+            )
+
+            # Draw
+            # void vkCmdDraw(
+            # 	VkCommandBuffer commandBuffer,
+            # 	uint32_t        vertexCount,
+            # 	uint32_t        instanceCount,
+            # 	uint32_t        firstVertex,
+            # 	uint32_t        firstInstance);
+            # vkCmdDraw(vkCommandBuffer, 6400, 1, 0, 1)
+
+            # void vkCmdDrawIndexed(
+            # 	VkCommandBuffer                             commandBuffer,
+            # 	uint32_t                                    indexCount,
+            # 	uint32_t                                    instanceCount,
+            # 	uint32_t                                    firstIndex,
+            # 	int32_t                                     vertexOffset,
+            # 	uint32_t                                    firstInstance);
+            vkCmdDrawIndexed(
+                vkCommandBuffer, np.prod(pipeline.indexBuffer.dimensionVals), 1, 0, 0, 0
+            )
+
+            # End
+            vkCmdEndRenderPass(vkCommandBuffer)
+            vkEndCommandBuffer(vkCommandBuffer)
+
         pipeline.Pipeline.__init__(
             self,
             device=device,
-            stages=stages,
+            shaders=shaders,
+            waitSemaphores=waitSemaphores,
             outputClass=self.outputClass,
-            outputWidthPixels=self.outputWidthPixels,
-            outputHeightPixels=self.outputHeightPixels,
         )
 
-        push_constant_ranges = vk.VkPushConstantRange(stageFlags=0, offset=0, size=0)
-
-        self.pipelineCreateInfo = vk.VkPipelineLayoutCreateInfo(
-            sType=vk.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            flags=0,
-            setLayoutCount=0,
-            pSetLayouts=None,
-            pushConstantRangeCount=0,
-            pPushConstantRanges=[push_constant_ranges],
-        )
-
-        self.vkPipelineLayout = vk.vkCreatePipelineLayout(
-            self.vkDevice, self.pipelineCreateInfo, None
-        )
         self.children += [self.vkPipelineLayout]
-
 
         # get global lists
         allVertexBuffers = []
         for b in set(buffers):
-            if b.usage==vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT:
+            if b.usage == vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT:
                 allVertexBuffers += [b]
 
         allBindingDescriptors = [b.bindingDescription for b in allVertexBuffers]
@@ -177,17 +276,19 @@ class RasterPipeline(pipeline.Pipeline):
         self.vkQueuePresentKHR = vk.vkGetInstanceProcAddr(
             self.instance.vkInstance, "vkQueuePresentKHR"
         )
-        
+
         # Create a generic render pass
-        self.renderPass = renderpass.RenderPass(self, oversample=oversample, surface=self.surface)
+        self.renderPass = renderpass.RenderPass(
+            self, oversample=oversample, surface=self.surface
+        )
         self.children += [self.renderPass]
-        
+
         # Finally create graphicsPipeline
         self.pipelinecreate = vk.VkGraphicsPipelineCreateInfo(
             sType=vk.VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             flags=0,
-            stageCount=len(self.stages),
-            pStages=[s.shader_stage_create for s in self.stages],
+            stageCount=len(self.shaders),
+            pshaders=[s.shader_stage_create for s in self.shaders],
             pVertexInputState=vertex_input_create,
             pInputAssemblyState=input_assembly_create,
             pTessellationState=None,
@@ -211,10 +312,8 @@ class RasterPipeline(pipeline.Pipeline):
 
         self.vkPipeline = pipelines[0]
 
-        # wrap it all up into a command buffer
-        self.commandBuffer = command_buffer.RasterCommandBuffer(self)
-
     def draw_frame(self):
+
         image_index = self.vkAcquireNextImageKHR(
             self.vkDevice,
             self.surface.swapchain,
@@ -222,4 +321,14 @@ class RasterPipeline(pipeline.Pipeline):
             self.signalSemaphores[0].vkSemaphore,
             None,
         )
-        self.commandBuffer.draw_frame(image_index)
+
+        self.submit_create.pCommandBuffers[0] = self.vkCommandBuffers[image_index]
+        vkQueueSubmit(self.device.graphic_queue, 1, self.submit_list, None)
+
+        self.pipeline.surface.present_create.pImageIndices[0] = image_index
+        self.pipeline.vkQueuePresentKHR(
+            self.device.presentation_queue, self.pipeline.surface.present_create
+        )
+
+        # Fix #55 but downgrade performance -1000FPS)
+        vkQueueWaitIdle(self.device.presentation_queue)

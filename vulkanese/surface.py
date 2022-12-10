@@ -234,7 +234,7 @@ class Surface(Sinode):
 
         print(self.swapchain)
         # presentation creator
-        print(self.pipeline.signalSemaphores)
+        print(self.pipeline.commandBuffer.signalSemaphores)
         self.present_create = vk.VkPresentInfoKHR(
             sType=vk.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
             waitSemaphoreCount=len(self.pipeline.signalSemaphores),

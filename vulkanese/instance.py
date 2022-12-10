@@ -120,7 +120,7 @@ class Instance(sinode.Sinode):
             devdict[pProperties.deviceName] = {
                 "processorType": device_i.processorType,
                 "memProperties": device_i.memoryProperties,
-                "limits"       : device_i.limits,
+                "limits": device_i.limits,
             }
         return devdict
 

@@ -5,9 +5,10 @@ import numpy as np
 
 arith_home = os.path.dirname(os.path.abspath(__file__))
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import vulkanese as ve
-import vulkan    as vk
+import vulkan as vk
+
 
 class ARITH(ve.shader.ComputeShader):
     def __init__(
@@ -109,7 +110,7 @@ def floatTest(X, Y, device, expectation):
         # | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
     )
-    
+
     s.gpuBuffers.x.set(X)
     s.gpuBuffers.y.set(Y)
     for i in range(10):
@@ -134,5 +135,5 @@ if __name__ == "__main__":
     device = instance.getDevice(0)
     nval = numpyTest(X, Y)
     floatTest(X, Y, device, expectation=nval)
-    
+
     instance.release()

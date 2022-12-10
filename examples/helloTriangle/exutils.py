@@ -9,5 +9,3 @@ import trimesh
 import cv2 as cv
 import open3d as o3d
 import copy
-
-
