@@ -18,7 +18,6 @@ class Empty:
 class Shader(Sinode):
     def __init__(
         self,
-        parent,
         device,
         constantsDict,
         buffers,
@@ -30,11 +29,14 @@ class Shader(Sinode):
         compressBuffers=True,
         waitSemaphores=[],
         waitStages=None,
+        signalSemaphoreCount = 0, # these only used for compute shaders
+        fenceCount = 0,           # these only used for compute shaders
+        useFence = False,
     ):
         self.waitStages = waitStages
         self.constantsDict = constantsDict
         self.DEBUG = DEBUG
-        Sinode.__init__(self, parent)
+        Sinode.__init__(self, device)
         self.vkDevice = device.vkDevice
         self.device = device
         self.name = name
@@ -98,6 +100,8 @@ class Shader(Sinode):
                 constantsDict=self.constantsDict,
                 workgroupCount=workgroupCount,
                 waitSemaphores=waitSemaphores,
+                signalSemaphoreCount = signalSemaphoreCount,
+                useFence = useFence
             )
             self.computePipeline.children += [self]
 

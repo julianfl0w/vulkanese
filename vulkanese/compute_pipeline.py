@@ -6,7 +6,6 @@ import vulkan as vk
 import sinode
 import re
 from . import buffer
-from . import pipeline
 from . import synchronization
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -22,13 +21,15 @@ def getVulkanesePath():
 # pipeline,
 # shader
 # All in one. it is self-contained
-class ComputePipeline(pipeline.Pipeline):
+class ComputePipeline(sinode.Sinode):
     def __init__(
         self,
         computeShader,
         device,
         constantsDict,
         workgroupCount=[1, 1, 1],
+        signalSemaphoreCount = 0,
+        useFence = False,
         waitSemaphores=[],
         waitStages=[],
     ):
@@ -36,18 +37,19 @@ class ComputePipeline(pipeline.Pipeline):
 
         self.device = device
         device.children += [self]
-
         device.descriptorPool.finalize()
 
         
         # synchronization is owned by the pipeline (command buffer?)
         self.waitSemaphores = waitSemaphores
         self.waitStages = waitStages
-        self.fence = synchronization.Fence(device=self.device)
-        self.semaphore = synchronization.Semaphore(device=self.device)
-        self.fences = [self.fence]
-        self.signalSemaphores = [self.semaphore]
-        
+        self.fence = None
+        if useFence:
+            self.fence = synchronization.Fence(device=self.device)
+        self.signalSemaphores = []
+        for semaphore in range(signalSemaphoreCount):
+            self.signalSemaphores += [synchronization.Semaphore(device=self.device)]
+            
         push_constant_ranges = vk.VkPushConstantRange(stageFlags=0, offset=0, size=0)
 
         # The pipeline layout allows the pipeline to access descriptor sets.
@@ -106,6 +108,14 @@ class ComputePipeline(pipeline.Pipeline):
         
         vk.vkBeginCommandBuffer(self.vkCommandBuffer, self.beginInfo)
 
+        # We need to bind a pipeline, AND a descriptor set before we dispatch.
+        # The validation layer will NOT give warnings if you forget these, so be very careful not to forget them.
+        vk.vkCmdBindPipeline(
+            self.vkCommandBuffer,
+            vk.VK_PIPELINE_BIND_POINT_COMPUTE,
+            self.vkPipeline,
+        )
+        
         vk.vkCmdBindDescriptorSets(
             commandBuffer=self.vkCommandBuffer,
             pipelineBindPoint=vk.VK_PIPELINE_BIND_POINT_COMPUTE,
@@ -122,45 +132,37 @@ class ComputePipeline(pipeline.Pipeline):
         # If you are already familiar with compute shaders from OpenGL, this should be nothing new to you.
         vk.vkCmdDispatch(
             self.vkCommandBuffer,
-            # int(math.ceil(WIDTH / float(WORKGROUP_SIZE))),  # int for py2 compatible
-            # int(math.ceil(HEIGHT / float(WORKGROUP_SIZE))),  # int for py2 compatible
-            workgroupCount[0],  # int for py2 compatible
-            workgroupCount[1],  # int for py2 compatible
+            workgroupCount[0],
+            workgroupCount[1],
             workgroupCount[2],
         )
+        
 
         vk.vkEndCommandBuffer(self.vkCommandBuffer)
 
-        # We need to bind a pipeline, AND a descriptor set before we dispatch.
-        # The validation layer will NOT give warnings if you forget these, so be very careful not to forget them.
-        vk.vkCmdBindPipeline(
-            self.vkCommandBuffer,
-            vk.VK_PIPELINE_BIND_POINT_COMPUTE,
-            self.vkPipeline,
-        )
-        
+        if len(waitSemaphores):
+            pWaitSemaphores=[s.vkSemaphore for s in waitSemaphores]
+        else:
+            pWaitSemaphores=None
+            
+        if len(waitSemaphores):
+            pSignalSemaphores=[s.vkSemaphore for s in self.signalSemaphores]
+        else:
+            pSignalSemaphores=None
+            
+            
         # Information describing the queue submission
         # Now we shall finally submit the recorded command buffer to a queue.
-        if waitSemaphores == []:
-            self.submitInfo = vk.VkSubmitInfo(
-                sType=vk.VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                commandBufferCount=1,
-                pCommandBuffers=[self.vkCommandBuffer],
-                signalSemaphoreCount=len(self.signalSemaphores),
-                pSignalSemaphores=[s.vkSemaphore for s in self.signalSemaphores],
-                pWaitDstStageMask=waitStages,
-            )
-        else:
-            self.submitInfo = VkSubmitInfo(
-                sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                commandBufferCount=1,
-                pCommandBuffers=[self.vkCommandBuffer],
-                waitSemaphoreCount=int(len(waitSemaphores)),
-                pWaitSemaphores=[s.vkSemaphore for s in waitSemaphores],
-                signalSemaphoreCount=len(self.signalSemaphores),
-                pSignalSemaphores=[s.vkSemaphore for s in self.signalSemaphores],
-                pWaitDstStageMask=waitStages,
-            )
+        self.submitInfo = vk.VkSubmitInfo(
+            sType=vk.VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            commandBufferCount=1,
+            pCommandBuffers=[self.vkCommandBuffer],
+            waitSemaphoreCount=len(waitSemaphores),
+            pWaitSemaphores=pWaitSemaphores,
+            signalSemaphoreCount=len(self.signalSemaphores),
+            pSignalSemaphores=pSignalSemaphores,
+            pWaitDstStageMask=waitStages,
+        )
 
     # this help if you run the main loop in C/C++
     # just use the Vulkan addresses!
@@ -180,27 +182,28 @@ class ComputePipeline(pipeline.Pipeline):
         vk.vkQueueSubmit(
             queue=self.device.compute_queue,
             submitCount=1,
-            pSubmits=self.commandBuffer.submitInfo,
-            fence=self.commandBuffer.fence.vkFence,
+            pSubmits=self.submitInfo,
+            fence=self.fence.vkFence,
         )
 
         if blocking:
             self.wait()
 
     def wait(self):
-        for fence in self.commandBuffer.fences:
-            fence.wait()
+        self.fence.wait()
 
     def release(self):
-        for fence in self.fences:
-            fence.release()
+        self.fence.release()
 
         for semaphore in self.signalSemaphores:
             semaphore.release()
-
-        self.device.instance.debug("destroying pipeline")
-        pipeline.Pipeline.release(self)
-
+            
         self.device.instance.debug("destroying children")
         for child in self.children:
             child.release()
+            
+        for semaphore in self.signalSemaphores:
+            semaphore.release()
+
+        vk.vkDestroyPipeline(self.device.vkDevice, self.vkPipeline, None)
+        vk.vkDestroyPipelineLayout(self.device.vkDevice, self.vkPipelineLayout, None)

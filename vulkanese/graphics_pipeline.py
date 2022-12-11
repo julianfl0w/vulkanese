@@ -5,7 +5,6 @@ import json
 import vulkan as vk
 
 from . import vulkanese
-from . import pipeline
 from . import buffer
 from . import shader
 from . import synchronization
@@ -15,7 +14,7 @@ from . import surface
 from sinode import *
 
 
-class RasterPipeline(pipeline.Pipeline):
+class GraphicsPipeline(sinode.Sinode):
     def __init__(
         self,
         device,
@@ -31,6 +30,7 @@ class RasterPipeline(pipeline.Pipeline):
         waitSemaphores=[],
     ):
 
+        sinode.Sinode.__init__(self, device)
         # synchronization is owned by the pipeline (command buffer?)
         self.waitSemaphores = waitSemaphores
         self.waitStages = waitStages
@@ -384,3 +384,32 @@ class RasterPipeline(pipeline.Pipeline):
 
         # Fix #55 but downgrade performance -1000FPS)
         vkQueueWaitIdle(self.device.presentation_queue)
+
+    def getAllBuffers(self):
+        allBuffers = []
+        for shader in self.shaders:
+            allBuffers += shader.buffers
+
+        return allBuffers
+    
+    
+    def release(self):
+        self.device.instance.debug("generic pipeline release")
+
+        for shader in self.shaders:
+            shader.release()
+
+        for semaphore in self.signalSemaphores:
+            semaphore.release()
+
+        vkDestroyPipeline(self.vkDevice, self.vkPipeline, None)
+        vkDestroyPipelineLayout(self.vkDevice, self.vkPipelineLayout, None)
+
+        if hasattr(self, "surface"):
+            self.device.instance.debug("releasing surface")
+            self.surface.release()
+
+        if hasattr(self, "renderPass"):
+            self.renderPass.release()
+
+        self.commandBuffer.release()

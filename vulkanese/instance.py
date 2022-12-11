@@ -93,8 +93,7 @@ class Instance(sinode.Sinode):
         )
 
         def debugCallback(*args):
-            self.debug("DEBUG: " + args[5] + " " + args[6])
-            return 0
+            raise Exception("DEBUG CALLBACK: " + args[5] + " " + args[6])
 
         debug_create = vk.VkDebugReportCallbackCreateInfoEXT(
             sType=vk.VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,

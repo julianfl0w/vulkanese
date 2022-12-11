@@ -117,7 +117,7 @@ class HelloTriangle(Sinode):
         )
 
         # create the standard set
-        self.rasterPipeline = ve.raster_pipeline.RasterPipeline(
+        self.rasterPipeline = ve.raster_pipeline.GraphicsPipeline(
             device=self.device,
             buffers=self.vertexBuffers + self.fragmentBuffers,
             shaders=[self.vertexStage, self.fragmentStage],
