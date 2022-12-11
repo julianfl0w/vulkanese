@@ -4,4 +4,4 @@ from . import shader
 from . import descriptor
 from . import device
 from . import buffer
-from . import raster_pipeline
+from . import graphics_pipeline

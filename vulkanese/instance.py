@@ -130,13 +130,10 @@ class Instance(sinode.Sinode):
         return newDev
 
     def release(self):
-        if self.verbose:
-            self.debug("destroying child devices")
+        self.debug("destroying child devices")
         for d in self.children:
             d.release()
-        if self.verbose:
-            self.debug("destroying debug etc")
+        self.debug("destroying debug etc")
         self.vkDestroyDebugReportCallbackEXT(self.vkInstance, self.callback, None)
-        if self.verbose:
-            self.debug("destroying instance")
+        self.debug("destroying instance")
         vk.vkDestroyInstance(self.vkInstance, None)

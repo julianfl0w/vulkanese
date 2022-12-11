@@ -180,4 +180,28 @@ class RaytracePipeline(pipeline.Pipeline):
 
         # wrap it all up into a command buffer
         print("Creating commandBuffer")
-        self.commandBuffer = RaytraceCommandBuffer(self)
+        
+        vkCmdBindPipeline(
+            cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, self.rtPipeline
+        )
+        vkCmdBindDescriptorSets(
+            cmdBuf,
+            VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
+            self.rtPipelineLayout,
+            0,
+            size(descSets),
+            descSets,
+            0,
+            nullptr,
+        )
+
+        vkCmdTraceRaysKHR(
+            cmdBuf,
+            self.shaderDict["rgen"].vkStridedDeviceAddressRegion,
+            self.shaderDict["miss"].vkStridedDeviceAddressRegion,
+            self.shaderDict["hit"].vkStridedDeviceAddressRegion,
+            self.shaderDict["call"],
+            self.outputWidthPixels,
+            self.outputHeightPixels,
+            1,
+        )

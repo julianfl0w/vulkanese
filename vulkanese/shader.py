@@ -3,23 +3,12 @@ from sinode import *
 import os
 import re
 import vulkan as vk
-
-import pkg_resources
-
-# if "vulkanese" not in [pkg.key for pkg in pkg_resources.working_set]:
-#    from buffer import *
-#    from computepipeline import *
-#    DEV = True
-# else:
 from . import buffer
 from . import compute_pipeline
-
-DEV = False
 
 from pathlib import Path
 
 here = os.path.dirname(os.path.abspath(__file__))
-
 
 class Empty:
     def __init__(self):
@@ -78,7 +67,7 @@ class Shader(Sinode):
             raise Exception("source template filename must end with .c")
 
         # Create Stage
-        self.shader_create = vk.VkShaderModuleCreateInfo(
+        self.vkShaderModuleCreateInfo = vk.VkShaderModuleCreateInfo(
             sType=vk.VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
             # flags=0,
             codeSize=len(spirv),
@@ -86,11 +75,11 @@ class Shader(Sinode):
         )
 
         self.vkShaderModule = vk.vkCreateShaderModule(
-            self.vkDevice, self.shader_create, None
+            self.vkDevice, self.vkShaderModuleCreateInfo, None
         )
 
         # Create Shader stage
-        self.shader_stage_create = vk.VkPipelineShaderStageCreateInfo(
+        self.vkPipelineShaderStageCreateInfo = vk.VkPipelineShaderStageCreateInfo(
             sType=vk.VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
             stage=self.stage,
             module=self.vkShaderModule,

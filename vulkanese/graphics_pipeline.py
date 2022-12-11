@@ -11,7 +11,6 @@ from . import shader
 from . import synchronization
 from . import renderpass
 from . import surface
-from . import command_buffer
 
 from sinode import *
 
@@ -32,8 +31,7 @@ class RasterPipeline(pipeline.Pipeline):
         waitSemaphores=[],
     ):
 
-        # We create a fence.
-        # So the CPU can know when processing is done
+        # synchronization is owned by the pipeline (command buffer?)
         self.waitSemaphores = waitSemaphores
         self.waitStages = waitStages
         self.fence = synchronization.Fence(device=self.device)
@@ -41,9 +39,61 @@ class RasterPipeline(pipeline.Pipeline):
         self.fences = [self.fence]
         self.signalSemaphores = [self.semaphore]
 
+        self.shaders = shaders
+
+        # Information describing the queue submission
+        # Now we shall finally submit the recorded command buffer to a queue.
+        if waitSemaphores == []:
+            self.submitInfo = vk.VkSubmitInfo(
+                sType=vk.VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                commandBufferCount=len(self.commandBuffers),
+                pCommandBuffers=[c.vkCommandBuffer for c in self.commandBuffers],
+                signalSemaphoreCount=len(self.signalSemaphores),
+                pSignalSemaphores=[s.vkSemaphore for s in self.signalSemaphores],
+                pWaitDstStageMask=waitStages,
+            )
+        else:
+            self.submitInfo = VkSubmitInfo(
+                sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                commandBufferCount=len(self.commandBuffers),
+                pCommandBuffers=[c.vkCommandBuffer for c in self.commandBuffers],
+                waitSemaphoreCount=int(len(waitSemaphores)),
+                pWaitSemaphores=[s.vkSemaphore for s in waitSemaphores],
+                signalSemaphoreCount=len(self.signalSemaphores),
+                pSignalSemaphores=[s.vkSemaphore for s in self.signalSemaphores],
+                pWaitDstStageMask=waitStages,
+            )
+            
+        # The pipeline layout allows the pipeline to access descriptor sets.
+        # So we just specify the established descriptor set
+        self.vkPipelineLayoutCreateInfo = vk.VkPipelineLayoutCreateInfo(
+            sType=vk.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            flags=0,
+            setLayoutCount=len(device.descriptorPool.descSets),
+            pSetLayouts=[
+                d.vkDescriptorSetLayout for d in device.descriptorPool.descSets
+            ],
+            pushConstantRangeCount=0,
+            pPushConstantRanges=[push_constant_ranges],
+        )
+
+        self.vkPipelineLayout = vk.vkCreatePipelineLayout(
+            device=device.vkDevice, pCreateInfo=[self.vkPipelineLayoutCreateInfo], pAllocator=None
+        )
+
+        
+        # Now we shall start recording commands into the newly allocated command buffer.
+        self.beginInfo = vk.VkCommandBufferBeginInfo(
+            sType=vk.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            # the buffer is only submitted and used once in this application.
+            # flags=vk.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+            flags=vk.VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT,
+        )
+        
+        self.outputClass = outputClass
         self.commandBufferCount = 0
         # assume triple-buffering for surfaces
-        if pipeline.outputClass == "surface":
+        if self.outputClass == "surface":
             self.device.instance.debug(
                 "allocating 3 command buffers, one for each image"
             )
@@ -53,7 +103,6 @@ class RasterPipeline(pipeline.Pipeline):
             self.commandBufferCount += 1
 
         self.indexBuffer = indexBuffer
-        self.outputClass = outputClass
         self.DEBUG = False
         self.constantsDict = constantsDict
         self.shaders = shaders
@@ -67,12 +116,22 @@ class RasterPipeline(pipeline.Pipeline):
         self.submit_list = ffi.new("VkSubmitInfo[1]", [self.submit_create])
         self.commandBuffers = []
 
+        
+        # Create command buffers, one for each image in the triple-buffer (swapchain + framebuffer)
+        # OR one for each non-surface pass
+        self.vkCommandBuffers_create = VkCommandBufferAllocateInfo(
+            sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            commandPool=device.vkCommandPool,
+            level=VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            commandBufferCount=self.commandBufferCount,
+        )
+
+        self.vkCommandBuffers = vkAllocateCommandBuffers(
+            device.vkDevice, self.vkCommandBuffers_create
+        )
+        
         # Record command buffer
         for i, vkCommandBuffer in enumerate(self.vkCommandBuffers):
-            # create a command buffer
-            thisCommandBuffer = command_buffer.CommandBuffer(device=device)
-            self.commandBuffers += [thisCommandBuffer]
-            vkCommandBuffer = thisCommandBuffer.vkCommandBuffer
 
             # start recording commands into it
             vkCommandBuffer_begin_create = VkCommandBufferBeginInfo(
@@ -155,13 +214,6 @@ class RasterPipeline(pipeline.Pipeline):
             vkCmdEndRenderPass(vkCommandBuffer)
             vkEndCommandBuffer(vkCommandBuffer)
 
-        pipeline.Pipeline.__init__(
-            self,
-            device=device,
-            shaders=shaders,
-            waitSemaphores=waitSemaphores,
-            outputClass=self.outputClass,
-        )
 
         self.children += [self.vkPipelineLayout]
 
