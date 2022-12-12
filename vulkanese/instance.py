@@ -7,6 +7,7 @@ import time
 import json
 import vulkan as vk
 import sinode
+import sys
 
 from . import shader
 from . import descriptor
@@ -49,9 +50,9 @@ class Instance(sinode.Sinode):
 
         extensions = vk.vkEnumerateInstanceExtensionProperties(None)
         extensions = [e.extensionName for e in extensions]
-        # self.debug("available extensions: ")
-        # for e in extensions:
-        #    self.debug("    " + e)
+        self.debug("available extensions: ")
+        for e in extensions:
+            self.debug("    " + e)
 
         self.layers = vk.vkEnumerateInstanceLayerProperties()
         self.layers = [l.layerName for l in self.layers]
@@ -59,26 +60,27 @@ class Instance(sinode.Sinode):
         # for l in self.layers:
         #    self.debug("    " + l)
 
-        if self.verbose:
-            self.debug("Available layers " + json.dumps(self.layers, indent=2))
+        self.debug("Available layers ")
+        print(json.dumps(self.layers, indent=2))
 
+        self.layerList = []
+        #if "VK_LAYER_RENDERDOC_Capture" in self.layers:
+        #    self.layerList += ["VK_LAYER_RENDERDOC_Capture"]
         if "VK_LAYER_KHRONOS_validation" in self.layers:
-            self.layers = ["VK_LAYER_KHRONOS_validation"]
+            self.layerList += ["VK_LAYER_KHRONOS_validation"]
         elif "VK_LAYER_LUNARG_standard_validation" in self.layers:
-            self.layers = ["VK_LAYER_LUNARG_standard_validation"]
-        else:
-            self.layers = []
-
+            self.layerList += ["VK_LAYER_LUNARG_standard_validation"]
+            
         if self.verbose:
-            self.debug("applying layers " + str(self.layers))
+            self.debug("applying layers " + str(self.layerList))
         createInfo = vk.VkInstanceCreateInfo(
             sType=vk.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             flags=0,
             pApplicationInfo=appInfo,
             enabledExtensionCount=len(extensions),
             ppEnabledExtensionNames=extensions,
-            enabledLayerCount=len(self.layers),
-            ppEnabledLayerNames=self.layers,
+            enabledLayerCount=len(self.layerList),
+            ppEnabledLayerNames=self.layerList,
         )
 
         self.vkInstance = vk.vkCreateInstance(createInfo, None)
@@ -93,8 +95,9 @@ class Instance(sinode.Sinode):
         )
 
         def debugCallback(*args):
-            self.debug("DEBUG: " + args[5] + " " + args[6])
-            return 0
+            print("DEBUG CALLBACK: " + args[5] + " " + args[6])
+            sys.exit()
+            raise Exception("DEBUG CALLBACK: " + args[5] + " " + args[6])
 
         debug_create = vk.VkDebugReportCallbackCreateInfoEXT(
             sType=vk.VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,
@@ -120,7 +123,7 @@ class Instance(sinode.Sinode):
             devdict[pProperties.deviceName] = {
                 "processorType": device_i.processorType,
                 "memProperties": device_i.memoryProperties,
-                "limits"       : device_i.limits,
+                "limits": device_i.limits,
             }
         return devdict
 
@@ -130,13 +133,10 @@ class Instance(sinode.Sinode):
         return newDev
 
     def release(self):
-        if self.verbose:
-            self.debug("destroying child devices")
+        self.debug("destroying child devices")
         for d in self.children:
             d.release()
-        if self.verbose:
-            self.debug("destroying debug etc")
+        self.debug("destroying debug etc")
         self.vkDestroyDebugReportCallbackEXT(self.vkInstance, self.callback, None)
-        if self.verbose:
-            self.debug("destroying instance")
+        self.debug("destroying instance")
         vk.vkDestroyInstance(self.vkInstance, None)

@@ -23,6 +23,7 @@ class Surface(Sinode):
             ):
                 print("FORMAT vk.VK_FORMAT_B8G8R8A8_UNORM")
                 return f
+        die
         return self.formats[0]
 
     def get_surface_present_mode(self):
@@ -42,7 +43,7 @@ class Surface(Sinode):
     def surface_xlib(self):
         print("Create Xlib surface")
         vkCreateXlibSurfaceKHR = vk.vkGetInstanceProcAddr(
-            self.vkInstance, "vkCreateXlibSurfaceKHR"
+            self.instance.vkInstance, "vkCreateXlibSurfaceKHR"
         )
         surface_create = vk.VkXlibSurfaceCreateInfoKHR(
             sType=vk.VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
@@ -50,12 +51,12 @@ class Surface(Sinode):
             window=self.wm_info.info.x11.window,
             flags=0,
         )
-        return vkCreateXlibSurfaceKHR(self.vkInstance, surface_create, None)
+        return vkCreateXlibSurfaceKHR(self.instance.vkInstance, surface_create, None)
 
     def surface_wayland(self):
         print("Create wayland surface")
         vkCreateWaylandSurfaceKHR = vkGetInstanceProcAddr(
-            self.vkInstance, "vkCreateWaylandSurfaceKHR"
+            self.instance.vkInstance, "vkCreateWaylandSurfaceKHR"
         )
         surface_create = VkWaylandSurfaceCreateInfoKHR(
             sType=vk.VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
@@ -63,7 +64,7 @@ class Surface(Sinode):
             surface=self.wm_info.info.wl.surface,
             flags=0,
         )
-        return vkCreateWaylandSurfaceKHR(self.vkInstance, surface_create, None)
+        return vkCreateWaylandSurfaceKHR(self.instance.vkInstance, surface_create, None)
 
     def surface_win32(self):
         def get_instance(hWnd):
@@ -77,7 +78,7 @@ class Surface(Sinode):
 
         print("Create windows surface")
         vkCreateWin32SurfaceKHR = vkGetInstanceProcAddr(
-            self.vkInstance, "vkCreateWin32SurfaceKHR"
+            self.instance.vkInstance, "vkCreateWin32SurfaceKHR"
         )
         surface_create = VkWin32SurfaceCreateInfoKHR(
             sType=vk.VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
@@ -85,21 +86,17 @@ class Surface(Sinode):
             hwnd=self.wm_info.info.win.window,
             flags=0,
         )
-        return vkCreateWin32SurfaceKHR(self.vkInstance, surface_create, None)
+        return vkCreateWin32SurfaceKHR(self.instance.vkInstance, surface_create, None)
 
-    def __init__(self, instance, device, pipeline):
+    def __init__(self, instance, device, width, height):
         Sinode.__init__(self, device)
         self.running = True
-        self.pipeline = pipeline
-
-        self.WIDTH = pipeline.outputWidthPixels
-        self.HEIGHT = pipeline.outputHeightPixels
-        self.extent = vk.VkExtent2D(width=self.WIDTH, height=self.HEIGHT)
-
         self.instance = instance
-        self.vkInstance = instance.vkInstance
-        self.vkDevice = device.vkDevice
         self.device = device
+
+        self.WIDTH = width
+        self.HEIGHT = height
+        self.extent = vk.VkExtent2D(width=self.WIDTH, height=self.HEIGHT)
 
         # ----------
         # Init sdl2
@@ -133,7 +130,7 @@ class Surface(Sinode):
             raise Exception("Platform not supported")
 
         self.vkDestroySurfaceKHR = vk.vkGetInstanceProcAddr(
-            instance.vkInstance, "vkDestroySurfaceKHR"
+            self.instance.vkInstance, "vkDestroySurfaceKHR"
         )
 
         surface_mapping = {
@@ -148,13 +145,13 @@ class Surface(Sinode):
         # ----------
         # Create swapchain
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR = vk.vkGetInstanceProcAddr(
-            instance.vkInstance, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR"
+            self.instance.vkInstance, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR"
         )
         vkGetPhysicalDeviceSurfaceFormatsKHR = vk.vkGetInstanceProcAddr(
-            instance.vkInstance, "vkGetPhysicalDeviceSurfaceFormatsKHR"
+            self.instance.vkInstance, "vkGetPhysicalDeviceSurfaceFormatsKHR"
         )
         vkGetPhysicalDeviceSurfacePresentModesKHR = vk.vkGetInstanceProcAddr(
-            instance.vkInstance, "vkGetPhysicalDeviceSurfacePresentModesKHR"
+            self.instance.vkInstance, "vkGetPhysicalDeviceSurfacePresentModesKHR"
         )
 
         self.capabilities = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
@@ -184,26 +181,26 @@ class Surface(Sinode):
         self.surface_format = self.get_surface_format()
         present_mode = self.get_surface_present_mode()
         self.extent = self.get_swap_extent()
-        imageCount = self.capabilities.minImageCount + 1
+        self.imageCount = self.capabilities.minImageCount + 1
         if (
             self.capabilities.maxImageCount > 0
-            and imageCount > self.capabilities.maxImageCount
+            and self.imageCount > self.capabilities.maxImageCount
         ):
-            imageCount = self.capabilities.maxImageCount
+            self.imageCount = self.capabilities.maxImageCount
 
         print("selected format: %s" % self.surface_format.format)
         print("selected colorspace: %s" % self.surface_format.colorSpace)
         print("%s available swapchain present modes" % len(self.present_modes))
-        print("image count " + str(imageCount))
+        print("image count " + str(self.imageCount))
         self.vkDestroySwapchainKHR = vk.vkGetInstanceProcAddr(
-            instance.vkInstance, "vkDestroySwapchainKHR"
+            self.instance.vkInstance, "vkDestroySwapchainKHR"
         )
 
         swapchain_create = vk.VkSwapchainCreateInfoKHR(
             sType=vk.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
             flags=0,
             surface=self.vkSurface,
-            minImageCount=imageCount,
+            minImageCount=self.imageCount,
             imageFormat=self.surface_format.format,
             imageColorSpace=self.surface_format.colorSpace,
             imageExtent=self.extent,
@@ -220,11 +217,11 @@ class Surface(Sinode):
         )
 
         vkCreateSwapchainKHR = vk.vkGetInstanceProcAddr(
-            instance.vkInstance, "vkCreateSwapchainKHR"
+            self.instance.vkInstance, "vkCreateSwapchainKHR"
         )
         self.swapchain = vkCreateSwapchainKHR(device.vkDevice, swapchain_create, None)
         vkGetSwapchainImagesKHR = vk.vkGetInstanceProcAddr(
-            instance.vkInstance, "vkGetSwapchainImagesKHR"
+            self.instance.vkInstance, "vkGetSwapchainImagesKHR"
         )
         self.vkSwapchainImages = vkGetSwapchainImagesKHR(
             device.vkDevice, self.swapchain
@@ -232,20 +229,7 @@ class Surface(Sinode):
         print("swapchain images " + str(self.vkSwapchainImages))
         self.children += [self.vkSwapchainImages]
 
-        print(self.swapchain)
-        # presentation creator
-        print(self.pipeline.signalSemaphores)
-        self.present_create = vk.VkPresentInfoKHR(
-            sType=vk.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-            waitSemaphoreCount=len(self.pipeline.signalSemaphores),
-            pWaitSemaphores=[s.vkSemaphore for s in self.pipeline.signalSemaphores],
-            swapchainCount=1,
-            pSwapchains=[self.swapchain],
-            pImageIndices=[0],
-            pResults=None,
-        )
-
     def release(self):
         print("destroying surface")
-        self.vkDestroySwapchainKHR(self.vkDevice, self.swapchain, None)
-        self.vkDestroySurfaceKHR(self.vkInstance, self.vkSurface, None)
+        self.vkDestroySwapchainKHR(self.device.vkDevice, self.swapchain, None)
+        self.vkDestroySurfaceKHR(self.instance.vkInstance, self.vkSurface, None)

@@ -71,6 +71,8 @@ def glsltype2bytesize(glsltype):
 
 
 class Buffer(Sinode):
+    currLocation = 0
+
     def __init__(
         self,
         device,
@@ -96,6 +98,7 @@ class Buffer(Sinode):
         compress=True,
     ):
         self.DEBUG = DEBUG
+        self.format = format
         self.compress = compress
         self.dimensionVals = dimensionVals
         self.binding = descriptorSet.getBufferBinding()
@@ -136,7 +139,9 @@ class Buffer(Sinode):
         # But the buffer doesn't allocate memory for itself, so we must do that manually.
 
         # First, we find the memory requirements for the buffer.
-        memoryRequirements = vk.vkGetBufferMemoryRequirements(self.vkDevice, self.vkBuffer)
+        memoryRequirements = vk.vkGetBufferMemoryRequirements(
+            self.vkDevice, self.vkBuffer
+        )
 
         # There are several types of memory that can be allocated, and we must choose a memory type that:
         # 1) Satisfies the memory requirements(memoryRequirements.memoryTypeBits).
@@ -159,7 +164,9 @@ class Buffer(Sinode):
 
         # allocate memory on device.
         self.device.instance.debug("allocating")
-        self.vkDeviceMemory = vk.vkAllocateMemory(self.vkDevice, self.allocateInfo, None)
+        self.vkDeviceMemory = vk.vkAllocateMemory(
+            self.vkDevice, self.allocateInfo, None
+        )
 
         self.device.instance.debug("done allocating")
         self.children += [self.vkDeviceMemory]
@@ -185,7 +192,7 @@ class Buffer(Sinode):
         self.device.instance.debug("done initializing")
 
         if not readFromCPU:
-            vk.kUnmapMemory(self.vkDevice, self.vkDeviceMemory)
+            vk.vkUnmapMemory(self.vkDevice, self.vkDeviceMemory)
             self.pmap = None
 
         self.device.instance.debug("binding")
@@ -197,6 +204,14 @@ class Buffer(Sinode):
             memoryOffset=0,
         )
         self.device.instance.debug("done binding")
+        
+        self.vkMappedMemoryRange = vk.VkMappedMemoryRange(
+            sType = vk.VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+            pNext = None,
+            memory=self.vkDeviceMemory,
+            offset=0,
+            size=int(self.sizeBytes)
+        )
 
         # NEEDED FOR RAYTRACING, FAILS BEFORE VULKAN 1.3
         # self.bufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
@@ -227,21 +242,12 @@ class Buffer(Sinode):
             buffer=self.vkBuffer, offset=0, range=self.sizeBytes
         )
 
-        # the following are only needed for vertex buffers
-        # VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
-        # VK_VERTEX_INPUT_RATE_INSTANCE: Move to the next data entry after each instance
-
-        # we will standardize its bindings with a attribute description
-        self.attributeDescription = vk.VkVertexInputAttributeDescription(
-            binding=self.binding, location=self.location, format=format, offset=0
-        )
-        # ^^ Consider VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^
-        self.bindingDescription = vk.VkVertexInputBindingDescription(
-            binding=self.binding, stride=stride, inputRate=rate  # 4 bytes/element
-        )
 
         self.addrPtr = 0
 
+    def flush(self):
+        return vk.vkFlushMappedMemoryRanges(device = self.device.vkDevice, memoryRangeCount = 1, pMemoryRanges=[self.vkMappedMemoryRange])
+        
     # find memory type with desired properties.
     def findMemoryType(self, memoryTypeBits, properties):
 
@@ -264,7 +270,7 @@ class Buffer(Sinode):
         ):
             self.skipval = 1
         elif (
-            not self.usage & vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+            not self.usage & vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT and not self.usage & vk.VK_BUFFER_USAGE_INDEX_BUFFER_BIT
         ) and self.itemSize <= 8:
             self.skipval = int(16 / self.itemSize)
         # vec3s (12 bytes) does not divide evenly into 16 :(
@@ -314,10 +320,8 @@ class Buffer(Sinode):
                     rcvdArray = flatArray.reshape(self.dimensionVals, order=order)
 
             else:
-                rcvdArray = list(flatArray.astype(float))[:: self.skipval]
-                die
-                # finally, reshape according to the expected dims
-                rcvdArray = np.array(rcvdArray).reshape(self.dimensionVals)
+                indices = np.arange(0, len(flatArray), self.skipval).astype(int)
+                rcvdArray = np.array(flatArray[indices]).reshape(self.dimensionVals)
         return rcvdArray
 
     def saveAsImage(self, height, width, path="mandelbrot.png"):
@@ -432,7 +436,7 @@ class Buffer(Sinode):
         self.pmap[startByte:endByte] = np.array(data, dtype=self.pythonType)
 
     def setByIndexStart(self, startIndex, data):
-        #if self.skipval != 1:
+        # if self.skipval != 1:
         #    raise ("You can only do this with new-format storage buffers!")
         # self.device.instance.debug(self.name + " setting " + str(index) + " to " + str(data))
         startByte = startIndex * self.itemSize * self.skipval
@@ -453,6 +457,7 @@ class Buffer(Sinode):
             else:
                 indices = np.arange(0, len(data), 1.0 / self.skipval).astype(int)
                 data = data[indices]
+                print(self.pythonType)
                 self.pmap[:] = data.astype(self.pythonType).flatten()
 
         except:
@@ -509,9 +514,7 @@ class DebugBuffer(Buffer):
             format=VK_FORMAT_R64_SFLOAT,
             readFromCPU=True,
             usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-            memProperties=0
-            | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-            | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            memProperties=memProperties,
             sharingMode=VK_SHARING_MODE_EXCLUSIVE,
             stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
             qualifier="",
@@ -560,12 +563,14 @@ class StorageBuffer(Buffer):
             compress=compress,
         )
 
+
 class VertexBuffer(Buffer):
     def __init__(
         self,
         device,
         name,
         dimensionVals,
+        location,
         DEBUG=False,
         qualifier="",
         memProperties=0
@@ -577,15 +582,18 @@ class VertexBuffer(Buffer):
         stride=12,
         compress=False,
     ):
+        # self.location = Buffer.currLocation
+        # Buffer.currLocation+=1
+
         Buffer.__init__(
             self,
             DEBUG=False,
             device=device,
             name=name,
-            location=0,
+            location=location,
             descriptorSet=device.descriptorPool.descSetGlobal,
             dimensionVals=dimensionVals,
-            format=vk.VK_FORMAT_R64_SFLOAT,
+            format=vk.VK_FORMAT_R32G32B32_SFLOAT,
             readFromCPU=True,
             usage=vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
             memProperties=memProperties,
@@ -597,43 +605,57 @@ class VertexBuffer(Buffer):
             stride=stride,
             compress=compress,
         )
+        self.binding = location
+        # the following are only needed for vertex buffers
+        # VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
+        # VK_VERTEX_INPUT_RATE_INSTANCE: Move to the next data entry after each instance
+
+        # we will standardize its bindings with a attribute description
+        self.attributeDescription = vk.VkVertexInputAttributeDescription(
+            binding=self.binding, location=self.location, format=self.format, offset=0
+        )
+        # ^^ Consider VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^
+        self.bindingDescription = vk.VkVertexInputBindingDescription(
+            binding=self.binding, stride=stride, inputRate=rate  # 4 bytes/element
+        )
+
 
 class IndexBuffer(Buffer):
     def __init__(
         self,
         device,
-        name,
         dimensionVals,
         DEBUG=False,
         qualifier="",
         memProperties=0
         | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-        | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-        | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+        # | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
-        stride=12,
+        stride=4,
     ):
         Buffer.__init__(
             self,
             DEBUG=False,
             device=device,
-            name=name,
+            name="index",
             location=0,
             descriptorSet=device.descriptorPool.descSetGlobal,
             dimensionVals=dimensionVals,
             format=vk.VK_FORMAT_R32_UINT,
             readFromCPU=True,
             usage=vk.VK_BUFFER_USAGE_TRANSFER_DST_BIT
-                | vk.VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+            | vk.VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
             memProperties=memProperties,
             sharingMode=vk.VK_SHARING_MODE_EXCLUSIVE,
-            stageFlags=vk.VK_SHADER_STAGE_FRAGMENT_BIT,
+            stageFlags=vk.VK_SHADER_STAGE_ALL_GRAPHICS,
             qualifier=qualifier,
             memtype="uint",
             rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
             stride=4,
-            compress=False,
+            compress=True,
         )
+
 
 class FragmentBuffer(Buffer):
     def __init__(
@@ -672,7 +694,8 @@ class FragmentBuffer(Buffer):
             stride=stride,
             compress=compress,
         )
-        
+
+
 class UniformBuffer(Buffer):
     def __init__(
         self,

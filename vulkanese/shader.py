@@ -3,18 +3,8 @@ from sinode import *
 import os
 import re
 import vulkan as vk
-
-import pkg_resources
-
-# if "vulkanese" not in [pkg.key for pkg in pkg_resources.working_set]:
-#    from buffer import *
-#    from computepipeline import *
-#    DEV = True
-# else:
 from . import buffer
 from . import compute_pipeline
-
-DEV = False
 
 from pathlib import Path
 
@@ -29,7 +19,6 @@ class Empty:
 class Shader(Sinode):
     def __init__(
         self,
-        parent,
         device,
         constantsDict,
         buffers,
@@ -40,10 +29,15 @@ class Shader(Sinode):
         workgroupCount=[1, 1, 1],
         compressBuffers=True,
         waitSemaphores=[],
+        waitStages=None,
+        signalSemaphoreCount=0,  # these only used for compute shaders
+        fenceCount=0,  # these only used for compute shaders
+        useFence=False,
     ):
+        self.waitStages = waitStages
         self.constantsDict = constantsDict
         self.DEBUG = DEBUG
-        Sinode.__init__(self, parent)
+        Sinode.__init__(self, device)
         self.vkDevice = device.vkDevice
         self.device = device
         self.name = name
@@ -76,7 +70,7 @@ class Shader(Sinode):
             raise Exception("source template filename must end with .c")
 
         # Create Stage
-        self.shader_create = vk.VkShaderModuleCreateInfo(
+        self.vkShaderModuleCreateInfo = vk.VkShaderModuleCreateInfo(
             sType=vk.VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
             # flags=0,
             codeSize=len(spirv),
@@ -84,11 +78,11 @@ class Shader(Sinode):
         )
 
         self.vkShaderModule = vk.vkCreateShaderModule(
-            self.vkDevice, self.shader_create, None
+            self.vkDevice, self.vkShaderModuleCreateInfo, None
         )
 
         # Create Shader stage
-        self.shader_stage_create = vk.VkPipelineShaderStageCreateInfo(
+        self.vkPipelineShaderStageCreateInfo = vk.VkPipelineShaderStageCreateInfo(
             sType=vk.VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
             stage=self.stage,
             module=self.vkShaderModule,
@@ -107,6 +101,8 @@ class Shader(Sinode):
                 constantsDict=self.constantsDict,
                 workgroupCount=workgroupCount,
                 waitSemaphores=waitSemaphores,
+                signalSemaphoreCount=signalSemaphoreCount,
+                useFence=useFence,
             )
             self.computePipeline.children += [self]
 
@@ -120,10 +116,10 @@ class Shader(Sinode):
         Sinode.release(self)
 
     def compile(self):
-        
-        with open(self.sourceFilename, 'r') as f:
+
+        with open(self.sourceFilename, "r") as f:
             glslCode = f.read()
-        
+
         # PREPROCESS THE SHADER CODE
         # RELATIVE TO DEFINED BUFFERS
 
@@ -233,11 +229,16 @@ class Shader(Sinode):
 
 class VertexStage(Shader):
     def __init__(
-        self, parent, device, buffers, constantsDict, sourceFilename, name="mandlebrot", DEBUG=False
+        self,
+        device,
+        buffers,
+        constantsDict,
+        sourceFilename,
+        name="mandlebrot",
+        DEBUG=False,
     ):
         Shader.__init__(
             self,
-            parent=parent,
             device=device,
             buffers=buffers,
             constantsDict=constantsDict,
@@ -251,17 +252,15 @@ class VertexStage(Shader):
 class FragmentStage(Shader):
     def __init__(
         self,
-        parent,
         device,
         buffers,
         constantsDict,
-        sourceFilename, 
+        sourceFilename,
         name="mandlebrot",
         DEBUG=False,
     ):
         Shader.__init__(
             self,
-            parent=parent,
             device=device,
             buffers=buffers,
             constantsDict=constantsDict,
