@@ -116,6 +116,14 @@ class HelloTriangle:
             sourceFilename=os.path.join(htHere, "shaders", "passthrough_frag.c"),
         )
 
+        self.surface = ve.surface.Surface(
+            instance=self.device.instance,
+            device=self.device,
+            width=700,
+            height=700,
+        )
+        #self.children += [self.surface]
+            
         # create the standard set
         self.graphicsPipeline = ve.graphics_pipeline.GraphicsPipeline(
             device=self.device,
@@ -123,7 +131,7 @@ class HelloTriangle:
             shaders=[self.vertexStage, self.fragmentStage],
             indexBuffer=self.indexBuffer,
             constantsDict=self.constantsDict,
-            outputClass="surface",
+            surface=self.surface,
             outputWidthPixels=700,
             outputHeightPixels=700,
         )

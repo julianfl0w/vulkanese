@@ -9,7 +9,7 @@ class Semaphore:
             sType=VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, flags=flags
         )
         self.vkSemaphore = vkCreateSemaphore(
-            self.device.vkDevice, self.semaphore_create, None
+            device = self.device.vkDevice, pCreateInfo = self.semaphore_create, pAllocator = None
         )
 
     def release(self):

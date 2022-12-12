@@ -64,12 +64,12 @@ class Instance(sinode.Sinode):
             self.debug("Available layers " + json.dumps(self.layers, indent=2))
 
         self.layerList = []
+        #if "VK_LAYER_RENDERDOC_Capture" in self.layers:
+        #    self.layerList += ["VK_LAYER_RENDERDOC_Capture"]
         if "VK_LAYER_KHRONOS_validation" in self.layers:
             self.layerList += ["VK_LAYER_KHRONOS_validation"]
         elif "VK_LAYER_LUNARG_standard_validation" in self.layers:
             self.layerList += ["VK_LAYER_LUNARG_standard_validation"]
-        #if "VK_LAYER_RENDERDOC_Capture" in self.layers:
-        #    self.layerList += ["VK_LAYER_RENDERDOC_Capture"]
             
         if self.verbose:
             self.debug("applying layers " + str(self.layerList))

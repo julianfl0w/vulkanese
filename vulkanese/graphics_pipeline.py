@@ -24,13 +24,12 @@ class GraphicsPipeline(sinode.Sinode):
         indexBuffer,
         shaders,
         buffers,
-        outputClass="surface",
+        surface,
         outputWidthPixels=700,
         outputHeightPixels=700,
         culling=vk.VK_CULL_MODE_BACK_BIT,
         oversample=vk.VK_SAMPLE_COUNT_1_BIT,
         waitSemaphores=[],
-        bufferSizeImages=1,
     ):
 
         sinode.Sinode.__init__(self, device)
@@ -38,6 +37,7 @@ class GraphicsPipeline(sinode.Sinode):
 
         self.culling = culling
         self.oversample = oversample
+        self.surface = surface
 
         self.indexBuffer = indexBuffer
         self.DEBUG = False
@@ -52,6 +52,8 @@ class GraphicsPipeline(sinode.Sinode):
         self.renderFence = synchronization.Fence(device=self.device)
         self.acquireFence = synchronization.Fence(device=self.device)
         self.fences = [self.renderFence]
+        self.renderSemaphore  = synchronization.Semaphore(device=self.device)
+        self.presentSemaphore = synchronization.Semaphore(device=self.device)
 
         push_constant_ranges = vk.VkPushConstantRange(stageFlags=0, offset=0, size=0)
         # The pipeline layout allows the pipeline to access descriptor sets.
@@ -73,9 +75,6 @@ class GraphicsPipeline(sinode.Sinode):
             pAllocator=None,
         )
 
-        self.outputClass = outputClass
-        self.bufferSizeImages = bufferSizeImages
-
         for shader in shaders:
             # make the buffer accessable as a local attribute
             exec("self." + shader.name + "= shader")
@@ -87,16 +86,6 @@ class GraphicsPipeline(sinode.Sinode):
                 self.allVertexBuffers += [b]
         #self.allVertexBuffers += [self.indexBuffer]
         self.allVertexBuffers = list(set(self.allVertexBuffers))
-
-        # Create a surface, if indicated
-        if outputClass == "surface":
-            self.surface = surface.Surface(
-                instance=self.device.instance,
-                device=self.device,
-                width=self.outputWidthPixels,
-                height=self.outputHeightPixels,
-            )
-            self.children += [self.surface]
 
         self.vkAcquireNextImageKHR = vk.vkGetInstanceProcAddr(
             device.instance.vkInstance, "vkAcquireNextImageKHR"
@@ -128,23 +117,22 @@ class GraphicsPipeline(sinode.Sinode):
             swapchain = self.surface.swapchain,
             timeout = vk.UINT64_MAX,
             #semaphore = None,
-            semaphore = self.GraphicsCommandBuffers[self.frameNumber].presentSemaphore.vkSemaphore,
-            fence = self.acquireFence.vkFence,
+            semaphore = self.presentSemaphore.vkSemaphore,
+            #fence = self.acquireFence.vkFence,
+            fence = None,
         )
-        thisGCB = self.GraphicsCommandBuffers[self.frameNumber]
-
+        self.device.debug("acquired image " + str(image_index))
+        thisGCB = self.GraphicsCommandBuffers[image_index]
+        #self.acquireFence.wait()
         
         self.device.debug("submitting queue")
-        vk.vkQueueSubmit(self.device.graphic_queue, 1, [thisGCB.vkSubmitInfo], fence=None)#, fence=self.renderFence.vkFence)
-        self.renderFence.wait()
+        vk.vkQueueSubmit(self.device.graphic_queue, 1, [thisGCB.vkSubmitInfo], fence=None)#self.renderFence.vkFence)
+        #self.renderFence.wait()
         self.device.debug("presenting")
         
+        thisGCB.vkPresentInfoKHR.pImageIndices[0] = image_index
         self.vkQueuePresentKHR(self.device.presentation_queue, thisGCB.vkPresentInfoKHR)
         
-        
-        thisGCB.vkPresentInfoKHR.pImageIndices[0] = image_index
-        self.acquireFence.wait()
-
         vk.vkQueueWaitIdle(self.device.presentation_queue)
         
         #self.frameNumber = (self.frameNumber + 1) % 3
@@ -294,7 +282,7 @@ class GraphicsPipeline(sinode.Sinode):
             sType=vk.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
             commandPool=self.device.vkGraphicsCommandPool,
             level=vk.VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            commandBufferCount=self.bufferSizeImages,
+            commandBufferCount=self.surface.imageCount,
         )
 
         self.vkCommandBuffers = vk.vkAllocateCommandBuffers(

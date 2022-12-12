@@ -10,7 +10,7 @@ import numpy as np
 
 class GraphicsCommandBuffer(sinode.Sinode):
     def __init__(self, device, pipeline, renderpass, vkCommandBuffer, surface, index,
-        waitStages=vk.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,):
+        waitStages=[vk.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT]):
         sinode.Sinode.__init__(self, pipeline)
         self.device = device
         self.renderpass = renderpass
@@ -80,23 +80,18 @@ class GraphicsCommandBuffer(sinode.Sinode):
         )
 
         # each command buffer gets a couple semaphores
-        self.renderSemaphore  = synchronization.Semaphore(device=self.device)
-        self.presentSemaphore = synchronization.Semaphore(device=self.device)
         self.recordBuffer()
 
-        
         # Information describing the queue submission
         self.vkSubmitInfo = vk.VkSubmitInfo(
             sType=vk.VK_STRUCTURE_TYPE_SUBMIT_INFO,
             waitSemaphoreCount=1,
-            pWaitSemaphores=[self.presentSemaphore.vkSemaphore],
-            #waitSemaphoreCount=0,
-            #pWaitSemaphores=None,
+            pWaitSemaphores=[self.pipeline.presentSemaphore.vkSemaphore],
             pWaitDstStageMask=self.waitStages,
             commandBufferCount=1,
             pCommandBuffers=[self.vkCommandBuffer],
             signalSemaphoreCount=1,
-            pSignalSemaphores=[self.renderSemaphore.vkSemaphore],
+            pSignalSemaphores=[self.pipeline.renderSemaphore.vkSemaphore],
         )
 
         print(self.surface.swapchain)
@@ -104,7 +99,7 @@ class GraphicsCommandBuffer(sinode.Sinode):
         self.vkPresentInfoKHR = vk.VkPresentInfoKHR(
             sType=vk.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
             waitSemaphoreCount=1,
-            pWaitSemaphores=[self.renderSemaphore.vkSemaphore], # wait on the render before presenting
+            pWaitSemaphores=[self.pipeline.renderSemaphore.vkSemaphore], # wait on the render before presenting
             swapchainCount=1,
             pSwapchains=[self.surface.swapchain],
             pImageIndices=[0],

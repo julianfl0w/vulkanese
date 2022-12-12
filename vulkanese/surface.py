@@ -181,18 +181,17 @@ class Surface(Sinode):
         self.surface_format = self.get_surface_format()
         present_mode = self.get_surface_present_mode()
         self.extent = self.get_swap_extent()
-        imageCount = self.capabilities.minImageCount + 1
+        self.imageCount = self.capabilities.minImageCount + 1
         if (
             self.capabilities.maxImageCount > 0
-            and imageCount > self.capabilities.maxImageCount
+            and self.imageCount > self.capabilities.maxImageCount
         ):
-            imageCount = self.capabilities.maxImageCount
+            self.imageCount = self.capabilities.maxImageCount
 
-        imageCount = 1
         print("selected format: %s" % self.surface_format.format)
         print("selected colorspace: %s" % self.surface_format.colorSpace)
         print("%s available swapchain present modes" % len(self.present_modes))
-        print("image count " + str(imageCount))
+        print("image count " + str(self.imageCount))
         self.vkDestroySwapchainKHR = vk.vkGetInstanceProcAddr(
             self.instance.vkInstance, "vkDestroySwapchainKHR"
         )
@@ -201,7 +200,7 @@ class Surface(Sinode):
             sType=vk.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
             flags=0,
             surface=self.vkSurface,
-            minImageCount=imageCount,
+            minImageCount=self.imageCount,
             imageFormat=self.surface_format.format,
             imageColorSpace=self.surface_format.colorSpace,
             imageExtent=self.extent,
