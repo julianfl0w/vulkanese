@@ -44,16 +44,15 @@ class HelloTriangle:
             stride=4,
         )
         
-        self.debugBuff = 
-            ve.buffer.DebugBuffer(
-                device=self.device,
-                name="debugBuff",
-                memtype="float",
-                qualifier="writeonly",
-                dimensionVals=[self.VERTEX_COUNT, self.SPATIAL_DIMENSIONS],
-                stride=4,
-                compress=True,
-            )
+        #self.debugBuff = ve.buffer.DebugBuffer(
+        #        device=self.device,
+        #        name="debugBuff",
+        #        memtype="float",
+        #        qualifier="writeonly",
+        #        dimensionVals=[self.VERTEX_COUNT, self.SPATIAL_DIMENSIONS],
+        #        stride=4,
+        #        compress=True,
+        #    )
         
         # Input buffers to the shader
         # These are Uniform Buffers normally,
@@ -158,15 +157,7 @@ class HelloTriangle:
 
         # create the pyramid
         self.pyramid = shapes.Pyramid()
-        trianglesShape = np.shape(np.array(self.pyramid.mesh.triangles))
-        trianglesLen = np.prod(trianglesShape)
-        ii = (np.arange(trianglesLen * 4) / 4).astype(np.uint32)
-        ptf = np.array(self.pyramid.mesh.triangles).flatten()
-        print(ptf)
-        print(self.graphicsPipeline.indexBuffer.skipval)
-        print(self.graphicsPipeline.indexBuffer.itemSize)
-        print(len(self.graphicsPipeline.indexBuffer.pmap))
-        self.graphicsPipeline.indexBuffer.set(ptf.astype(np.uint32))
+        self.graphicsPipeline.indexBuffer.set(np.array(self.pyramid.mesh.triangles, dtype = np.uint32).flatten())
         self.graphicsPipeline.vertexStage.gpuBuffers.position.set(
             np.array(self.pyramid.mesh.vertices).flatten()
         )
@@ -179,6 +170,10 @@ class HelloTriangle:
         print(self.graphicsPipeline.vertexStage.gpuBuffers.position.getAsNumpyArray())
         print(self.graphicsPipeline.vertexStage.gpuBuffers.color.getAsNumpyArray())
 
+        self.graphicsPipeline.indexBuffer.flush()
+        self.graphicsPipeline.vertexStage.gpuBuffers.position.flush()
+        self.graphicsPipeline.vertexStage.gpuBuffers.color.flush()
+        
         # Main loop
         last_time = 0
         fps = 60
@@ -194,7 +189,14 @@ class HelloTriangle:
                 fps_last = fps
                 fps = 0
 
-            # self.pyramid.rotate(fps_last)
+            self.pyramid.rotate(fps_last)
+            self.graphicsPipeline.vertexStage.gpuBuffers.position.set(
+                np.array(self.pyramid.mesh.vertices).flatten()
+            )
+            self.graphicsPipeline.vertexStage.gpuBuffers.position.flush()
+            #self.graphicsPipeline.vertexStage.gpuBuffers.color.set(
+            #    self.pyramid.verticesColorBGR
+            # )
 
             # get quit, mouse, keypress etc
             for event in self.graphicsPipeline.surface.getEvents():
@@ -228,7 +230,7 @@ if __name__ == "__main__":
     }
 
     # device selection and instantiation
-    instance = ve.instance.Instance(verbose=True)
+    instance = ve.instance.Instance(verbose=False)
     print("naively choosing device 0")
     device = instance.getDevice(0)
 

@@ -67,7 +67,7 @@ class GraphicsCommandBuffer(sinode.Sinode):
             device.vkDevice, self.framebuffer_create, None
         )
 
-        self.color = vk.VkClearColorValue(float32=[0, 1, 0, 1])
+        self.color = vk.VkClearColorValue(float32=[0, 0, 0, 1])
         self.clear_value = vk.VkClearValue(color=self.color)
 
         self.vkRenderPassBeginInfo = vk.VkRenderPassBeginInfo(
@@ -105,6 +105,13 @@ class GraphicsCommandBuffer(sinode.Sinode):
             pImageIndices=[0],
             pResults=None,
         )
+        
+    def release(self):
+        
+        print("destroying framebuffer ")
+        vk.vkDestroyFramebuffer(self.device.vkDevice, self.vkFramebuffer, None)
+        vk.vkDestroyImageView(self.device.vkDevice, self.imageView, None)
+        
     def recordBuffer(self):
         
         # start recording commands into it

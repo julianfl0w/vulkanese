@@ -50,9 +50,9 @@ class Instance(sinode.Sinode):
 
         extensions = vk.vkEnumerateInstanceExtensionProperties(None)
         extensions = [e.extensionName for e in extensions]
-        # self.debug("available extensions: ")
-        # for e in extensions:
-        #    self.debug("    " + e)
+        self.debug("available extensions: ")
+        for e in extensions:
+            self.debug("    " + e)
 
         self.layers = vk.vkEnumerateInstanceLayerProperties()
         self.layers = [l.layerName for l in self.layers]
@@ -60,8 +60,8 @@ class Instance(sinode.Sinode):
         # for l in self.layers:
         #    self.debug("    " + l)
 
-        if self.verbose:
-            self.debug("Available layers " + json.dumps(self.layers, indent=2))
+        self.debug("Available layers ")
+        print(json.dumps(self.layers, indent=2))
 
         self.layerList = []
         #if "VK_LAYER_RENDERDOC_Capture" in self.layers:

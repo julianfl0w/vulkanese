@@ -192,7 +192,7 @@ class Buffer(Sinode):
         self.device.instance.debug("done initializing")
 
         if not readFromCPU:
-            vk.kUnmapMemory(self.vkDevice, self.vkDeviceMemory)
+            vk.vkUnmapMemory(self.vkDevice, self.vkDeviceMemory)
             self.pmap = None
 
         self.device.instance.debug("binding")
@@ -204,6 +204,14 @@ class Buffer(Sinode):
             memoryOffset=0,
         )
         self.device.instance.debug("done binding")
+        
+        self.vkMappedMemoryRange = vk.VkMappedMemoryRange(
+            sType = vk.VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+            pNext = None,
+            memory=self.vkDeviceMemory,
+            offset=0,
+            size=int(self.sizeBytes)
+        )
 
         # NEEDED FOR RAYTRACING, FAILS BEFORE VULKAN 1.3
         # self.bufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
@@ -237,6 +245,9 @@ class Buffer(Sinode):
 
         self.addrPtr = 0
 
+    def flush(self):
+        return vk.vkFlushMappedMemoryRanges(device = self.device.vkDevice, memoryRangeCount = 1, pMemoryRanges=[self.vkMappedMemoryRange])
+        
     # find memory type with desired properties.
     def findMemoryType(self, memoryTypeBits, properties):
 
@@ -259,7 +270,7 @@ class Buffer(Sinode):
         ):
             self.skipval = 1
         elif (
-            not self.usage & vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+            not self.usage & vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT and not self.usage & vk.VK_BUFFER_USAGE_INDEX_BUFFER_BIT
         ) and self.itemSize <= 8:
             self.skipval = int(16 / self.itemSize)
         # vec3s (12 bytes) does not divide evenly into 16 :(
@@ -503,9 +514,7 @@ class DebugBuffer(Buffer):
             format=VK_FORMAT_R64_SFLOAT,
             readFromCPU=True,
             usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-            memProperties=0
-            | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-            | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            memProperties=memProperties,
             sharingMode=VK_SHARING_MODE_EXCLUSIVE,
             stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
             qualifier="",
@@ -644,7 +653,7 @@ class IndexBuffer(Buffer):
             memtype="uint",
             rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
             stride=4,
-            compress=False,
+            compress=True,
         )
 
 

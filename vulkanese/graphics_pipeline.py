@@ -310,14 +310,18 @@ class GraphicsPipeline(sinode.Sinode):
 
         for shader in self.shaders:
             shader.release()
+            
+        for g in self.GraphicsCommandBuffers:
+            g.release()
 
         self.renderFence.release()
         self.acquireFence.release()
         self.renderSemaphore.release()
         self.presentSemaphore.release()
 
-        vkDestroyPipelineLayout(self.vkDevice, self.vkPipelineLayout, None)
-
+        vk.vkDestroyPipeline(self.device.vkDevice, self.vkPipeline, None)
+        vk.vkDestroyPipelineLayout(self.device.vkDevice, self.vkPipelineLayout, None)
+        
         if hasattr(self, "surface"):
             self.device.debug("releasing surface")
             self.surface.release()

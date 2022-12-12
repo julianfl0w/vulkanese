@@ -73,11 +73,4 @@ class RenderPass(Sinode):
 
     def release(self):
 
-        print("destroying framebuffers")
-        for i, f in enumerate(self.framebuffers):
-            print("destroying framebuffer " + str(i))
-            vkDestroyFramebuffer(self.vkDevice, f, None)
-
-        for i in self.image_views:
-            vkDestroyImageView(self.vkDevice, i, None)
-        vkDestroyRenderPass(self.vkDevice, self.vkRenderPass, None)
+        vk.vkDestroyRenderPass(self.vkDevice, self.vkRenderPass, None)
