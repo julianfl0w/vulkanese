@@ -20,6 +20,8 @@ htHere = os.path.dirname(os.path.abspath(__file__))
 class HelloTriangle:
     def __init__(self, device, constantsDict):
 
+        self.width  = 700
+        self.height = 700
         self.device = device
         self.constantsDict = constantsDict
         for k, v in self.constantsDict.items():
@@ -41,6 +43,18 @@ class HelloTriangle:
             dimensionVals=[self.TRIANGLE_COUNT, self.VERTS_PER_TRIANGLE],
             stride=4,
         )
+        
+        self.debugBuff = 
+            ve.buffer.DebugBuffer(
+                device=self.device,
+                name="debugBuff",
+                memtype="float",
+                qualifier="writeonly",
+                dimensionVals=[self.VERTEX_COUNT, self.SPATIAL_DIMENSIONS],
+                stride=4,
+                compress=True,
+            )
+        
         # Input buffers to the shader
         # These are Uniform Buffers normally,
         # Storage Buffers in DEBUG Mode
@@ -86,7 +100,7 @@ class HelloTriangle:
                 memtype="vec4",
                 location=0,
                 qualifier="out",
-                dimensionVals=[self.VERTEX_COUNT],
+                dimensionVals=[self.width, self.height],
                 stride=16,
                 compress=False,
             ),
@@ -119,8 +133,8 @@ class HelloTriangle:
         self.surface = ve.surface.Surface(
             instance=self.device.instance,
             device=self.device,
-            width=700,
-            height=700,
+            width=self.width,
+            height=self.height,
         )
         #self.children += [self.surface]
             

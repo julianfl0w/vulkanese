@@ -311,8 +311,10 @@ class GraphicsPipeline(sinode.Sinode):
         for shader in self.shaders:
             shader.release()
 
-        for semaphore in self.renderSemaphores:
-            semaphore.release()
+        self.renderFence.release()
+        self.acquireFence.release()
+        self.renderSemaphore.release()
+        self.presentSemaphore.release()
 
         vkDestroyPipelineLayout(self.vkDevice, self.vkPipelineLayout, None)
 
