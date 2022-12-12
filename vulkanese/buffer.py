@@ -210,6 +210,7 @@ class Buffer(Sinode):
         
         # initialize to zero
         self.zeroInitialize()
+        self.flush()
         self.device.instance.debug("done initializing")
 
 
@@ -469,7 +470,7 @@ class Buffer(Sinode):
             raise Exception("Wrong Size")
         
         if flush:
-            self.flush()
+            print("flushing " + str(self.flush()))
         
     def fill(self, value):
         # self.pmap[: data.size * data.itemSize] = data

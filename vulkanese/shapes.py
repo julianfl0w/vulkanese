@@ -39,18 +39,17 @@ class Pyramid:
                 + [[0.0, 0.0, 1.0]] * 3
                 + [[0.0, 1.0, 1.0]] * 3
             ],
-            dtype=np.float32,
+            dtype=np.float32
         )
         self.verticesColorHSV = cv.cvtColor(self.verticesColorBGR, cv.COLOR_BGR2HSV)
 
-        self.mesh.compute_vertex_normals()
+        #self.mesh.compute_vertex_normals()
         # self.verticesColorHSV[:, :, 0] = np.fmod(
         #    verticesColorHSV[:, :, 0] + 0.01, 360
         # )
 
         self.TRANSLATION = (0.0, 0.5, 0.5)
         self.mesh.translate(self.TRANSLATION)
-        print(np.asarray(self.mesh.vertices))
 
     def rotate(self, fps_last):
         # rotate the pyrimid
@@ -59,5 +58,5 @@ class Pyramid:
         )
         self.mesh.rotate(R, center=(0, 0, self.TRANSLATION[2]))
         
-        self.mesh.compute_vertex_normals()
+        #self.mesh.compute_vertex_normals()
         # print(np.asarray(self.mesh.triangles, dtype="u4"))

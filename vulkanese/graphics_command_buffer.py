@@ -94,17 +94,6 @@ class GraphicsCommandBuffer(sinode.Sinode):
             pSignalSemaphores=[self.pipeline.renderSemaphore.vkSemaphore],
         )
 
-        print(self.surface.swapchain)
-        # presentation creator
-        self.vkPresentInfoKHR = vk.VkPresentInfoKHR(
-            sType=vk.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-            waitSemaphoreCount=1,
-            pWaitSemaphores=[self.pipeline.renderSemaphore.vkSemaphore], # wait on the render before presenting
-            swapchainCount=1,
-            pSwapchains=[self.surface.swapchain],
-            pImageIndices=[0],
-            pResults=None,
-        )
         
     def release(self):
         

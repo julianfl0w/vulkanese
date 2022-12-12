@@ -97,7 +97,6 @@ class GraphicsPipeline(sinode.Sinode):
             oversample=oversample,
             surface=self.surface,
         )
-        self.children += [self.renderpass]
         self.children += [self.vkPipelineLayout]
 
         self.createGraphicsPipeline()
@@ -108,9 +107,24 @@ class GraphicsPipeline(sinode.Sinode):
             self.device.instance.vkInstance, "vkQueuePresentKHR"
         )
 
+        
+        print(self.surface.vkSwapchain)
+        # presentation creator
+        self.vkPresentInfoKHR = vk.VkPresentInfoKHR(
+            sType=vk.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+            waitSemaphoreCount=1,
+            pWaitSemaphores=[self.renderSemaphore.vkSemaphore], # wait on the render before presenting
+            swapchainCount=1,
+            pSwapchains=[self.surface.vkSwapchain],
+            pImageIndices=[0],
+            pResults=None,
+        )
+        
         self.last_time = time.time()
         self.fps_last = 60
         self.fps = 0
+        self.running = True
+        
         
     def draw_frame(self):
 
@@ -126,7 +140,7 @@ class GraphicsPipeline(sinode.Sinode):
         self.device.debug("getting current GCB")
         image_index = self.vkAcquireNextImageKHR(
             device = self.device.vkDevice,
-            swapchain = self.surface.swapchain,
+            swapchain = self.surface.vkSwapchain,
             timeout = vk.UINT64_MAX,
             #semaphore = None,
             semaphore = self.presentSemaphore.vkSemaphore,
@@ -144,8 +158,8 @@ class GraphicsPipeline(sinode.Sinode):
         self.device.debug("presenting")
         
         # present it when finished
-        thisGCB.vkPresentInfoKHR.pImageIndices[0] = image_index
-        self.vkQueuePresentKHR(self.device.presentation_queue, thisGCB.vkPresentInfoKHR)
+        self.vkPresentInfoKHR.pImageIndices[0] = image_index
+        self.vkQueuePresentKHR(self.device.presentation_queue, self.vkPresentInfoKHR)
         
         vk.vkQueueWaitIdle(self.device.presentation_queue)
         
@@ -167,7 +181,7 @@ class GraphicsPipeline(sinode.Sinode):
         #print(len(self.allVertexBuffers))
         
         # Create graphic Pipeline
-        vertex_input_create = vk.VkPipelineVertexInputStateCreateInfo(
+        self.vertex_input_create = vk.VkPipelineVertexInputStateCreateInfo(
             sType=vk.VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
             flags=0,
             vertexBindingDescriptionCount=len(self.allVertexBuffers),
@@ -265,7 +279,7 @@ class GraphicsPipeline(sinode.Sinode):
             flags=0,
             stageCount=len(self.shaders),
             pStages=[s.vkPipelineShaderStageCreateInfo for s in self.shaders],
-            pVertexInputState=vertex_input_create,
+            pVertexInputState=self.vertex_input_create,
             pInputAssemblyState=input_assembly_create,
             pTessellationState=None,
             pViewportState=viewport_state_create,

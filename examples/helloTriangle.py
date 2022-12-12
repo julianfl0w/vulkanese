@@ -6,15 +6,13 @@ import numpy as np
 import json
 import sdl2
 
+# include the Vulkanese directory
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import vulkanese as ve
 import vulkanese.shapes
 import vulkanese.stock_pipeline.simple_graphics as simple_graphics
 import vulkan as vk
-from sinode import Sinode
-
-htHere = os.path.dirname(os.path.abspath(__file__))
-
+import gc
 
 class PyramidExample(simple_graphics.SimpleGraphicsPipeline):
     def __init__(self, device, surface, constantsDict):
@@ -22,6 +20,8 @@ class PyramidExample(simple_graphics.SimpleGraphicsPipeline):
         
         # create the pyramid
         self.pyramid = vulkanese.shapes.Pyramid()
+        
+        # set the buffers. vulkanese will automatically flush them
         self.indexBuffer.set(np.array(self.pyramid.mesh.triangles, dtype = np.uint32).flatten())
         self.vertexStage.gpuBuffers.position.set(
             np.array(self.pyramid.mesh.vertices).flatten()
@@ -34,13 +34,14 @@ class PyramidExample(simple_graphics.SimpleGraphicsPipeline):
         print(self.vertexStage.gpuBuffers.position.getAsNumpyArray())
         print(self.vertexStage.gpuBuffers.color.getAsNumpyArray())
         
-        self.running = True
-        
     def run(self):
         # rotate and redraw the pyramid
         self.pyramid.rotate(self.fps_last)
         self.vertexStage.gpuBuffers.position.set(
             np.array(self.pyramid.mesh.vertices).flatten()
+        )
+        self.vertexStage.gpuBuffers.color.set(
+            self.pyramid.verticesColorBGR.astype(np.float32).flatten()
         )
 
         # get quit, mouse, keypress etc
@@ -56,9 +57,12 @@ class PyramidExample(simple_graphics.SimpleGraphicsPipeline):
 
 if __name__ == "__main__":
 
+    # disable the garbage collector,
+    # otherwise python may delete vulkan objects
+    gc.disable()
+    
     # constants declared here will be visible in this class as an attribute,
     # and in the shader as a #define
-    
     # we need 12 verts for a pyramid
     constantsDict = {
         "VERTEX_COUNT": 12,  # there are redundant verts
@@ -73,6 +77,7 @@ if __name__ == "__main__":
     instance = ve.instance.Instance(verbose=True)
     print("naively choosing device 0")
     device = instance.getDevice(0)
+    
     surface = ve.surface.Surface(
         instance=instance,
         device=device,
