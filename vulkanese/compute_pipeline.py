@@ -28,8 +28,8 @@ class ComputePipeline(sinode.Sinode):
         device,
         constantsDict,
         workgroupCount=[1, 1, 1],
-        signalSemaphoreCount = 0,
-        useFence = False,
+        signalSemaphoreCount=0,
+        useFence=False,
         waitSemaphores=[],
         waitStages=[],
     ):
@@ -37,9 +37,7 @@ class ComputePipeline(sinode.Sinode):
 
         self.device = device
         device.children += [self]
-        device.descriptorPool.finalize()
 
-        
         # synchronization is owned by the pipeline (command buffer?)
         self.waitSemaphores = waitSemaphores
         self.waitStages = waitStages
@@ -49,7 +47,7 @@ class ComputePipeline(sinode.Sinode):
         self.signalSemaphores = []
         for semaphore in range(signalSemaphoreCount):
             self.signalSemaphores += [synchronization.Semaphore(device=self.device)]
-            
+
         push_constant_ranges = vk.VkPushConstantRange(stageFlags=0, offset=0, size=0)
 
         # The pipeline layout allows the pipeline to access descriptor sets.
@@ -66,9 +64,10 @@ class ComputePipeline(sinode.Sinode):
         )
 
         self.vkPipelineLayout = vk.vkCreatePipelineLayout(
-            device=device.vkDevice, pCreateInfo=self.vkPipelineLayoutCreateInfo, pAllocator=None
+            device=device.vkDevice,
+            pCreateInfo=self.vkPipelineLayoutCreateInfo,
+            pAllocator=None,
         )
-
 
         self.vkComputePipelineCreateInfo = vk.VkComputePipelineCreateInfo(
             sType=vk.VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
@@ -85,15 +84,14 @@ class ComputePipeline(sinode.Sinode):
             pAllocator=None,
         )[0]
 
-
         # Now we shall start recording commands into the newly allocated command buffer.
         self.beginInfo = vk.VkCommandBufferBeginInfo(
             sType=vk.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
             # the buffer is only submitted and used once in this application.
             # flags=vk.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-            flags=0
+            flags=0,
         )
-        
+
         # wrap it all up into a command buffer
         self.vkCommandBufferAllocateInfo = vk.VkCommandBufferAllocateInfo(
             sType=vk.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -103,19 +101,17 @@ class ComputePipeline(sinode.Sinode):
         )
 
         self.vkCommandBuffer = vk.vkAllocateCommandBuffers(
-            device = device.vkDevice, pAllocateInfo = self.vkCommandBufferAllocateInfo
+            device=device.vkDevice, pAllocateInfo=self.vkCommandBufferAllocateInfo
         )[0]
-        
+
         vk.vkBeginCommandBuffer(self.vkCommandBuffer, self.beginInfo)
 
         # We need to bind a pipeline, AND a descriptor set before we dispatch.
         # The validation layer will NOT give warnings if you forget these, so be very careful not to forget them.
         vk.vkCmdBindPipeline(
-            self.vkCommandBuffer,
-            vk.VK_PIPELINE_BIND_POINT_COMPUTE,
-            self.vkPipeline,
+            self.vkCommandBuffer, vk.VK_PIPELINE_BIND_POINT_COMPUTE, self.vkPipeline,
         )
-        
+
         vk.vkCmdBindDescriptorSets(
             commandBuffer=self.vkCommandBuffer,
             pipelineBindPoint=vk.VK_PIPELINE_BIND_POINT_COMPUTE,
@@ -136,21 +132,19 @@ class ComputePipeline(sinode.Sinode):
             workgroupCount[1],
             workgroupCount[2],
         )
-        
 
         vk.vkEndCommandBuffer(self.vkCommandBuffer)
 
         if len(waitSemaphores):
-            pWaitSemaphores=[s.vkSemaphore for s in waitSemaphores]
+            pWaitSemaphores = [s.vkSemaphore for s in waitSemaphores]
         else:
-            pWaitSemaphores=None
-            
+            pWaitSemaphores = None
+
         if len(waitSemaphores):
-            pSignalSemaphores=[s.vkSemaphore for s in self.signalSemaphores]
+            pSignalSemaphores = [s.vkSemaphore for s in self.signalSemaphores]
         else:
-            pSignalSemaphores=None
-            
-            
+            pSignalSemaphores = None
+
         # Information describing the queue submission
         # Now we shall finally submit the recorded command buffer to a queue.
         self.submitInfo = vk.VkSubmitInfo(
@@ -197,11 +191,11 @@ class ComputePipeline(sinode.Sinode):
 
         for semaphore in self.signalSemaphores:
             semaphore.release()
-            
+
         self.device.instance.debug("destroying children")
         for child in self.children:
             child.release()
-            
+
         for semaphore in self.signalSemaphores:
             semaphore.release()
 

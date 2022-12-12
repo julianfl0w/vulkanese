@@ -98,6 +98,7 @@ class Buffer(Sinode):
         compress=True,
     ):
         self.DEBUG = DEBUG
+        self.format = format
         self.compress = compress
         self.dimensionVals = dimensionVals
         self.binding = descriptorSet.getBufferBinding()
@@ -233,18 +234,6 @@ class Buffer(Sinode):
             buffer=self.vkBuffer, offset=0, range=self.sizeBytes
         )
 
-        # the following are only needed for vertex buffers
-        # VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
-        # VK_VERTEX_INPUT_RATE_INSTANCE: Move to the next data entry after each instance
-
-        # we will standardize its bindings with a attribute description
-        self.attributeDescription = vk.VkVertexInputAttributeDescription(
-            binding=self.binding, location=self.location, format=format, offset=0
-        )
-        # ^^ Consider VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^
-        self.bindingDescription = vk.VkVertexInputBindingDescription(
-            binding=self.binding, stride=stride, inputRate=rate  # 4 bytes/element
-        )
 
         self.addrPtr = 0
 
@@ -607,13 +596,25 @@ class VertexBuffer(Buffer):
             stride=stride,
             compress=compress,
         )
+        self.binding = location
+        # the following are only needed for vertex buffers
+        # VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
+        # VK_VERTEX_INPUT_RATE_INSTANCE: Move to the next data entry after each instance
+
+        # we will standardize its bindings with a attribute description
+        self.attributeDescription = vk.VkVertexInputAttributeDescription(
+            binding=self.binding, location=self.location, format=self.format, offset=0
+        )
+        # ^^ Consider VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^
+        self.bindingDescription = vk.VkVertexInputBindingDescription(
+            binding=self.binding, stride=stride, inputRate=rate  # 4 bytes/element
+        )
 
 
 class IndexBuffer(Buffer):
     def __init__(
         self,
         device,
-        name,
         dimensionVals,
         DEBUG=False,
         qualifier="",
@@ -628,7 +629,7 @@ class IndexBuffer(Buffer):
             self,
             DEBUG=False,
             device=device,
-            name=name,
+            name="index",
             location=0,
             descriptorSet=device.descriptorPool.descSetGlobal,
             dimensionVals=dimensionVals,

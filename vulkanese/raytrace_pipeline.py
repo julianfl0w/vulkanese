@@ -180,7 +180,7 @@ class RaytracePipeline(pipeline.Pipeline):
 
         # wrap it all up into a command buffer
         print("Creating commandBuffer")
-        
+
         vkCmdBindPipeline(
             cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, self.rtPipeline
         )

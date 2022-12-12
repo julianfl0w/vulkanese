@@ -10,8 +10,10 @@ from . import shader
 from . import synchronization
 from . import renderpass
 from . import surface
+from . import graphics_command_buffer
 
-from sinode import *
+import sinode
+import numpy as np
 
 
 class GraphicsPipeline(sinode.Sinode):
@@ -28,213 +30,152 @@ class GraphicsPipeline(sinode.Sinode):
         culling=vk.VK_CULL_MODE_BACK_BIT,
         oversample=vk.VK_SAMPLE_COUNT_1_BIT,
         waitSemaphores=[],
+        bufferSizeImages=1,
     ):
 
         sinode.Sinode.__init__(self, device)
-        # synchronization is owned by the pipeline (command buffer?)
-        self.waitSemaphores = waitSemaphores
-        self.waitStages = waitStages
-        self.fence = synchronization.Fence(device=self.device)
-        self.semaphore = synchronization.Semaphore(device=self.device)
-        self.fences = [self.fence]
-        self.signalSemaphores = [self.semaphore]
+        device.children += [self]
 
+        self.culling = culling
+        self.oversample = oversample
+
+        self.indexBuffer = indexBuffer
+        self.DEBUG = False
+        self.constantsDict = constantsDict
+        self.outputWidthPixels = outputWidthPixels
+        self.outputHeightPixels = outputHeightPixels
+        self.device = device
         self.shaders = shaders
+        self.waitSemaphores = waitSemaphores
 
-        # Information describing the queue submission
-        # Now we shall finally submit the recorded command buffer to a queue.
-        if waitSemaphores == []:
-            self.submitInfo = vk.VkSubmitInfo(
-                sType=vk.VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                commandBufferCount=len(self.commandBuffers),
-                pCommandBuffers=[c.vkCommandBuffer for c in self.commandBuffers],
-                signalSemaphoreCount=len(self.signalSemaphores),
-                pSignalSemaphores=[s.vkSemaphore for s in self.signalSemaphores],
-                pWaitDstStageMask=waitStages,
-            )
-        else:
-            self.submitInfo = VkSubmitInfo(
-                sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                commandBufferCount=len(self.commandBuffers),
-                pCommandBuffers=[c.vkCommandBuffer for c in self.commandBuffers],
-                waitSemaphoreCount=int(len(waitSemaphores)),
-                pWaitSemaphores=[s.vkSemaphore for s in waitSemaphores],
-                signalSemaphoreCount=len(self.signalSemaphores),
-                pSignalSemaphores=[s.vkSemaphore for s in self.signalSemaphores],
-                pWaitDstStageMask=waitStages,
-            )
-            
+        # synchronization is owned by the pipeline (command buffer?)
+        self.renderFence = synchronization.Fence(device=self.device)
+        self.acquireFence = synchronization.Fence(device=self.device)
+        self.fences = [self.renderFence]
+
+        push_constant_ranges = vk.VkPushConstantRange(stageFlags=0, offset=0, size=0)
         # The pipeline layout allows the pipeline to access descriptor sets.
         # So we just specify the established descriptor set
         self.vkPipelineLayoutCreateInfo = vk.VkPipelineLayoutCreateInfo(
             sType=vk.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             flags=0,
-            setLayoutCount=len(device.descriptorPool.descSets),
-            pSetLayouts=[
-                d.vkDescriptorSetLayout for d in device.descriptorPool.descSets
-            ],
+            #setLayoutCount=len(device.descriptorPool.descSets),
+            #pSetLayouts=[
+            #    d.vkDescriptorSetLayout for d in device.descriptorPool.descSets
+            #],
             pushConstantRangeCount=0,
             pPushConstantRanges=[push_constant_ranges],
         )
 
         self.vkPipelineLayout = vk.vkCreatePipelineLayout(
-            device=device.vkDevice, pCreateInfo=[self.vkPipelineLayoutCreateInfo], pAllocator=None
+            device=device.vkDevice,
+            pCreateInfo=[self.vkPipelineLayoutCreateInfo],
+            pAllocator=None,
         )
 
-        
-        # Now we shall start recording commands into the newly allocated command buffer.
-        self.beginInfo = vk.VkCommandBufferBeginInfo(
-            sType=vk.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-            # the buffer is only submitted and used once in this application.
-            # flags=vk.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-            flags=vk.VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT,
-        )
-        
         self.outputClass = outputClass
-        self.commandBufferCount = 0
-        # assume triple-buffering for surfaces
-        if self.outputClass == "surface":
-            self.device.instance.debug(
-                "allocating 3 command buffers, one for each image"
-            )
-            self.commandBufferCount += 3
-        # single-buffering for images
-        else:
-            self.commandBufferCount += 1
+        self.bufferSizeImages = bufferSizeImages
 
-        self.indexBuffer = indexBuffer
-        self.DEBUG = False
-        self.constantsDict = constantsDict
-        self.shaders = shaders
-        self.outputWidthPixels = outputWidthPixels
-        self.outputHeightPixels = outputHeightPixels
         for shader in shaders:
             # make the buffer accessable as a local attribute
             exec("self." + shader.name + "= shader")
 
-        # optimization to avoid creating a new array each time
-        self.submit_list = ffi.new("VkSubmitInfo[1]", [self.submit_create])
-        self.commandBuffers = []
+        # get global lists
+        self.allVertexBuffers = []
+        for b in self.vertexStage.buffers:
+            if b.usage == vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or b.name == "index":
+                self.allVertexBuffers += [b]
+        #self.allVertexBuffers += [self.indexBuffer]
+        self.allVertexBuffers = list(set(self.allVertexBuffers))
 
-        
-        # Create command buffers, one for each image in the triple-buffer (swapchain + framebuffer)
-        # OR one for each non-surface pass
-        self.vkCommandBuffers_create = VkCommandBufferAllocateInfo(
-            sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            commandPool=device.vkCommandPool,
-            level=VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            commandBufferCount=self.commandBufferCount,
+        # Create a surface, if indicated
+        if outputClass == "surface":
+            self.surface = surface.Surface(
+                instance=self.device.instance,
+                device=self.device,
+                width=self.outputWidthPixels,
+                height=self.outputHeightPixels,
+            )
+            self.children += [self.surface]
+
+        self.vkAcquireNextImageKHR = vk.vkGetInstanceProcAddr(
+            device.instance.vkInstance, "vkAcquireNextImageKHR"
         )
 
-        self.vkCommandBuffers = vkAllocateCommandBuffers(
-            device.vkDevice, self.vkCommandBuffers_create
+        # Create a generic render pass
+        self.renderpass = renderpass.RenderPass(
+            pipeline=self,
+            device=self.device,
+            oversample=oversample,
+            surface=self.surface,
         )
-        
-        # Record command buffer
-        for i, vkCommandBuffer in enumerate(self.vkCommandBuffers):
-
-            # start recording commands into it
-            vkCommandBuffer_begin_create = VkCommandBufferBeginInfo(
-                sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-                flags=VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
-                pInheritanceInfo=None,
-            )
-
-            vkBeginCommandBuffer(vkCommandBuffer, vkCommandBuffer_begin_create)
-            vkCmdBeginRenderPass(
-                vkCommandBuffer,
-                self.pipeline.renderPass.render_pass_begin_create[i],
-                VK_SUBPASS_CONTENTS_INLINE,
-            )
-            # Bind graphicsPipeline
-            vkCmdBindPipeline(
-                vkCommandBuffer,
-                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                self.pipeline.vkPipeline,
-            )
-
-            # Provided by VK_VERSION_1_0
-            allBuffers = self.pipeline.getAllBuffers()
-
-            self.device.instance.debug("--- ALL BUFFERS ---")
-            for i, buffer in enumerate(allBuffers):
-                self.device.instance.debug("-------------------------")
-                self.device.instance.debug(i)
-            allVertexBuffers = [
-                b
-                for b in allBuffers
-                if (b.usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or b.name == "index")
-            ]
-            self.device.instance.debug("--- ALL VERTEX BUFFERS ---")
-            for i, buffer in enumerate(allVertexBuffers):
-                self.device.instance.debug("-------------------------")
-                self.device.instance.debug(i)
-
-            allVertexBuffersVk = [b.vkBuffer for b in allVertexBuffers]
-
-            pOffsets = [0] * len(allVertexBuffersVk)
-            self.device.instance.debug("pOffsets")
-            self.device.instance.debug(pOffsets)
-            vkCmdBindVertexBuffers(
-                commandBuffer=vkCommandBuffer,
-                firstBinding=0,
-                bindingCount=len(allVertexBuffersVk),
-                pBuffers=allVertexBuffersVk,
-                pOffsets=pOffsets,
-            )
-
-            vkCmdBindIndexBuffer(
-                commandBuffer=vkCommandBuffer,
-                buffer=pipeline.indexBuffer.vkBuffer,
-                offset=0,
-                indexType=VK_INDEX_TYPE_UINT32,
-            )
-
-            # Draw
-            # void vkCmdDraw(
-            # 	VkCommandBuffer commandBuffer,
-            # 	uint32_t        vertexCount,
-            # 	uint32_t        instanceCount,
-            # 	uint32_t        firstVertex,
-            # 	uint32_t        firstInstance);
-            # vkCmdDraw(vkCommandBuffer, 6400, 1, 0, 1)
-
-            # void vkCmdDrawIndexed(
-            # 	VkCommandBuffer                             commandBuffer,
-            # 	uint32_t                                    indexCount,
-            # 	uint32_t                                    instanceCount,
-            # 	uint32_t                                    firstIndex,
-            # 	int32_t                                     vertexOffset,
-            # 	uint32_t                                    firstInstance);
-            vkCmdDrawIndexed(
-                vkCommandBuffer, np.prod(pipeline.indexBuffer.dimensionVals), 1, 0, 0, 0
-            )
-
-            # End
-            vkCmdEndRenderPass(vkCommandBuffer)
-            vkEndCommandBuffer(vkCommandBuffer)
-
-
+        self.children += [self.renderpass]
         self.children += [self.vkPipelineLayout]
 
-        # get global lists
-        allVertexBuffers = []
-        for b in set(buffers):
-            if b.usage == vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT:
-                allVertexBuffers += [b]
+        self.createGraphicsPipeline()
+        self.recordCommandBuffers()
+        self.frameNumber = 0
 
-        allBindingDescriptors = [b.bindingDescription for b in allVertexBuffers]
-        allAttributeDescriptors = [b.attributeDescription for b in allVertexBuffers]
-        print("allAttributeDescriptors " + str(allAttributeDescriptors))
+        self.vkQueuePresentKHR = vk.vkGetInstanceProcAddr(
+            self.device.instance.vkInstance, "vkQueuePresentKHR"
+        )
 
+    def draw_frame(self):
+
+        self.device.debug("getting current GCB")
+        image_index = self.vkAcquireNextImageKHR(
+            device = self.device.vkDevice,
+            swapchain = self.surface.swapchain,
+            timeout = vk.UINT64_MAX,
+            #semaphore = None,
+            semaphore = self.GraphicsCommandBuffers[self.frameNumber].presentSemaphore.vkSemaphore,
+            fence = self.acquireFence.vkFence,
+        )
+        thisGCB = self.GraphicsCommandBuffers[self.frameNumber]
+
+        
+        self.device.debug("submitting queue")
+        vk.vkQueueSubmit(self.device.graphic_queue, 1, [thisGCB.vkSubmitInfo], fence=None)#, fence=self.renderFence.vkFence)
+        self.renderFence.wait()
+        self.device.debug("presenting")
+        
+        self.vkQueuePresentKHR(self.device.presentation_queue, thisGCB.vkPresentInfoKHR)
+        
+        
+        thisGCB.vkPresentInfoKHR.pImageIndices[0] = image_index
+        self.acquireFence.wait()
+
+        vk.vkQueueWaitIdle(self.device.presentation_queue)
+        
+        #self.frameNumber = (self.frameNumber + 1) % 3
+
+    def getAllBuffers(self):
+        self.device.debug("Getting all buffers")
+        allBuffers = []
+        for shader in self.shaders:
+            allBuffers += shader.buffers
+
+        return list(set(allBuffers))
+
+    def createGraphicsPipeline(self):
+        self.device.debug("Creating graphics pipeline")
+
+        #print([b.name for b in self.allVertexBuffers])
+        #print([b.location for b in self.allVertexBuffers])
+        #print(len(self.allVertexBuffers))
+        
         # Create graphic Pipeline
         vertex_input_create = vk.VkPipelineVertexInputStateCreateInfo(
             sType=vk.VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
             flags=0,
-            vertexBindingDescriptionCount=len(allBindingDescriptors),
-            pVertexBindingDescriptions=allBindingDescriptors,
-            vertexAttributeDescriptionCount=len(allAttributeDescriptors),
-            pVertexAttributeDescriptions=allAttributeDescriptors,
+            vertexBindingDescriptionCount=len(self.allVertexBuffers),
+            pVertexBindingDescriptions=[
+                b.bindingDescription for b in self.allVertexBuffers
+            ],
+            vertexAttributeDescriptionCount=len(self.allVertexBuffers),
+            pVertexAttributeDescriptions=[
+                b.attributeDescription for b in self.allVertexBuffers
+            ],
         )
 
         input_assembly_create = vk.VkPipelineInputAssemblyStateCreateInfo(
@@ -273,7 +214,7 @@ class GraphicsPipeline(sinode.Sinode):
             rasterizerDiscardEnable=vk.VK_FALSE,
             polygonMode=vk.VK_POLYGON_MODE_FILL,
             lineWidth=1,
-            cullMode=culling,
+            cullMode=self.culling,
             frontFace=vk.VK_FRONT_FACE_CLOCKWISE,
             depthBiasEnable=vk.VK_FALSE,
             depthBiasConstantFactor=0.0,
@@ -285,7 +226,7 @@ class GraphicsPipeline(sinode.Sinode):
             sType=vk.VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
             flags=0,
             sampleShadingEnable=vk.VK_FALSE,
-            rasterizationSamples=oversample,
+            rasterizationSamples=self.oversample,
             minSampleShading=1,
             pSampleMask=None,
             alphaToCoverageEnable=vk.VK_FALSE,
@@ -316,31 +257,12 @@ class GraphicsPipeline(sinode.Sinode):
             blendConstants=[0, 0, 0, 0],
         )
 
-        # Create a surface, if indicated
-        if outputClass == "surface":
-            newSurface = surface.Surface(self.device.instance, self.device, self)
-            self.surface = newSurface
-            self.children += [self.surface]
-
-        self.vkAcquireNextImageKHR = vk.vkGetInstanceProcAddr(
-            self.instance.vkInstance, "vkAcquireNextImageKHR"
-        )
-        self.vkQueuePresentKHR = vk.vkGetInstanceProcAddr(
-            self.instance.vkInstance, "vkQueuePresentKHR"
-        )
-
-        # Create a generic render pass
-        self.renderPass = renderpass.RenderPass(
-            self, oversample=oversample, surface=self.surface
-        )
-        self.children += [self.renderPass]
-
-        # Finally create graphicsPipeline
-        self.pipelinecreate = vk.VkGraphicsPipelineCreateInfo(
+        # Finally create graphics Pipeline
+        self.vkGraphicsPipelineCreateInfo = vk.VkGraphicsPipelineCreateInfo(
             sType=vk.VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             flags=0,
             stageCount=len(self.shaders),
-            pshaders=[s.shader_stage_create for s in self.shaders],
+            pStages=[s.vkPipelineShaderStageCreateInfo for s in self.shaders],
             pVertexInputState=vertex_input_create,
             pInputAssemblyState=input_assembly_create,
             pTessellationState=None,
@@ -351,65 +273,63 @@ class GraphicsPipeline(sinode.Sinode):
             pColorBlendState=color_blend_create,
             pDynamicState=None,
             layout=self.vkPipelineLayout,
-            renderPass=self.renderPass.vkRenderPass,
+            renderPass=self.renderpass.vkRenderPass,
             subpass=0,
             basePipelineHandle=None,
             basePipelineIndex=-1,
         )
 
         pipelines = vk.vkCreateGraphicsPipelines(
-            self.vkDevice, None, 1, [self.pipelinecreate], None
+            self.device.vkDevice, None, 1, [self.vkGraphicsPipelineCreateInfo], None
         )
         self.children += [pipelines]
-
         self.vkPipeline = pipelines[0]
 
-    def draw_frame(self):
+    def recordCommandBuffers(self):
+        self.device.debug("Creating command buffers")
 
-        image_index = self.vkAcquireNextImageKHR(
-            self.vkDevice,
-            self.surface.swapchain,
-            vk.UINT64_MAX,
-            self.signalSemaphores[0].vkSemaphore,
-            None,
+        # Create command buffers, one for each image in the triple-buffer (swapchain + framebuffer)
+        # OR one for each non-surface pass
+        self.vkCommandBufferAllocateInfo = vk.VkCommandBufferAllocateInfo(
+            sType=vk.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            commandPool=self.device.vkGraphicsCommandPool,
+            level=vk.VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            commandBufferCount=self.bufferSizeImages,
         )
 
-        self.submit_create.pCommandBuffers[0] = self.vkCommandBuffers[image_index]
-        vkQueueSubmit(self.device.graphic_queue, 1, self.submit_list, None)
-
-        self.pipeline.surface.present_create.pImageIndices[0] = image_index
-        self.pipeline.vkQueuePresentKHR(
-            self.device.presentation_queue, self.pipeline.surface.present_create
+        self.vkCommandBuffers = vk.vkAllocateCommandBuffers(
+            self.device.vkDevice, self.vkCommandBufferAllocateInfo
         )
 
-        # Fix #55 but downgrade performance -1000FPS)
-        vkQueueWaitIdle(self.device.presentation_queue)
+        self.device.debug("Recording command buffers")
 
-    def getAllBuffers(self):
-        allBuffers = []
-        for shader in self.shaders:
-            allBuffers += shader.buffers
+        self.GraphicsCommandBuffers = []
+        # Record command buffer
+        for i, vkCommandBuffer in enumerate(self.vkCommandBuffers):
+            self.GraphicsCommandBuffers += [
+                graphics_command_buffer.GraphicsCommandBuffer(
+                    device=self.device,
+                    pipeline=self,
+                    renderpass=self.renderpass,
+                    surface=self.surface,
+                    vkCommandBuffer=vkCommandBuffer,
+                    index=i,
+                )
+            ]
 
-        return allBuffers
-    
-    
     def release(self):
-        self.device.instance.debug("generic pipeline release")
+        self.device.debug("generic pipeline release")
 
         for shader in self.shaders:
             shader.release()
 
-        for semaphore in self.signalSemaphores:
+        for semaphore in self.renderSemaphores:
             semaphore.release()
 
-        vkDestroyPipeline(self.vkDevice, self.vkPipeline, None)
         vkDestroyPipelineLayout(self.vkDevice, self.vkPipelineLayout, None)
 
         if hasattr(self, "surface"):
-            self.device.instance.debug("releasing surface")
+            self.device.debug("releasing surface")
             self.surface.release()
 
-        if hasattr(self, "renderPass"):
-            self.renderPass.release()
-
-        self.commandBuffer.release()
+        self.renderpass.release()

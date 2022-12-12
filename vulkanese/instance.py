@@ -7,6 +7,7 @@ import time
 import json
 import vulkan as vk
 import sinode
+import sys
 
 from . import shader
 from . import descriptor
@@ -62,23 +63,24 @@ class Instance(sinode.Sinode):
         if self.verbose:
             self.debug("Available layers " + json.dumps(self.layers, indent=2))
 
+        self.layerList = []
         if "VK_LAYER_KHRONOS_validation" in self.layers:
-            self.layers = ["VK_LAYER_KHRONOS_validation"]
+            self.layerList += ["VK_LAYER_KHRONOS_validation"]
         elif "VK_LAYER_LUNARG_standard_validation" in self.layers:
-            self.layers = ["VK_LAYER_LUNARG_standard_validation"]
-        else:
-            self.layers = []
-
+            self.layerList += ["VK_LAYER_LUNARG_standard_validation"]
+        #if "VK_LAYER_RENDERDOC_Capture" in self.layers:
+        #    self.layerList += ["VK_LAYER_RENDERDOC_Capture"]
+            
         if self.verbose:
-            self.debug("applying layers " + str(self.layers))
+            self.debug("applying layers " + str(self.layerList))
         createInfo = vk.VkInstanceCreateInfo(
             sType=vk.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             flags=0,
             pApplicationInfo=appInfo,
             enabledExtensionCount=len(extensions),
             ppEnabledExtensionNames=extensions,
-            enabledLayerCount=len(self.layers),
-            ppEnabledLayerNames=self.layers,
+            enabledLayerCount=len(self.layerList),
+            ppEnabledLayerNames=self.layerList,
         )
 
         self.vkInstance = vk.vkCreateInstance(createInfo, None)
@@ -93,6 +95,8 @@ class Instance(sinode.Sinode):
         )
 
         def debugCallback(*args):
+            print("DEBUG CALLBACK: " + args[5] + " " + args[6])
+            sys.exit()
             raise Exception("DEBUG CALLBACK: " + args[5] + " " + args[6])
 
         debug_create = vk.VkDebugReportCallbackCreateInfoEXT(

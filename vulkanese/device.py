@@ -5,38 +5,9 @@ import json
 from sinode import *
 import vulkan as vk
 from . import vulkanese as ve
-from cffi import FFI
-
-here = os.path.dirname(os.path.abspath(__file__))
-
-
-def getVulkanesePath():
-    return here
 
 
 class Device(Sinode):
-    def ctypes2dict(props, depth=0):
-        outDict = dict()
-        type = vk.ffi.typeof(props)
-        if type.kind == "primitive":
-            return props
-        elif type.kind == "struct":
-            for f in type.fields:
-                fieldName, fieldType = f
-                if fieldType.type.kind == "primitive":
-                    outDict[fieldName] = eval("props." + fieldName)
-                else:
-                    outDict[fieldName] = Device.ctypes2dict(
-                        eval("props." + fieldName), depth + 1
-                    )
-            return outDict
-        elif type.kind == "array":
-            return [Device.ctypes2dict(p, depth + 1) for p in props]
-        else:
-            self.instance.debug(" " * depth + type.kind)
-            self.instance.debug(" " * depth + dir(type))
-            die
-
     def __init__(self, instance, deviceIndex):
         Sinode.__init__(self, instance)
         self.instance = instance
@@ -183,14 +154,27 @@ class Device(Sinode):
         )
 
         # Create command pool
-        command_pool_create = vk.VkCommandPoolCreateInfo(
+        self.vkGraphicsCommandPoolCreateInfo = vk.VkCommandPoolCreateInfo(
             sType=vk.VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
             queueFamilyIndex=self.queue_family_graphic_index,
             flags=0,
         )
 
-        self.vkCommandPool = vk.vkCreateCommandPool(
-            self.vkDevice, command_pool_create, None
+        self.vkGraphicsCommandPool = vk.vkCreateCommandPool(
+            self.vkDevice, self.vkGraphicsCommandPoolCreateInfo, None
+        )
+
+        # Create command pool
+        self.vkComputeCommandPoolCreateInfo = vk.VkCommandPoolCreateInfo(
+            sType=vk.VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+            queueFamilyIndex=self.getComputeQueueFamilyIndex(),
+            flags=0,
+        )
+
+        self.vkComputeCommandPool = vk.vkCreateCommandPool(
+            device=self.vkDevice,
+            pCreateInfo=self.vkComputeCommandPoolCreateInfo,
+            pAllocator=None,
         )
 
         # poor man's subgroup size query
@@ -207,6 +191,31 @@ class Device(Sinode):
 
         self.descriptorPool = ve.descriptor.DescriptorPool(self)
         self.children += [self.descriptorPool]
+
+    def ctypes2dict(props, depth=0):
+        outDict = dict()
+        type = vk.ffi.typeof(props)
+        if type.kind == "primitive":
+            return props
+        elif type.kind == "struct":
+            for f in type.fields:
+                fieldName, fieldType = f
+                if fieldType.type.kind == "primitive":
+                    outDict[fieldName] = eval("props." + fieldName)
+                else:
+                    outDict[fieldName] = Device.ctypes2dict(
+                        eval("props." + fieldName), depth + 1
+                    )
+            return outDict
+        elif type.kind == "array":
+            return [Device.ctypes2dict(p, depth + 1) for p in props]
+        else:
+            self.instance.debug(" " * depth + type.kind)
+            self.instance.debug(" " * depth + dir(type))
+            die
+
+    def debug(self, debugString):
+        self.instance.debug(debugString)
 
     def getMemoryProperties(self):
         self.instance.debug("getting memory properties")

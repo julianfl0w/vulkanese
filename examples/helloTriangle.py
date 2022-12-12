@@ -17,9 +17,9 @@ from sinode import Sinode
 htHere = os.path.dirname(os.path.abspath(__file__))
 
 
-class HelloTriangle(Sinode):
+class HelloTriangle:
     def __init__(self, device, constantsDict):
-        Sinode.__init__(self)
+
         self.device = device
         self.constantsDict = constantsDict
         for k, v in self.constantsDict.items():
@@ -38,7 +38,6 @@ class HelloTriangle(Sinode):
 
         self.indexBuffer = ve.buffer.IndexBuffer(
             device=self.device,
-            name="index",
             dimensionVals=[self.TRIANGLE_COUNT, self.VERTS_PER_TRIANGLE],
             stride=4,
         )
@@ -94,11 +93,13 @@ class HelloTriangle(Sinode):
             FragBuffer,
         ]
 
+        # finalize the buffers
+        # device.descriptorPool.finalize()
+
         # (vertex -> tesselate -> fragment)
         # Vertex Stage
         self.vertexStage = ve.shader.VertexStage(
             device=self.device,
-            parent=self,
             constantsDict=self.constantsDict,
             buffers=self.vertexBuffers,
             name="vertexStage",
@@ -109,7 +110,6 @@ class HelloTriangle(Sinode):
         # fragment stage
         self.fragmentStage = ve.shader.FragmentStage(
             device=self.device,
-            parent=self,
             buffers=self.fragmentBuffers,
             constantsDict=self.constantsDict,
             name="fragmentStage",
@@ -117,7 +117,7 @@ class HelloTriangle(Sinode):
         )
 
         # create the standard set
-        self.rasterPipeline = ve.raster_pipeline.GraphicsPipeline(
+        self.graphicsPipeline = ve.graphics_pipeline.GraphicsPipeline(
             device=self.device,
             buffers=self.vertexBuffers + self.fragmentBuffers,
             shaders=[self.vertexStage, self.fragmentStage],
@@ -127,9 +127,6 @@ class HelloTriangle(Sinode):
             outputWidthPixels=700,
             outputHeightPixels=700,
         )
-
-        self.device.descriptorPool.finalize()
-        self.device.children += [self.rasterPipeline]
 
         # print the object hierarchy
         print("Object tree:")
@@ -144,21 +141,21 @@ class HelloTriangle(Sinode):
         ii = (np.arange(trianglesLen * 4) / 4).astype(np.uint32)
         ptf = np.array(self.pyramid.mesh.triangles).flatten()
         print(ptf)
-        print(self.rasterPipeline.indexBuffer.skipval)
-        print(self.rasterPipeline.indexBuffer.itemSize)
-        print(len(self.rasterPipeline.indexBuffer.pmap))
-        self.rasterPipeline.indexBuffer.set(ptf.astype(np.uint32))
-        self.rasterPipeline.vertexStage.gpuBuffers.position.set(
+        print(self.graphicsPipeline.indexBuffer.skipval)
+        print(self.graphicsPipeline.indexBuffer.itemSize)
+        print(len(self.graphicsPipeline.indexBuffer.pmap))
+        self.graphicsPipeline.indexBuffer.set(ptf.astype(np.uint32))
+        self.graphicsPipeline.vertexStage.gpuBuffers.position.set(
             np.array(self.pyramid.mesh.vertices).flatten()
         )
-        self.rasterPipeline.vertexStage.gpuBuffers.color.set(
+        self.graphicsPipeline.vertexStage.gpuBuffers.color.set(
             self.pyramid.verticesColorBGR
         )
-        # self.rasterPipeline.vertexStage.gpuBuffers.normal.set(self.pyramid.verticesColorBGR)
+        # self.graphicsPipeline.vertexStage.gpuBuffers.normal.set(self.pyramid.verticesColorBGR)
 
-        print(self.rasterPipeline.indexBuffer.getAsNumpyArray())
-        print(self.rasterPipeline.vertexStage.gpuBuffers.position.getAsNumpyArray())
-        print(self.rasterPipeline.vertexStage.gpuBuffers.color.getAsNumpyArray())
+        print(self.graphicsPipeline.indexBuffer.getAsNumpyArray())
+        print(self.graphicsPipeline.vertexStage.gpuBuffers.position.getAsNumpyArray())
+        print(self.graphicsPipeline.vertexStage.gpuBuffers.color.getAsNumpyArray())
 
         # Main loop
         last_time = 0
@@ -178,7 +175,7 @@ class HelloTriangle(Sinode):
             # self.pyramid.rotate(fps_last)
 
             # get quit, mouse, keypress etc
-            for event in self.rasterPipeline.surface.getEvents():
+            for event in self.graphicsPipeline.surface.getEvents():
                 if event.type == sdl2.SDL_QUIT:
                     running = False
                     vk.vkDeviceWaitIdle(self.device.vkDevice)
@@ -188,10 +185,10 @@ class HelloTriangle(Sinode):
             # print(self.pyramid.mesh.triangles)
             # print(ii)
             # print(np.array(self.pyramid.mesh.triangles))
-            # print(self.rasterPipeline.indexBuffer.getAsNumpyArray())
+            # print(self.graphicsPipeline.indexBuffer.getAsNumpyArray())
             # die
             # draw the frame!
-            self.rasterPipeline.draw_frame()
+            self.graphicsPipeline.draw_frame()
 
 
 if __name__ == "__main__":

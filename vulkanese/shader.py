@@ -10,6 +10,7 @@ from pathlib import Path
 
 here = os.path.dirname(os.path.abspath(__file__))
 
+
 class Empty:
     def __init__(self):
         pass
@@ -29,9 +30,9 @@ class Shader(Sinode):
         compressBuffers=True,
         waitSemaphores=[],
         waitStages=None,
-        signalSemaphoreCount = 0, # these only used for compute shaders
-        fenceCount = 0,           # these only used for compute shaders
-        useFence = False,
+        signalSemaphoreCount=0,  # these only used for compute shaders
+        fenceCount=0,  # these only used for compute shaders
+        useFence=False,
     ):
         self.waitStages = waitStages
         self.constantsDict = constantsDict
@@ -100,8 +101,8 @@ class Shader(Sinode):
                 constantsDict=self.constantsDict,
                 workgroupCount=workgroupCount,
                 waitSemaphores=waitSemaphores,
-                signalSemaphoreCount = signalSemaphoreCount,
-                useFence = useFence
+                signalSemaphoreCount=signalSemaphoreCount,
+                useFence=useFence,
             )
             self.computePipeline.children += [self]
 
@@ -229,7 +230,6 @@ class Shader(Sinode):
 class VertexStage(Shader):
     def __init__(
         self,
-        parent,
         device,
         buffers,
         constantsDict,
@@ -239,7 +239,6 @@ class VertexStage(Shader):
     ):
         Shader.__init__(
             self,
-            parent=parent,
             device=device,
             buffers=buffers,
             constantsDict=constantsDict,
@@ -253,7 +252,6 @@ class VertexStage(Shader):
 class FragmentStage(Shader):
     def __init__(
         self,
-        parent,
         device,
         buffers,
         constantsDict,
@@ -263,7 +261,6 @@ class FragmentStage(Shader):
     ):
         Shader.__init__(
             self,
-            parent=parent,
             device=device,
             buffers=buffers,
             constantsDict=constantsDict,
