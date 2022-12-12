@@ -140,7 +140,6 @@ class Surface(Sinode):
         }
 
         self.vkSurface = surface_mapping[self.wm_info.subsystem]()
-        self.children += [self.vkSurface]
 
         # ----------
         # Create swapchain

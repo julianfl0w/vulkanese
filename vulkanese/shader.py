@@ -37,14 +37,13 @@ class Shader(Sinode):
         self.waitStages = waitStages
         self.constantsDict = constantsDict
         self.DEBUG = DEBUG
-        Sinode.__init__(self, device)
-        self.vkDevice = device.vkDevice
         self.device = device
         self.name = name
         self.basename = sourceFilename[:-2]  # take out ".c"
         self.stage = stage
         self.buffers = buffers
         self.gpuBuffers = Empty()
+        Sinode.__init__(self, device)
 
         self.debugBuffers = []
         for b in buffers:
@@ -78,7 +77,7 @@ class Shader(Sinode):
         )
 
         self.vkShaderModule = vk.vkCreateShaderModule(
-            self.vkDevice, self.vkShaderModuleCreateInfo, None
+            self.device.vkDevice, self.vkShaderModuleCreateInfo, None
         )
 
         # Create Shader stage
@@ -112,8 +111,7 @@ class Shader(Sinode):
 
     def release(self):
         self.device.instance.debug("destroying Stage")
-        vk.vkDestroyShaderModule(self.vkDevice, self.vkShaderModule, None)
-        Sinode.release(self)
+        vk.vkDestroyShaderModule(self.device.vkDevice, self.vkShaderModule, None)
 
     def compile(self):
 

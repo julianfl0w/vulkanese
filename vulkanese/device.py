@@ -11,7 +11,6 @@ class Device(Sinode):
     def __init__(self, instance, deviceIndex):
         Sinode.__init__(self, instance)
         self.instance = instance
-        self.vkInstance = instance.vkInstance
         self.deviceIndex = deviceIndex
 
         self.instance.debug("initializing device " + str(deviceIndex))
@@ -190,7 +189,6 @@ class Device(Sinode):
             self.subgroupSize = 32
 
         self.descriptorPool = ve.descriptor.DescriptorPool(self)
-        self.children += [self.descriptorPool]
 
     def ctypes2dict(props, depth=0):
         outDict = dict()
@@ -214,8 +212,8 @@ class Device(Sinode):
             self.instance.debug(" " * depth + dir(type))
             die
 
-    def debug(self, debugString):
-        self.instance.debug(debugString)
+    def debug(self, *args):
+        self.instance.debug(args)
 
     def getMemoryProperties(self):
         self.instance.debug("getting memory properties")
