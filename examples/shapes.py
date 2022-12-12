@@ -43,6 +43,7 @@ class Pyramid:
         )
         self.verticesColorHSV = cv.cvtColor(self.verticesColorBGR, cv.COLOR_BGR2HSV)
 
+        self.mesh.compute_vertex_normals()
         # self.verticesColorHSV[:, :, 0] = np.fmod(
         #    verticesColorHSV[:, :, 0] + 0.01, 360
         # )
@@ -57,4 +58,6 @@ class Pyramid:
             (0, -np.pi / max(6 * fps_last, 1), 0)
         )
         self.mesh.rotate(R, center=(0, 0, self.TRANSLATION[2]))
+        
+        self.mesh.compute_vertex_normals()
         # print(np.asarray(self.mesh.triangles, dtype="u4"))

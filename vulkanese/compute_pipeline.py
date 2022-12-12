@@ -95,7 +95,7 @@ class ComputePipeline(sinode.Sinode):
         # wrap it all up into a command buffer
         self.vkCommandBufferAllocateInfo = vk.VkCommandBufferAllocateInfo(
             sType=vk.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            commandPool=device.vkCommandPool,
+            commandPool=device.vkComputeCommandPool,
             level=vk.VK_COMMAND_BUFFER_LEVEL_PRIMARY,
             commandBufferCount=1,
         )

@@ -34,6 +34,7 @@ class HelloTriangle:
             qualifier="out",
             location=3,
             dimensionVals=[self.VERTEX_COUNT, self.SPATIAL_DIMENSIONS],
+            #dimensionVals=[self.width, self.height],
             stride=12,
             compress=False,
         )
@@ -44,20 +45,7 @@ class HelloTriangle:
             stride=4,
         )
         
-        #self.debugBuff = ve.buffer.DebugBuffer(
-        #        device=self.device,
-        #        name="debugBuff",
-        #        memtype="float",
-        #        qualifier="writeonly",
-        #        dimensionVals=[self.VERTEX_COUNT, self.SPATIAL_DIMENSIONS],
-        #        stride=4,
-        #        compress=True,
-        #    )
-        
         # Input buffers to the shader
-        # These are Uniform Buffers normally,
-        # Storage Buffers in DEBUG Mode
-        # PIPELINE WILL CREATE ITS OWN INDEX BUFFER
         self.vertexBuffers = [
             ve.buffer.VertexBuffer(
                 device=self.device,
@@ -135,9 +123,8 @@ class HelloTriangle:
             width=self.width,
             height=self.height,
         )
-        #self.children += [self.surface]
             
-        # create the standard set
+        # create the standard graphics pipeline
         self.graphicsPipeline = ve.graphics_pipeline.GraphicsPipeline(
             device=self.device,
             buffers=self.vertexBuffers + self.fragmentBuffers,
@@ -164,12 +151,18 @@ class HelloTriangle:
         self.graphicsPipeline.vertexStage.gpuBuffers.color.set(
             self.pyramid.verticesColorBGR
         )
+        print(np.array(self.pyramid.mesh.triangle_normals, dtype = np.float32))
+        sie
+        self.graphicsPipeline.vertexStage.gpuBuffers.normal.set(
+            np.array(self.pyramid.mesh.triangle_normals, dtype = np.float32).flatten()
+        )
         # self.graphicsPipeline.vertexStage.gpuBuffers.normal.set(self.pyramid.verticesColorBGR)
 
         print(self.graphicsPipeline.indexBuffer.getAsNumpyArray())
         print(self.graphicsPipeline.vertexStage.gpuBuffers.position.getAsNumpyArray())
         print(self.graphicsPipeline.vertexStage.gpuBuffers.color.getAsNumpyArray())
-
+        print(self.graphicsPipeline.vertexStage.gpuBuffers.normal.getAsNumpyArray())
+    
         self.graphicsPipeline.indexBuffer.flush()
         self.graphicsPipeline.vertexStage.gpuBuffers.position.flush()
         self.graphicsPipeline.vertexStage.gpuBuffers.color.flush()
@@ -194,9 +187,9 @@ class HelloTriangle:
                 np.array(self.pyramid.mesh.vertices).flatten()
             )
             self.graphicsPipeline.vertexStage.gpuBuffers.position.flush()
-            #self.graphicsPipeline.vertexStage.gpuBuffers.color.set(
-            #    self.pyramid.verticesColorBGR
-            # )
+            self.graphicsPipeline.vertexStage.gpuBuffers.normal.set(
+                np.array(self.pyramid.mesh.triangle_normals, dtype = np.float32).flatten()
+             )
 
             # get quit, mouse, keypress etc
             for event in self.graphicsPipeline.surface.getEvents():
