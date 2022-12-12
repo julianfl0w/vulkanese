@@ -105,7 +105,7 @@ class Buffer(Sinode):
         # this should be fixed in vulkan wrapper
         self.released = False
         self.usage = usage
-        Sinode.__init__(self, device)
+        Sinode.__init__(self, descriptorSet)
         self.device = device
         self.location = location
         self.vkDevice = device.vkDevice
@@ -186,11 +186,6 @@ class Buffer(Sinode):
         # self.device.instance.debug(len(self.pmap[:]))
         # self.device.instance.debug(len(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType)))
 
-        # initialize to zero
-        self.zeroInitialize()
-
-        self.device.instance.debug("done initializing")
-
         if not readFromCPU:
             vk.vkUnmapMemory(self.vkDevice, self.vkDeviceMemory)
             self.pmap = None
@@ -212,6 +207,11 @@ class Buffer(Sinode):
             offset=0,
             size=int(self.sizeBytes)
         )
+        
+        # initialize to zero
+        self.zeroInitialize()
+        self.device.instance.debug("done initializing")
+
 
         # NEEDED FOR RAYTRACING, FAILS BEFORE VULKAN 1.3
         # self.bufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
@@ -449,7 +449,7 @@ class Buffer(Sinode):
         endByte = index * self.itemSize * self.skipval + self.itemSize
         return np.frombuffer(self.pmap[startByte:endByte], dtype=self.pythonType)
 
-    def set(self, data):
+    def set(self, data, flush=True):
         # self.pmap[:] = data.astype(self.pythonType)
         try:
             if self.skipval == 1:
@@ -467,7 +467,10 @@ class Buffer(Sinode):
                 "data (bytes): " + str(len(data) * self.itemSize)
             )
             raise Exception("Wrong Size")
-
+        
+        if flush:
+            self.flush()
+        
     def fill(self, value):
         # self.pmap[: data.size * data.itemSize] = data
         a = np.array([value])

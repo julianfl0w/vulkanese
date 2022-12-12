@@ -33,7 +33,6 @@ class GraphicsPipeline(sinode.Sinode):
     ):
 
         sinode.Sinode.__init__(self, device)
-        device.children += [self]
 
         self.culling = culling
         self.oversample = oversample
@@ -109,8 +108,21 @@ class GraphicsPipeline(sinode.Sinode):
             self.device.instance.vkInstance, "vkQueuePresentKHR"
         )
 
+        self.last_time = time.time()
+        self.fps_last = 60
+        self.fps = 0
+        
     def draw_frame(self):
 
+        # timing
+        self.fps += 1
+        if time.time() - self.last_time >= 1:
+            self.last_time = time.time()
+            self.fps_last = self.fps
+            self.fps = 0
+            self.device.debug("FPS: %s" % self.fps)
+        
+        # acquire a writeable image
         self.device.debug("getting current GCB")
         image_index = self.vkAcquireNextImageKHR(
             device = self.device.vkDevice,
@@ -125,11 +137,13 @@ class GraphicsPipeline(sinode.Sinode):
         thisGCB = self.GraphicsCommandBuffers[image_index]
         #self.acquireFence.wait()
         
+        # submit the appropriate queue
         self.device.debug("submitting queue")
         vk.vkQueueSubmit(self.device.graphic_queue, 1, [thisGCB.vkSubmitInfo], fence=None)#self.renderFence.vkFence)
         #self.renderFence.wait()
         self.device.debug("presenting")
         
+        # present it when finished
         thisGCB.vkPresentInfoKHR.pImageIndices[0] = image_index
         self.vkQueuePresentKHR(self.device.presentation_queue, thisGCB.vkPresentInfoKHR)
         
@@ -306,24 +320,18 @@ class GraphicsPipeline(sinode.Sinode):
             ]
 
     def release(self):
-        self.device.debug("generic pipeline release")
+        self.device.debug("graphics pipeline release")
 
-        for shader in self.shaders:
-            shader.release()
-            
         for g in self.GraphicsCommandBuffers:
             g.release()
 
+        self.renderpass.release()
+        
         self.renderFence.release()
         self.acquireFence.release()
         self.renderSemaphore.release()
         self.presentSemaphore.release()
-
+            
         vk.vkDestroyPipeline(self.device.vkDevice, self.vkPipeline, None)
         vk.vkDestroyPipelineLayout(self.device.vkDevice, self.vkPipelineLayout, None)
         
-        if hasattr(self, "surface"):
-            self.device.debug("releasing surface")
-            self.surface.release()
-
-        self.renderpass.release()

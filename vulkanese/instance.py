@@ -129,12 +129,12 @@ class Instance(sinode.Sinode):
 
     def getDevice(self, deviceIndex):
         newDev = device.Device(self, deviceIndex)
-        self.children += [newDev]
         return newDev
 
     def release(self):
         self.debug("destroying child devices")
         for d in self.children:
+            print(d)
             d.release()
         self.debug("destroying debug etc")
         self.vkDestroyDebugReportCallbackEXT(self.vkInstance, self.callback, None)
