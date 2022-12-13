@@ -77,10 +77,10 @@ class Surface(Sinode):
             return _lib.GetWindowLongA(_ffi.cast("void*", hWnd), -6)
 
         print("Create windows surface")
-        vkCreateWin32SurfaceKHR = vkGetInstanceProcAddr(
+        vkCreateWin32SurfaceKHR = vk.vkGetInstanceProcAddr(
             self.instance.vkInstance, "vkCreateWin32SurfaceKHR"
         )
-        surface_create = VkWin32SurfaceCreateInfoKHR(
+        surface_create = vk.VkWin32SurfaceCreateInfoKHR(
             sType=vk.VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
             hinstance=get_instance(self.wm_info.info.win.window),
             hwnd=self.wm_info.info.win.window,
