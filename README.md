@@ -26,6 +26,9 @@ This repository is looking for a sponsor! It has potential to simplify the field
 Possible avenues for development include
 * A guide for Distributed High-power Computing (HPC) using Docker and Kubernetes **(ACTIVE PROJECT)**
 * A more complete math library
+* Machine Learning / AI (Tensorflow Backend)
+* Mobile (Android) port for gaming 
+* Mobile (Android) port for embedded devices 
 * No-code GUI for pipeline development
 * Raytracing support
 * Virtual Reality 
