@@ -12,7 +12,7 @@ from . import renderpass
 from . import surface
 from . import graphics_command_buffer
 
-import sinode
+from . import sinode
 import numpy as np
 
 

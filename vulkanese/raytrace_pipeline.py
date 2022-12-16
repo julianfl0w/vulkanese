@@ -7,8 +7,7 @@ from vulkan import *
 from . import vulkanese
 from . import pipeline
 
-from sinode import *
-from PIL import Image as pilImage
+from . import sinode
 
 # import faulthandler
 

@@ -1,14 +1,14 @@
 import vulkan as vk
-from sinode import *
+from . import sinode
 
 import sdl2
 import sdl2.ext
 import ctypes
 
 
-class Surface(Sinode):
+class Surface(sinode.Sinode):
     def __init__(self, instance, device, width, height):
-        Sinode.__init__(self, instance)
+        sinode.Sinode.__init__(self, instance)
         self.running = True
         self.instance = instance
         self.device = device
@@ -233,6 +233,8 @@ class Surface(Sinode):
         vkDestroySurfaceKHR = vk.vkGetInstanceProcAddr(
             self.instance.vkInstance, "vkDestroySurfaceKHR"
         )
+        print(vkDestroySwapchainKHR)
+        print(vkDestroySurfaceKHR)
         vkDestroySurfaceKHR(self.instance.vkInstance, self.vkSurface, None)
         vkDestroySwapchainKHR(self.device.vkDevice, self.vkSwapchain, None)
         print("ddone destroying surface")

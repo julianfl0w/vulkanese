@@ -1,7 +1,6 @@
 numpy
 opencv-python
-dill
-hjson
-git+https://github.com/julianfl0w/sinode
+pysdl2
+open3d
 git+https://github.com/julianfl0w/vulkan
 

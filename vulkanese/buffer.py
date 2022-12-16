@@ -1,5 +1,5 @@
 import json
-from sinode import *
+from . import sinode
 import os
 
 import vulkan as vk
@@ -26,24 +26,6 @@ def glsltype2python(glsltype):
         self.device.instance.debug(glsltype)
         die
 
-
-def glsltype2pythonstring(glsltype):
-    if glsltype == "float":
-        return "np.float32"
-    if glsltype == "float32_t":
-        return "np.float32"
-    elif glsltype == "float64_t":
-        return "np.float64"
-    elif glsltype == "int":
-        return "np.int32"
-    elif glsltype == "uint":
-        return "np.uint32"
-    else:
-        self.device.instance.debug("type")
-        self.device.instance.debug(glsltype)
-        die
-
-
 def glsltype2bytesize(glsltype):
     if glsltype == "float":
         return 4
@@ -65,12 +47,10 @@ def glsltype2bytesize(glsltype):
         # return 16
         return 4
     else:
-        self.device.instance.debug("type")
-        self.device.instance.debug(glsltype)
-        die
+        raise Exception("Unrecognized type: " + glsltype)
 
 
-class Buffer(Sinode):
+class Buffer(sinode.Sinode):
     currLocation = 0
 
     def __init__(
@@ -78,7 +58,6 @@ class Buffer(Sinode):
         device,
         name,
         location,
-        descriptorSet,
         dimensionVals,
         DEBUG=False,
         format=vk.VK_FORMAT_R64_SFLOAT,
@@ -97,15 +76,15 @@ class Buffer(Sinode):
         stride=4,
         compress=True,
     ):
+        self.stageFlags =stageFlags
         self.DEBUG = DEBUG
         self.format = format
         self.compress = compress
         self.dimensionVals = dimensionVals
-        self.binding = descriptorSet.getBufferBinding()
         # this should be fixed in vulkan wrapper
         self.released = False
         self.usage = usage
-        Sinode.__init__(self, descriptorSet)
+        sinode.Sinode.__init__(self, device)
         self.device = device
         self.location = location
         self.vkDevice = device.vkDevice
@@ -119,7 +98,7 @@ class Buffer(Sinode):
         self.itemCount = int(np.prod(dimensionVals))
         self.sizeBytes = int(self.itemCount * self.itemSize * self.skipval)
         self.name = name
-        self.descriptorSet = descriptorSet
+        
 
         self.device.instance.debug("creating buffer " + name)
 
@@ -132,9 +111,7 @@ class Buffer(Sinode):
         )
         self.device.instance.debug(self.vkDevice)
         self.device.instance.debug(self.bufferCreateInfo)
-
         self.vkBuffer = vk.vkCreateBuffer(self.vkDevice, self.bufferCreateInfo, None)
-        self.children += [self.vkBuffer]
 
         # But the buffer doesn't allocate memory for itself, so we must do that manually.
 
@@ -150,7 +127,7 @@ class Buffer(Sinode):
         # Also, by setting VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, memory written by the device(GPU) will be easily
         # visible to the host(CPU), without having to call any extra flushing commands. So mainly for convenience, we set
         # this flag.
-        index = self.findMemoryType(memoryRequirements.memoryTypeBits, memProperties)
+        index = device.findMemoryType(memoryRequirements.memoryTypeBits, memProperties)
 
         if index < 0:
             raise Exception("Requested memory type not available on this device")
@@ -169,7 +146,6 @@ class Buffer(Sinode):
         )
 
         self.device.instance.debug("done allocating")
-        self.children += [self.vkDeviceMemory]
 
         self.device.instance.debug("mapping")
         # Map the buffer memory, so that we can read from it on the CPU.
@@ -186,11 +162,12 @@ class Buffer(Sinode):
         # self.device.instance.debug(len(self.pmap[:]))
         # self.device.instance.debug(len(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType)))
 
+        # sometimes you may want to unmap from CPU
         if not readFromCPU:
             vk.vkUnmapMemory(self.vkDevice, self.vkDeviceMemory)
             self.pmap = None
 
-        self.device.instance.debug("binding")
+        self.device.instance.debug("binding to device")
         # Now associate that allocated memory with the buffer. With that, the buffer is backed by actual memory.
         vk.vkBindBufferMemory(
             device=self.vkDevice,
@@ -198,7 +175,7 @@ class Buffer(Sinode):
             memory=self.vkDeviceMemory,
             memoryOffset=0,
         )
-        self.device.instance.debug("done binding")
+        self.device.instance.debug("done binding to device")
         
         self.vkMappedMemoryRange = vk.VkMappedMemoryRange(
             sType = vk.VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
@@ -221,7 +198,16 @@ class Buffer(Sinode):
         #    buffer=self.vkBuffer,
         # )
 
-        descriptorSet.buffers += [self]
+        # Maintain an address pointer for feed operations
+        self.addrPtr = 0
+
+    def flush(self):
+        return vk.vkFlushMappedMemoryRanges(device = self.device.vkDevice, memoryRangeCount = 1, pMemoryRanges=[self.vkMappedMemoryRange])
+        
+    def getDescriptorBinding(self):
+        
+        self.binding = self.descriptorSet.getBufferBinding()
+        self.descriptorSet.buffers += [self]
         # descriptorCount is the number of descriptors contained in the binding,
         # accessed in a shader as an array, except if descriptorType is
         # VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK in which case descriptorCount
@@ -230,9 +216,9 @@ class Buffer(Sinode):
         # self.device.instance.debug(descriptorSet.type)
         self.descriptorSetLayoutBinding = vk.VkDescriptorSetLayoutBinding(
             binding=self.binding,
-            descriptorType=descriptorSet.type,
+            descriptorType=self.descriptorSet.type,
             descriptorCount=1,
-            stageFlags=stageFlags,
+            stageFlags=self.stageFlags,
         )
 
         # Specify the buffer to bind to the descriptor.
@@ -243,26 +229,10 @@ class Buffer(Sinode):
             buffer=self.vkBuffer, offset=0, range=self.sizeBytes
         )
 
-
-        self.addrPtr = 0
-
-    def flush(self):
-        return vk.vkFlushMappedMemoryRanges(device = self.device.vkDevice, memoryRangeCount = 1, pMemoryRanges=[self.vkMappedMemoryRange])
         
-    # find memory type with desired properties.
-    def findMemoryType(self, memoryTypeBits, properties):
 
-        # How does this search work?
-        # See the documentation of VkPhysicalDeviceMemoryProperties for a detailed description.
-        for i, mt in enumerate(self.device.memoryProperties["memoryTypes"]):
-            if (
-                memoryTypeBits & (1 << i)
-                and (mt["propertyFlags"] & properties) == properties
-            ):
-                return i
-
-        return -1
-
+    # in some cases, memory access from the shader must be in increments of 16 bytes
+    # so if we have a 4-byte float, we need to skip every 4th memory element
     def getSkipval(self):
         if (
             self.compress
@@ -458,7 +428,7 @@ class Buffer(Sinode):
             else:
                 indices = np.arange(0, len(data), 1.0 / self.skipval).astype(int)
                 data = data[indices]
-                print(self.pythonType)
+                #print(self.pythonType)
                 self.pmap[:] = data.astype(self.pythonType).flatten()
 
         except:
@@ -470,7 +440,7 @@ class Buffer(Sinode):
             raise Exception("Wrong Size")
         
         if flush:
-            print("flushing " + str(self.flush()))
+            self.flush()
         
     def fill(self, value):
         # self.pmap[: data.size * data.itemSize] = data
@@ -492,7 +462,49 @@ class Buffer(Sinode):
         return int(size)
 
 
-class DebugBuffer(Buffer):
+class StorageBuffer(Buffer):
+    def __init__(
+        self,
+        device,
+        name,
+        dimensionVals,
+        DEBUG=False,
+        qualifier="",
+        memProperties=0
+        | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+        | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        descriptorSet=None,
+        memtype="float",
+        rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
+        stride=12,
+        compress=True,
+    ):
+        self.descriptorSet = descriptorSet
+        if descriptorSet is None:
+            self.descriptorSet = device.descriptorPool.descSetGlobal
+        Buffer.__init__(
+            self,
+            DEBUG=False,
+            device=device,
+            name=name,
+            location=0,
+            dimensionVals=dimensionVals,
+            format=vk.VK_FORMAT_R64_SFLOAT,
+            readFromCPU=True,
+            usage=vk.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            memProperties=memProperties,
+            sharingMode=vk.VK_SHARING_MODE_EXCLUSIVE,
+            stageFlags=vk.VK_SHADER_STAGE_COMPUTE_BIT,
+            qualifier=qualifier,
+            memtype=memtype,
+            rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
+            stride=4,
+            compress=compress,
+        )
+        self.getDescriptorBinding()
+
+class DebugBuffer(StorageBuffer):
     def __init__(
         self,
         device,
@@ -507,17 +519,15 @@ class DebugBuffer(Buffer):
         stride=12,
     ):
         self.dimIndexNames = dimIndexNames
-        Buffer.__init__(
+        StorageBuffer.__init__(
             self,
             DEBUG=True,
             device=device,
             name=name,
             location=0,
-            descriptorSet=device.descriptorPool.descSetGlobal,
             dimensionVals=dimensionVals,
             format=VK_FORMAT_R64_SFLOAT,
             readFromCPU=True,
-            usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
             memProperties=memProperties,
             sharingMode=VK_SHARING_MODE_EXCLUSIVE,
             stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
@@ -527,46 +537,6 @@ class DebugBuffer(Buffer):
             stride=12,
             compress=True,
         )
-
-
-class StorageBuffer(Buffer):
-    def __init__(
-        self,
-        device,
-        name,
-        dimensionVals,
-        DEBUG=False,
-        qualifier="",
-        memProperties=0
-        | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-        | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-        | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        memtype="float",
-        rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
-        stride=12,
-        compress=True,
-    ):
-        Buffer.__init__(
-            self,
-            DEBUG=False,
-            device=device,
-            name=name,
-            location=0,
-            descriptorSet=device.descriptorPool.descSetGlobal,
-            dimensionVals=dimensionVals,
-            format=vk.VK_FORMAT_R64_SFLOAT,
-            readFromCPU=True,
-            usage=vk.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-            memProperties=memProperties,
-            sharingMode=vk.VK_SHARING_MODE_EXCLUSIVE,
-            stageFlags=vk.VK_SHADER_STAGE_COMPUTE_BIT,
-            qualifier=qualifier,
-            memtype=memtype,
-            rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
-            stride=4,
-            compress=compress,
-        )
-
 
 class VertexBuffer(Buffer):
     def __init__(
@@ -715,6 +685,9 @@ class UniformBuffer(Buffer):
         rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
         stride=12,
     ):
+        self.descriptorSet = descriptorSet
+        if descriptorSet is None:
+            self.descriptorSet = device.descriptorPool.descSetUniform
         Buffer.__init__(
             self,
             DEBUG=False,
@@ -735,6 +708,7 @@ class UniformBuffer(Buffer):
             stride=12,
             compress=False,
         )
+        self.getDescriptorBinding()
 
 
 class AccelerationStructure(Buffer):
@@ -796,9 +770,9 @@ class TLASNV(AccelerationStructureNV):
         )
 
 
-class Geometry(Sinode):
+class Geometry(sinode.Sinode):
     def __init__(self, setupDict, blas, initialMesh):
-        Sinode.__init__(self, setupDict, blas)
+        sinode.Sinode.__init__(self, setupDict, blas)
         buffSetupDict = {}
         buffSetupDict["vertex"] = [[0, 1, 0], [1, 1, 1], [1, 1, 0]]
         buffSetupDict["index"] = [[0, 1, 2]]

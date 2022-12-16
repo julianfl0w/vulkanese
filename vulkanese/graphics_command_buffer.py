@@ -3,7 +3,7 @@ import os
 import time
 import json
 import vulkan as vk
-import sinode
+from . import sinode
 from . import synchronization
 import numpy as np
 

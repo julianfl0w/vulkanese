@@ -9,10 +9,10 @@ import sdl2
 # include the Vulkanese directory
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import vulkanese as ve
-import vulkanese.shapes
 import vulkanese.stock_pipeline.simple_graphics as simple_graphics
 import vulkan as vk
 import gc
+import shapes
 
 class PyramidExample(simple_graphics.SimpleGraphicsPipeline):
     def __init__(self, device, surface, constantsDict):

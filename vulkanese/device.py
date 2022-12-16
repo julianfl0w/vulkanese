@@ -2,14 +2,14 @@ import ctypes
 import os
 import time
 import json
-from sinode import *
 import vulkan as vk
 from . import vulkanese as ve
+from . import sinode
 
 
-class Device(Sinode):
+class Device(sinode.Sinode):
     def __init__(self, instance, deviceIndex):
-        Sinode.__init__(self, instance)
+        sinode.Sinode.__init__(self, instance)
         self.instance = instance
         self.deviceIndex = deviceIndex
 
@@ -212,6 +212,20 @@ class Device(Sinode):
             self.instance.debug(" " * depth + dir(type))
             die
 
+    # find memory type with desired properties.
+    def findMemoryType(self, memoryTypeBits, properties):
+
+        # How does this search work?
+        # See the documentation of VkPhysicalDeviceMemoryProperties for a detailed description.
+        for i, mt in enumerate(self.memoryProperties["memoryTypes"]):
+            if (
+                memoryTypeBits & (1 << i)
+                and (mt["propertyFlags"] & properties) == properties
+            ):
+                return i
+
+        return -1
+    
     def debug(self, *args):
         self.instance.debug(args)
 

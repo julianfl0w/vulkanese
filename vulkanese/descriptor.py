@@ -1,14 +1,14 @@
 import json
-from sinode import *
+from . import sinode
 import os
 
 here = os.path.dirname(os.path.abspath(__file__))
 from vulkan import *
 
 
-class DescriptorPool(Sinode):
+class DescriptorPool(sinode.Sinode):
     def __init__(self, device, MAX_FRAMES_IN_FLIGHT=3):
-        Sinode.__init__(self, device)
+        sinode.Sinode.__init__(self, device)
         self.device = device
         self.vkDevice = device.vkDevice
         self.MAX_FRAMES_IN_FLIGHT = MAX_FRAMES_IN_FLIGHT
@@ -155,9 +155,9 @@ class DescriptorPool(Sinode):
             vkDestroyDescriptorPool(self.vkDevice, self.vkDescriptorPool, None)
 
 
-class DescriptorSet(Sinode):
+class DescriptorSet(sinode.Sinode):
     def __init__(self, descriptorPool, binding, name, type, MAX_FRAMES_IN_FLIGHT=3):
-        Sinode.__init__(self, descriptorPool)
+        sinode.Sinode.__init__(self, descriptorPool)
         self.name = name
         self.device = descriptorPool.device
         self.vkDevice = descriptorPool.vkDevice
