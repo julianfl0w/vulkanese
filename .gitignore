@@ -2,3 +2,4 @@
 *__pycache__
 build
 src/vulkanese.egg*
+dist
