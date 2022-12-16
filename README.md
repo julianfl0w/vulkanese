@@ -1,4 +1,7 @@
 # vulkanese  
+## Installation  
+```pip install git+https://github.com/julianfl0w/vulkanese```
+
 ## It's Vulkan-Ease!  
 
 This repository  
@@ -13,9 +16,6 @@ This repository
 It is comparable to
 * Nvidia's CUDA
 * Linux's Kompute
-
-## Installation  
-```pip install git+https://github.com/julianfl0w/vulkanese```
 
 ## Sponsorship Request
 This repository is looking for a sponsor! It has potential to simplify the fields of
