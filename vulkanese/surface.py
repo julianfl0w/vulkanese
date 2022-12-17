@@ -1,9 +1,11 @@
 import vulkan as vk
 from . import sinode
+from . import device as dd
 
 import sdl2
 import sdl2.ext
 import ctypes
+import json
 
 
 class Surface(sinode.Sinode):
@@ -38,25 +40,41 @@ class Surface(sinode.Sinode):
         sdl2.SDL_VERSION(self.wm_info.version)
         sdl2.SDL_GetWindowWMInfo(self.window, ctypes.byref(self.wm_info))
 
-        extensions = ["vk.VK_KHR_surface", "vk.VK_EXT_debug_report"]
-        if self.wm_info.subsystem == sdl2.SDL_SYSWM_WINDOWS:
-            extensions.append("vk.VK_KHR_win32_surface")
-        elif self.wm_info.subsystem == sdl2.SDL_SYSWM_X11:
-            extensions.append("vk.VK_KHR_xlib_surface")
-        elif self.wm_info.subsystem == sdl2.SDL_SYSWM_WAYLAND:
-            extensions.append("vk.VK_KHR_wayland_surface")
-        else:
-            raise Exception("Platform not supported")
-
+        #extensions = ["vk.VK_KHR_surface", "vk.VK_EXT_debug_report"]
+        #if self.wm_info.subsystem == sdl2.SDL_SYSWM_WINDOWS:
+        #    extensions.append("vk.VK_KHR_win32_surface")
+        #elif self.wm_info.subsystem == sdl2.SDL_SYSWM_X11:
+        #    extensions.append("vk.VK_KHR_xlib_surface")
+        #elif self.wm_info.subsystem == sdl2.SDL_SYSWM_WAYLAND:
+        #    extensions.append("vk.VK_KHR_wayland_surface")
+        #else:
+        #    raise Exception("Platform not supported: " + str(self.wm_info.subsystem))
 
         self.surface_mapping = {
+            sdl2.SDL_SYSWM_UNKNOWN: self.surface_xlib,
             sdl2.SDL_SYSWM_X11: self.surface_xlib,
             sdl2.SDL_SYSWM_WAYLAND: self.surface_wayland,
             sdl2.SDL_SYSWM_WINDOWS: self.surface_win32,
         }
-
+        print(self.wm_info.subsystem)
+        die
         self.vkSurface = self.surface_mapping[self.wm_info.subsystem]()
 
+        vkGetPhysicalDeviceSurfaceSupportKHR = vk.vkGetInstanceProcAddr(
+            self.instance.vkInstance, "vkGetPhysicalDeviceSurfaceSupportKHR"
+        )
+        for queue_family in device.queueFamilies:
+            print(queue_family)
+            
+            queue_familyPre = dd.ctypes2dict(queue_family)
+            print(json.dumps(queue_familyPre, indent=2))
+            die
+            support_present = vkGetPhysicalDeviceSurfaceSupportKHR(
+                physicalDevice=device.physical_device,
+                queueFamilyIndex=queue_family,
+                surface=self.vkSurface)
+            print(support_present)
+        die
         # ----------
         # Create swapchain
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR = vk.vkGetInstanceProcAddr(
@@ -72,6 +90,8 @@ class Surface(sinode.Sinode):
         self.capabilities = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
             physicalDevice=device.physical_device, surface=self.vkSurface
         )
+        print(self.capabilities)
+        die
         self.formats = vkGetPhysicalDeviceSurfaceFormatsKHR(
             physicalDevice=device.physical_device, surface=self.vkSurface
         )
@@ -188,10 +208,10 @@ class Surface(sinode.Sinode):
 
     def surface_wayland(self):
         print("Create wayland surface")
-        vkCreateWaylandSurfaceKHR = vkGetInstanceProcAddr(
+        vkCreateWaylandSurfaceKHR = vk.vkGetInstanceProcAddr(
             self.instance.vkInstance, "vkCreateWaylandSurfaceKHR"
         )
-        surface_create = VkWaylandSurfaceCreateInfoKHR(
+        surface_create = vk.VkWaylandSurfaceCreateInfoKHR(
             sType=vk.VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
             display=self.wm_info.info.wl.display,
             surface=self.wm_info.info.wl.surface,
