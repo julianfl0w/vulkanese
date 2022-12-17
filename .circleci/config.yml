@@ -15,8 +15,8 @@ jobs:
     - steps:
       - checkout
     - run:
-          name: "Say hello"
-          command: "echo Hello, World!"
+        name: "Say hello"
+        command: "echo Hello, World!"
     - store_test_results:
       path: 'test_results'
 
