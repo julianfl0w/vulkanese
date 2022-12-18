@@ -1,6 +1,6 @@
 numpy
 opencv-python
 pysdl2
+pysdl2-dll
 librosa
 git+https://github.com/julianfl0w/vulkan
-
