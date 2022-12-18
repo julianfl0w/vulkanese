@@ -221,12 +221,14 @@ if __name__ == "__main__":
     linst_gpu.spectrum = linst_gpu.gpuBuffers.L.getAsNumpyArray()
     print("Readtime " + str(time.time()- readstart))
     
-    fig, ((ax1, ax2)) = plt.subplots(1, 2)
-    ax1.plot(linst.fprime*sr, linst_gpu.spectrum)
-    ax1.set_title("GPU Result")
-    ax2.plot(linst.fprime*sr, linst.spectrum)
-    ax2.set_title("CPU Result")
+    graph = False
+    if graph:
+        fig, ((ax1, ax2)) = plt.subplots(1, 2)
+        ax1.plot(linst.fprime*sr, linst_gpu.spectrum)
+        ax1.set_title("GPU Result")
+        ax2.plot(linst.fprime*sr, linst.spectrum)
+        ax2.set_title("CPU Result")
     
-    plt.show()
+        plt.show()
     
     instance.release()
