@@ -8,7 +8,7 @@ import ctypes
 import json
 
 
-class Surface(Sinode):
+class Surface(sinode.Sinode):
     def __init__(self, instance, device, width, height):
         sinode.Sinode.__init__(self, instance)
         self.running = True
