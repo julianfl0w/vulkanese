@@ -1,4 +1,7 @@
 # vulkanese  
+## Installation  
+```pip install git+https://github.com/julianfl0w/vulkanese```
+
 ## It's Vulkan-Ease!  
 
 This repository  
@@ -8,13 +11,32 @@ This repository
 * Runs SPIR-V compute shaders efficiently, across all modern GPUs
 * Makes compute shader debugging easy
 * Easily integrates with Numpy
-* Easily chain up GPU operations
+* Easily chain up GPU operations using semaphores
 
-## Installation  
-1. python -m pip install git+https://github.com/julianfl0w/vulkanese #Install this repo
+It is comparable to
+* Nvidia's CUDA
+* Linux's Kompute
+
+## Sponsorship Request
+This repository is looking for a sponsor! It has potential to simplify the fields of
+* High-power Computing
+* Gaming
+* Graphics Rendering
+
+Possible avenues for development include
+* A guide for Distributed High-power Computing (HPC) using Docker and Kubernetes **(ACTIVE PROJECT)**
+* A more complete math library
+* Machine Learning / AI (Tensorflow Backend)
+* Mobile (Android) port for gaming 
+* Mobile (Android) port for embedded devices 
+* No-code GUI for pipeline development
+* Raytracing support
+* Virtual Reality 
+
+Please send me an email at jcloiacon@gmail.com
 
 ## The Hierarchy  
-![vulkanese](https://user-images.githubusercontent.com/8158655/153063082-69028462-39de-4640-93ca-a3055b57a9ce.png)
+![vulkanese API](https://user-images.githubusercontent.com/8158655/208022579-b156d471-20f8-4882-a10b-e596f461d237.png)
 
 ## GPGPU Example: Simple Addition
 

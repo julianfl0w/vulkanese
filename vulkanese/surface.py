@@ -8,7 +8,7 @@ import ctypes
 import json
 
 
-class Surface(sinode.Sinode):
+class Surface(Sinode):
     def __init__(self, instance, device, width, height):
         sinode.Sinode.__init__(self, instance)
         self.running = True
@@ -243,18 +243,5 @@ class Surface(sinode.Sinode):
 
     def release(self):
         print("destroying surface")
-        print(self.vkSwapchain)
-        print(self.vkSurface)
-        
-        vkDestroySwapchainKHR = vk.vkGetInstanceProcAddr(
-            self.instance.vkInstance, "vkDestroySwapchainKHR"
-        )
-
-        vkDestroySurfaceKHR = vk.vkGetInstanceProcAddr(
-            self.instance.vkInstance, "vkDestroySurfaceKHR"
-        )
-        print(vkDestroySwapchainKHR)
-        print(vkDestroySurfaceKHR)
-        vkDestroySurfaceKHR(self.instance.vkInstance, self.vkSurface, None)
-        vkDestroySwapchainKHR(self.device.vkDevice, self.vkSwapchain, None)
-        print("ddone destroying surface")
+        self.vkDestroySwapchainKHR(self.device.vkDevice, self.swapchain, None)
+        self.vkDestroySurfaceKHR(self.instance.vkInstance, self.vkSurface, None)
