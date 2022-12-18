@@ -129,9 +129,6 @@ class Surface(Sinode):
         else:
             raise Exception("Platform not supported")
 
-        self.vkDestroySurfaceKHR = vk.vkGetInstanceProcAddr(
-            self.instance.vkInstance, "vkDestroySurfaceKHR"
-        )
 
         surface_mapping = {
             sdl2.SDL_SYSWM_X11: self.surface_xlib,
@@ -191,9 +188,7 @@ class Surface(Sinode):
         print("selected colorspace: %s" % self.surface_format.colorSpace)
         print("%s available swapchain present modes" % len(self.present_modes))
         print("image count " + str(self.imageCount))
-        self.vkDestroySwapchainKHR = vk.vkGetInstanceProcAddr(
-            self.instance.vkInstance, "vkDestroySwapchainKHR"
-        )
+
 
         swapchain_create = vk.VkSwapchainCreateInfoKHR(
             sType=vk.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
@@ -230,5 +225,11 @@ class Surface(Sinode):
 
     def release(self):
         print("destroying surface")
+        self.vkDestroySwapchainKHR = vk.vkGetInstanceProcAddr(
+            self.instance.vkInstance, "vkDestroySwapchainKHR"
+        )
+        self.vkDestroySurfaceKHR = vk.vkGetInstanceProcAddr(
+            self.instance.vkInstance, "vkDestroySurfaceKHR"
+        )
         self.vkDestroySwapchainKHR(self.device.vkDevice, self.swapchain, None)
         self.vkDestroySurfaceKHR(self.instance.vkInstance, self.vkSurface, None)
