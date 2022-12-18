@@ -17,12 +17,11 @@ jobs:
     # See: https://circleci.com/docs/2.0/configuration-reference/#steps
     steps:
       - checkout
-      - python/install-packages:
-          pkg-manager: pip
+      #- python/install-packages:
+      #    pkg-manager: pip
       - store_test_results: 
           path: 'test_results'
-      - run: pip install -r requirements.txt
-      - run: python vulkanese/math/loiacono/loiacono_gpu.py  
+      - run: bash docker_runtests.sh
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
