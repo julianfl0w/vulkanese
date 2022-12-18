@@ -57,24 +57,22 @@ class Surface(sinode.Sinode):
             sdl2.SDL_SYSWM_WINDOWS: self.surface_win32,
         }
         print(self.wm_info.subsystem)
-        die
         self.vkSurface = self.surface_mapping[self.wm_info.subsystem]()
 
         vkGetPhysicalDeviceSurfaceSupportKHR = vk.vkGetInstanceProcAddr(
             self.instance.vkInstance, "vkGetPhysicalDeviceSurfaceSupportKHR"
         )
-        for queue_family in device.queueFamilies:
+        for i, queue_family in enumerate(device.queueFamilies):
             print(queue_family)
             
             queue_familyPre = dd.ctypes2dict(queue_family)
             print(json.dumps(queue_familyPre, indent=2))
-            die
             support_present = vkGetPhysicalDeviceSurfaceSupportKHR(
                 physicalDevice=device.physical_device,
-                queueFamilyIndex=queue_family,
+                queueFamilyIndex=i,
                 surface=self.vkSurface)
             print(support_present)
-        die
+            
         # ----------
         # Create swapchain
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR = vk.vkGetInstanceProcAddr(
@@ -91,7 +89,6 @@ class Surface(sinode.Sinode):
             physicalDevice=device.physical_device, surface=self.vkSurface
         )
         print(self.capabilities)
-        die
         self.formats = vkGetPhysicalDeviceSurfaceFormatsKHR(
             physicalDevice=device.physical_device, surface=self.vkSurface
         )

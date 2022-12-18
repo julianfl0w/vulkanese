@@ -19,7 +19,7 @@ class PyramidExample(simple_graphics.SimpleGraphicsPipeline):
         simple_graphics.SimpleGraphicsPipeline.__init__(self, device=device, surface=surface, constantsDict=constantsDict)
         
         # create the pyramid
-        self.pyramid = vulkanese.shapes.Pyramid()
+        self.pyramid = ve.shapes.Pyramid()
         
         # set the buffers. vulkanese will automatically flush them
         self.indexBuffer.set(np.array(self.pyramid.mesh.triangles, dtype = np.uint32).flatten())

@@ -164,7 +164,8 @@ class Loiacono_GPU(ve.shader.Shader):
         if constantsDict["windowed"]:
             self.gpuBuffers.window.set(get_window('hamming', 1024))
 
-    def debugRun(self):
+    def debugRun(self, z):
+        linst_gpu.gpuBuffers.x.set(z)
         vstart = time.time()
         self.run()
         vlen = time.time() - vstart
@@ -205,8 +206,6 @@ if __name__ == "__main__":
         multiple=multiple,
         dtftlen=2**15
     )
-    linst.debugRun(z)
-    
     # begin GPU test
     instance = ve.instance.Instance(verbose=False)
     device = instance.getDevice(0)
@@ -215,9 +214,12 @@ if __name__ == "__main__":
         fprime = fprime,
         multiple = linst.multiple,
     )
-    linst_gpu.gpuBuffers.x.set(z)
+    print("--- Running CPU Test ---")
     for i in range(10):
-        linst_gpu.debugRun()
+        linst.debugRun(z)
+    print("--- Running GPU Test ---")
+    for i in range(10):
+        linst_gpu.debugRun(z)
     #linst_gpu.dumpMemory()
     readstart = time.time()
     linst_gpu.spectrum = linst_gpu.gpuBuffers.L.getAsNumpyArray()
