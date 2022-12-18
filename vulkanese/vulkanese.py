@@ -5,4 +5,3 @@ from . import descriptor
 from . import device
 from . import buffer
 from . import graphics_pipeline
-from . import shapes

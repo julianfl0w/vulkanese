@@ -6,13 +6,13 @@ import os
 import time
 import json
 import vulkan as vk
-import sinode
 import sys
 
 from . import shader
 from . import descriptor
 from . import device
 from . import buffer
+from . import sinode
 
 vulkanesehome = os.path.dirname(os.path.abspath(__file__))
 
@@ -132,11 +132,10 @@ class Instance(sinode.Sinode):
         return newDev
 
     def release(self):
-        self.debug("destroying child devices")
-        for d in self.children:
-            print(d)
-            d.release()
         self.debug("destroying debug etc")
         self.vkDestroyDebugReportCallbackEXT(self.vkInstance, self.callback, None)
+        self.debug("destroying child devices")
+        for d in self.children:
+            d.release()
         self.debug("destroying instance")
         vk.vkDestroyInstance(self.vkInstance, None)

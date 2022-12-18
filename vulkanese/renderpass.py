@@ -1,12 +1,12 @@
 import json
-from sinode import *
+from . import sinode
 import os
 import vulkan as vk
 
 
-class RenderPass(Sinode):
+class RenderPass(sinode.Sinode):
     def __init__(self, device, pipeline, oversample, surface):
-        Sinode.__init__(self, pipeline)
+        sinode.Sinode.__init__(self, pipeline)
         self.pipeline = pipeline
         self.surface = surface
         self.vkDevice = device.vkDevice

@@ -1,5 +1,5 @@
 import json
-from sinode import *
+from . import sinode
 import os
 import re
 import vulkan as vk
@@ -16,7 +16,7 @@ class Empty:
         pass
 
 
-class Shader(Sinode):
+class Shader(sinode.Sinode):
     def __init__(
         self,
         device,
@@ -43,7 +43,7 @@ class Shader(Sinode):
         self.stage = stage
         self.buffers = buffers
         self.gpuBuffers = Empty()
-        Sinode.__init__(self, device)
+        sinode.Sinode.__init__(self, device)
 
         self.debugBuffers = []
         for b in buffers:
@@ -103,7 +103,7 @@ class Shader(Sinode):
                 signalSemaphoreCount=signalSemaphoreCount,
                 useFence=useFence,
             )
-            self.computePipeline.children += [self]
+            #self.computePipeline.children += [self]
 
         # first run is always slow
         # run once in init so people dont judge the first run

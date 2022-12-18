@@ -3,10 +3,10 @@ import os
 import time
 import json
 import vulkan as vk
-import sinode
 import re
 from . import buffer
 from . import synchronization
+from . import sinode
 
 here = os.path.dirname(os.path.abspath(__file__))
 

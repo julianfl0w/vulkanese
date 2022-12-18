@@ -2,14 +2,35 @@ import ctypes
 import os
 import time
 import json
-from sinode import *
 import vulkan as vk
 from . import vulkanese as ve
+from . import sinode
 
+def ctypes2dict(props, depth=0):
+    outDict = dict()
+    type = vk.ffi.typeof(props)
+    if type.kind == "primitive":
+        return props
+    elif type.kind == "struct":
+        for f in type.fields:
+            fieldName, fieldType = f
+            if fieldType.type.kind == "primitive":
+                outDict[fieldName] = eval("props." + fieldName)
+            else:
+                outDict[fieldName] = ctypes2dict(
+                    eval("props." + fieldName), depth + 1
+                )
+        return outDict
+    elif type.kind == "array":
+        return [ctypes2dict(p, depth + 1) for p in props]
+    else:
+        self.instance.debug(" " * depth + type.kind)
+        self.instance.debug(" " * depth + dir(type))
+        die
 
-class Device(Sinode):
+class Device(sinode.Sinode):
     def __init__(self, instance, deviceIndex):
-        Sinode.__init__(self, instance)
+        sinode.Sinode.__init__(self, instance)
         self.instance = instance
         self.deviceIndex = deviceIndex
 
@@ -47,26 +68,18 @@ class Device(Sinode):
         self.instance.debug("Select queue family")
         # ----------
         # Select queue family
-        vkGetPhysicalDeviceSurfaceSupportKHR = vk.vkGetInstanceProcAddr(
-            self.instance.vkInstance, "vkGetPhysicalDeviceSurfaceSupportKHR"
-        )
-
-        # queue_families = vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice=self.physical_device)
-        queue_families = vk.vkGetPhysicalDeviceQueueFamilyProperties(
+        # self.queueFamilies = vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice=self.physical_device)
+        self.queueFamilies = vk.vkGetPhysicalDeviceQueueFamilyProperties(
             physicalDevice=self.physical_device
         )
 
-        # self.instance.debug("%s available queue family" % len(queue_families))
+        # self.instance.debug("%s available queue family" % len(self.queueFamilies))
 
         self.queue_family_graphic_index = -1
         self.queue_family_present_index = -1
 
-        for i, queue_family in enumerate(queue_families):
+        for i, queue_family in enumerate(self.queueFamilies):
             # Currently, we set present index like graphic index
-            # support_present = vkGetPhysicalDeviceSurfaceSupportKHR(
-            # 	physicalDevice=physical_device,
-            # 	queueFamilyIndex=i,
-            # 	surface=sdl_surface_inst.surface)
             if (
                 queue_family.queueCount > 0
                 and queue_family.queueFlags & vk.VK_QUEUE_GRAPHICS_BIT
@@ -75,6 +88,7 @@ class Device(Sinode):
                 self.queue_family_present_index = i
             # if queue_family.queueCount > 0 and support_present:
             #     self.queue_family_present_index = i
+
 
         self.instance.debug(
             "indice of selected queue families, graphic: %s, presentation: %s\n"
@@ -190,35 +204,28 @@ class Device(Sinode):
 
         self.descriptorPool = ve.descriptor.DescriptorPool(self)
 
-    def ctypes2dict(props, depth=0):
-        outDict = dict()
-        type = vk.ffi.typeof(props)
-        if type.kind == "primitive":
-            return props
-        elif type.kind == "struct":
-            for f in type.fields:
-                fieldName, fieldType = f
-                if fieldType.type.kind == "primitive":
-                    outDict[fieldName] = eval("props." + fieldName)
-                else:
-                    outDict[fieldName] = Device.ctypes2dict(
-                        eval("props." + fieldName), depth + 1
-                    )
-            return outDict
-        elif type.kind == "array":
-            return [Device.ctypes2dict(p, depth + 1) for p in props]
-        else:
-            self.instance.debug(" " * depth + type.kind)
-            self.instance.debug(" " * depth + dir(type))
-            die
 
+    # find memory type with desired properties.
+    def findMemoryType(self, memoryTypeBits, properties):
+
+        # How does this search work?
+        # See the documentation of VkPhysicalDeviceMemoryProperties for a detailed description.
+        for i, mt in enumerate(self.memoryProperties["memoryTypes"]):
+            if (
+                memoryTypeBits & (1 << i)
+                and (mt["propertyFlags"] & properties) == properties
+            ):
+                return i
+
+        return -1
+    
     def debug(self, *args):
         self.instance.debug(args)
 
     def getMemoryProperties(self):
         self.instance.debug("getting memory properties")
         memoryProperties = vk.vkGetPhysicalDeviceMemoryProperties(self.physical_device)
-        memoryPropertiesPre = Device.ctypes2dict(memoryProperties)
+        memoryPropertiesPre = ctypes2dict(memoryProperties)
 
         # the following is complicated only because C/C++ is so basic
         # shorten the lists to however many there are

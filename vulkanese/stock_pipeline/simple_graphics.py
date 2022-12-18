@@ -18,7 +18,6 @@ htHere = os.path.dirname(os.path.abspath(__file__))
 
 class SimpleGraphicsPipeline(ve.graphics_pipeline.GraphicsPipeline):
     def __init__(self, device, surface, constantsDict): 
-        self.surface = surface
         self.width  = 700
         self.height = 700
         self.device = device
@@ -124,7 +123,7 @@ class SimpleGraphicsPipeline(ve.graphics_pipeline.GraphicsPipeline):
             shaders=[self.vertexStage, self.fragmentStage],
             indexBuffer=self.indexBuffer,
             constantsDict=self.constantsDict,
-            surface=self.surface,
+            surface=surface,
             outputWidthPixels=700,
             outputHeightPixels=700,
         )

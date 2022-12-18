@@ -1,12 +1,167 @@
 import vulkan as vk
-from sinode import *
+from . import sinode
+from . import device as dd
 
 import sdl2
 import sdl2.ext
 import ctypes
+import json
 
 
-class Surface(Sinode):
+class Surface(sinode.Sinode):
+    def __init__(self, instance, device, width, height):
+        sinode.Sinode.__init__(self, instance)
+        self.running = True
+        self.instance = instance
+        self.device = device
+
+        self.WIDTH = width
+        self.HEIGHT = height
+        self.extent = vk.VkExtent2D(width=self.WIDTH, height=self.HEIGHT)
+
+        # ----------
+        # Init sdl2
+        if sdl2.SDL_Init(sdl2.SDL_INIT_VIDEO) != 0:
+            raise Exception(sdl2.SDL_GetError())
+
+        self.window = sdl2.SDL_CreateWindow(
+            "test".encode("ascii"),
+            sdl2.SDL_WINDOWPOS_UNDEFINED,
+            sdl2.SDL_WINDOWPOS_UNDEFINED,
+            self.WIDTH,
+            self.HEIGHT,
+            0,
+        )
+
+        if not self.window:
+            raise Exception(sdl2.SDL_GetError())
+
+        self.wm_info = sdl2.SDL_SysWMinfo()
+        sdl2.SDL_VERSION(self.wm_info.version)
+        
+        sdl2.SDL_GetWindowWMInfo(self.window, ctypes.byref(self.wm_info))
+
+        #extensions = ["vk.VK_KHR_surface", "vk.VK_EXT_debug_report"]
+        #if self.wm_info.subsystem == sdl2.SDL_SYSWM_WINDOWS:
+        #    extensions.append("vk.VK_KHR_win32_surface")
+        #elif self.wm_info.subsystem == sdl2.SDL_SYSWM_X11:
+        #    extensions.append("vk.VK_KHR_xlib_surface")
+        #elif self.wm_info.subsystem == sdl2.SDL_SYSWM_WAYLAND:
+        #    extensions.append("vk.VK_KHR_wayland_surface")
+        #else:
+        #    raise Exception("Platform not supported: " + str(self.wm_info.subsystem))
+
+        self.surface_mapping = {
+            sdl2.SDL_SYSWM_UNKNOWN: self.surface_xlib,
+            sdl2.SDL_SYSWM_X11: self.surface_xlib,
+            sdl2.SDL_SYSWM_WAYLAND: self.surface_wayland,
+            sdl2.SDL_SYSWM_WINDOWS: self.surface_win32,
+        }
+        print(self.wm_info.subsystem)
+        die
+        self.vkSurface = self.surface_mapping[self.wm_info.subsystem]()
+
+        vkGetPhysicalDeviceSurfaceSupportKHR = vk.vkGetInstanceProcAddr(
+            self.instance.vkInstance, "vkGetPhysicalDeviceSurfaceSupportKHR"
+        )
+        for queue_family in device.queueFamilies:
+            print(queue_family)
+            
+            queue_familyPre = dd.ctypes2dict(queue_family)
+            print(json.dumps(queue_familyPre, indent=2))
+            die
+            support_present = vkGetPhysicalDeviceSurfaceSupportKHR(
+                physicalDevice=device.physical_device,
+                queueFamilyIndex=queue_family,
+                surface=self.vkSurface)
+            print(support_present)
+        die
+        # ----------
+        # Create swapchain
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR = vk.vkGetInstanceProcAddr(
+            self.instance.vkInstance, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR"
+        )
+        vkGetPhysicalDeviceSurfaceFormatsKHR = vk.vkGetInstanceProcAddr(
+            self.instance.vkInstance, "vkGetPhysicalDeviceSurfaceFormatsKHR"
+        )
+        vkGetPhysicalDeviceSurfacePresentModesKHR = vk.vkGetInstanceProcAddr(
+            self.instance.vkInstance, "vkGetPhysicalDeviceSurfacePresentModesKHR"
+        )
+
+        self.capabilities = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
+            physicalDevice=device.physical_device, surface=self.vkSurface
+        )
+        print(self.capabilities)
+        die
+        self.formats = vkGetPhysicalDeviceSurfaceFormatsKHR(
+            physicalDevice=device.physical_device, surface=self.vkSurface
+        )
+        self.present_modes = vkGetPhysicalDeviceSurfacePresentModesKHR(
+            physicalDevice=device.physical_device, surface=self.vkSurface
+        )
+
+        if not self.formats or not self.present_modes:
+            raise Exception("No available swapchain")
+
+            width = max(
+                capabilities.minImageExtent.width,
+                min(capabilities.maxImageExtent.width, WIDTH),
+            )
+            height = max(
+                capabilities.minImageExtent.height,
+                min(capabilities.maxImageExtent.height, HEIGHT),
+            )
+            actualExtent = VkExtent2D(width=width, height=height)
+            return actualExtent
+
+        self.surface_format = self.get_surface_format()
+        present_mode = self.get_surface_present_mode()
+        self.extent = self.get_swap_extent()
+        self.imageCount = self.capabilities.minImageCount + 1
+        if (
+            self.capabilities.maxImageCount > 0
+            and self.imageCount > self.capabilities.maxImageCount
+        ):
+            self.imageCount = self.capabilities.maxImageCount
+
+        print("selected format: %s" % self.surface_format.format)
+        print("selected colorspace: %s" % self.surface_format.colorSpace)
+        print("%s available swapchain present modes" % len(self.present_modes))
+        print("image count " + str(self.imageCount))
+        
+        self.swapchain_create = vk.VkSwapchainCreateInfoKHR(
+            sType=vk.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+            flags=0,
+            surface=self.vkSurface,
+            minImageCount=self.imageCount,
+            imageFormat=self.surface_format.format,
+            imageColorSpace=self.surface_format.colorSpace,
+            imageExtent=self.extent,
+            imageArrayLayers=1,
+            imageUsage=vk.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            imageSharingMode=self.device.imageSharingMode,
+            queueFamilyIndexCount=self.device.queueFamilyIndexCount,
+            pQueueFamilyIndices=self.device.pQueueFamilyIndices,
+            compositeAlpha=vk.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+            presentMode=present_mode,
+            clipped=vk.VK_TRUE,
+            oldSwapchain=None,
+            preTransform=self.capabilities.currentTransform,
+        )
+
+        vkCreateSwapchainKHR = vk.vkGetInstanceProcAddr(
+            self.instance.vkInstance, "vkCreateSwapchainKHR"
+        )
+        self.vkSwapchain = vkCreateSwapchainKHR(self.device.vkDevice, self.swapchain_create, None)
+        vkGetSwapchainImagesKHR = vk.vkGetInstanceProcAddr(
+            self.instance.vkInstance, "vkGetSwapchainImagesKHR"
+        )
+        self.vkSwapchainImages = vkGetSwapchainImagesKHR(
+            self.device.vkDevice, self.vkSwapchain
+        )
+        print("swapchain images " + str(self.vkSwapchainImages))
+        self.children += [self.vkSwapchainImages]
+
     def getEvents(self):
         return sdl2.ext.get_events()
 
@@ -55,10 +210,10 @@ class Surface(Sinode):
 
     def surface_wayland(self):
         print("Create wayland surface")
-        vkCreateWaylandSurfaceKHR = vkGetInstanceProcAddr(
+        vkCreateWaylandSurfaceKHR = vk.vkGetInstanceProcAddr(
             self.instance.vkInstance, "vkCreateWaylandSurfaceKHR"
         )
-        surface_create = VkWaylandSurfaceCreateInfoKHR(
+        surface_create = vk.VkWaylandSurfaceCreateInfoKHR(
             sType=vk.VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
             display=self.wm_info.info.wl.display,
             surface=self.wm_info.info.wl.surface,
@@ -77,151 +232,16 @@ class Surface(Sinode):
             return _lib.GetWindowLongA(_ffi.cast("void*", hWnd), -6)
 
         print("Create windows surface")
-        vkCreateWin32SurfaceKHR = vk.vkGetInstanceProcAddr(
+        vkCreateWin32SurfaceKHR = vkGetInstanceProcAddr(
             self.instance.vkInstance, "vkCreateWin32SurfaceKHR"
         )
-        surface_create = vk.VkWin32SurfaceCreateInfoKHR(
+        surface_create = VkWin32SurfaceCreateInfoKHR(
             sType=vk.VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
             hinstance=get_instance(self.wm_info.info.win.window),
             hwnd=self.wm_info.info.win.window,
             flags=0,
         )
         return vkCreateWin32SurfaceKHR(self.instance.vkInstance, surface_create, None)
-
-    def __init__(self, instance, device, width, height):
-        Sinode.__init__(self, device)
-        self.running = True
-        self.instance = instance
-        self.device = device
-
-        self.WIDTH = width
-        self.HEIGHT = height
-        self.extent = vk.VkExtent2D(width=self.WIDTH, height=self.HEIGHT)
-
-        # ----------
-        # Init sdl2
-        if sdl2.SDL_Init(sdl2.SDL_INIT_VIDEO) != 0:
-            raise Exception(sdl2.SDL_GetError())
-
-        window = sdl2.SDL_CreateWindow(
-            "test".encode("ascii"),
-            sdl2.SDL_WINDOWPOS_UNDEFINED,
-            sdl2.SDL_WINDOWPOS_UNDEFINED,
-            self.WIDTH,
-            self.HEIGHT,
-            0,
-        )
-
-        if not window:
-            raise Exception(sdl2.SDL_GetError())
-
-        self.wm_info = sdl2.SDL_SysWMinfo()
-        sdl2.SDL_VERSION(self.wm_info.version)
-        sdl2.SDL_GetWindowWMInfo(window, ctypes.byref(self.wm_info))
-
-        extensions = ["vk.VK_KHR_surface", "vk.VK_EXT_debug_report"]
-        if self.wm_info.subsystem == sdl2.SDL_SYSWM_WINDOWS:
-            extensions.append("vk.VK_KHR_win32_surface")
-        elif self.wm_info.subsystem == sdl2.SDL_SYSWM_X11:
-            extensions.append("vk.VK_KHR_xlib_surface")
-        elif self.wm_info.subsystem == sdl2.SDL_SYSWM_WAYLAND:
-            extensions.append("vk.VK_KHR_wayland_surface")
-        else:
-            raise Exception("Platform not supported")
-
-
-        surface_mapping = {
-            sdl2.SDL_SYSWM_X11: self.surface_xlib,
-            sdl2.SDL_SYSWM_WAYLAND: self.surface_wayland,
-            sdl2.SDL_SYSWM_WINDOWS: self.surface_win32,
-        }
-
-        self.vkSurface = surface_mapping[self.wm_info.subsystem]()
-
-        # ----------
-        # Create swapchain
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR = vk.vkGetInstanceProcAddr(
-            self.instance.vkInstance, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR"
-        )
-        vkGetPhysicalDeviceSurfaceFormatsKHR = vk.vkGetInstanceProcAddr(
-            self.instance.vkInstance, "vkGetPhysicalDeviceSurfaceFormatsKHR"
-        )
-        vkGetPhysicalDeviceSurfacePresentModesKHR = vk.vkGetInstanceProcAddr(
-            self.instance.vkInstance, "vkGetPhysicalDeviceSurfacePresentModesKHR"
-        )
-
-        self.capabilities = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
-            physicalDevice=device.physical_device, surface=self.vkSurface
-        )
-        self.formats = vkGetPhysicalDeviceSurfaceFormatsKHR(
-            physicalDevice=device.physical_device, surface=self.vkSurface
-        )
-        self.present_modes = vkGetPhysicalDeviceSurfacePresentModesKHR(
-            physicalDevice=device.physical_device, surface=self.vkSurface
-        )
-
-        if not self.formats or not self.present_modes:
-            raise Exception("No available swapchain")
-
-            width = max(
-                capabilities.minImageExtent.width,
-                min(capabilities.maxImageExtent.width, WIDTH),
-            )
-            height = max(
-                capabilities.minImageExtent.height,
-                min(capabilities.maxImageExtent.height, HEIGHT),
-            )
-            actualExtent = VkExtent2D(width=width, height=height)
-            return actualExtent
-
-        self.surface_format = self.get_surface_format()
-        present_mode = self.get_surface_present_mode()
-        self.extent = self.get_swap_extent()
-        self.imageCount = self.capabilities.minImageCount + 1
-        if (
-            self.capabilities.maxImageCount > 0
-            and self.imageCount > self.capabilities.maxImageCount
-        ):
-            self.imageCount = self.capabilities.maxImageCount
-
-        print("selected format: %s" % self.surface_format.format)
-        print("selected colorspace: %s" % self.surface_format.colorSpace)
-        print("%s available swapchain present modes" % len(self.present_modes))
-        print("image count " + str(self.imageCount))
-
-
-        swapchain_create = vk.VkSwapchainCreateInfoKHR(
-            sType=vk.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-            flags=0,
-            surface=self.vkSurface,
-            minImageCount=self.imageCount,
-            imageFormat=self.surface_format.format,
-            imageColorSpace=self.surface_format.colorSpace,
-            imageExtent=self.extent,
-            imageArrayLayers=1,
-            imageUsage=vk.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-            imageSharingMode=device.imageSharingMode,
-            queueFamilyIndexCount=device.queueFamilyIndexCount,
-            pQueueFamilyIndices=device.pQueueFamilyIndices,
-            compositeAlpha=vk.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-            presentMode=present_mode,
-            clipped=vk.VK_TRUE,
-            oldSwapchain=None,
-            preTransform=self.capabilities.currentTransform,
-        )
-
-        vkCreateSwapchainKHR = vk.vkGetInstanceProcAddr(
-            self.instance.vkInstance, "vkCreateSwapchainKHR"
-        )
-        self.swapchain = vkCreateSwapchainKHR(device.vkDevice, swapchain_create, None)
-        vkGetSwapchainImagesKHR = vk.vkGetInstanceProcAddr(
-            self.instance.vkInstance, "vkGetSwapchainImagesKHR"
-        )
-        self.vkSwapchainImages = vkGetSwapchainImagesKHR(
-            device.vkDevice, self.swapchain
-        )
-        print("swapchain images " + str(self.vkSwapchainImages))
-        self.children += [self.vkSwapchainImages]
 
     def release(self):
         print("destroying surface")
