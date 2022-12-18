@@ -1,5 +1,5 @@
 sudo apt update
 sudo apt install python3-pip 
 sudo apt install python-is-python3
-pip install -r requirements.txt
+pip install -q -r requirements.txt
 python vulkanese/math/loiacono/loiacono_gpu.py
