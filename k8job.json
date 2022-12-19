@@ -1,0 +1,24 @@
+{
+   "apiVersion":"batch/v1",
+   "kind":"Job",
+   "metadata":{
+      "generateName": "runtests-",
+      "labels":{
+         "app":"ubuntu"
+      }
+   },
+   "spec":{
+      "template":{
+         "spec":{
+            "containers":[{
+               "name":"runtests",
+               "image":"ubuntu",
+               "command": ["/bin/sh", "-c"],
+               "args":["apt-get update; apt-get install git -y; pwd; git clone --branch dev https://github.com/julianfl0w/vulkanese; cd vulkanese; pwd; ls; bash -x ./docker_runtests.sh"],
+               "imagePullPolicy":"IfNotPresent"
+            }],
+            "restartPolicy":"Never"
+         }
+      }
+   }
+}

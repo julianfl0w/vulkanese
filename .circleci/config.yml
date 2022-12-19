@@ -8,11 +8,12 @@ orbs:
 # Define a job to be invoked later in a workflow.
 # See: https://circleci.com/docs/2.0/configuration-reference/#jobs
 jobs:
-  say-hello:
+  cloudRun:
     # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
     # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
     docker:
-      - image: cimg/base:stable
+      #- image: cimg/base:stable
+      - image: ubuntu-2204:2022.04.2
     # Add steps to the job
     # See: https://circleci.com/docs/2.0/configuration-reference/#steps
     steps:
@@ -22,10 +23,28 @@ jobs:
       - store_test_results: 
           path: 'test_results'
       - run: bash -x docker_runtests.sh
+  localRun:    
+    machine:
+      image: ubuntu-2204:2022.04.2
+    # Add steps to the job
+    # See: https://circleci.com/docs/2.0/configuration-reference/#steps
+    steps:
+      - checkout
+      # start proprietary DB using private Docker image
+      # with credentials stored in the UI
+      - run: |
+          echo "$DOCKER_PASS" | docker login --username $DOCKER_USER --password-stdin
+          docker run -d --name db company/proprietary-db:1.2.3
+
+      # build the application image
+      - run: docker build -t company/app:$CIRCLE_BRANCH .
+
+      # deploy the image
+      - run: docker push company/app:$CIRCLE_BRANCH
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
 workflows:
   say-hello-workflow:
     jobs:
-      - say-hello
+      - cloudRun

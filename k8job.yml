@@ -1,0 +1,19 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: runtests
+  #labels:
+  #  app: ubuntu
+spec:
+  template:
+    spec:
+      containers:
+        name: runtests
+        image: ubuntu
+        command: bash -x docker_runtests.sh
+        imagePullPolicy: IfNotPresent
+        #image: perl:5.34.0
+        #image: ubuntu-2204:2022.04.2
+      restartPolicy: Never
+  backoffLimit: 4
+
