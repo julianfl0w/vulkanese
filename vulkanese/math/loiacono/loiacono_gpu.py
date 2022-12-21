@@ -8,8 +8,9 @@ gpuhere = os.path.dirname(os.path.abspath(__file__))
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 import vulkanese as ve
-from loiacono import *
+from . import loiacono
 import vulkan as vk
+import numpy as np
 
 loiacono_home = os.path.dirname(os.path.abspath(__file__))
 
@@ -201,7 +202,7 @@ if __name__ == "__main__":
     
     # generate a Loiacono based on this SR
     # (this one runs in CPU. reference only)
-    linst = Loiacono(
+    linst = loiacono.Loiacono(
         fprime = fprime,
         multiple=multiple,
         dtftlen=2**15

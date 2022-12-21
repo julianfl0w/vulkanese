@@ -10,10 +10,10 @@
 
 #define PI 3.1415926
 
-#define multiple 40
+#define multiple 20
 #define SIGNAL_LENGTH 32768
 #define PROCTYPE float
-#define TOTAL_THREAD_COUNT 19005440
+#define TOTAL_THREAD_COUNT 18350080
 #define LG_WG_SIZE 7
 #define THREADS_PER_WORKGROUP 128
 #define windowed 0
@@ -24,27 +24,27 @@ layout(std430, set = 0, binding = 0) buffer x_buf
 };
 layout(std430, set = 0, binding = 1) buffer Li1_buf
 {
-    float Li1[593920];
+    float Li1[2293760];
 };
 layout(std430, set = 0, binding = 2) buffer Lr1_buf
 {
-    float Lr1[593920];
+    float Lr1[2293760];
 };
 layout(std430, set = 0, binding = 3) buffer Li0_buf
 {
-    float Li0[18560];
+    float Li0[35840];
 };
 layout(std430, set = 0, binding = 4) buffer Lr0_buf
 {
-    float Lr0[18560];
+    float Lr0[35840];
 };
 layout(std430, set = 0, binding = 5) buffer L_buf
 {
-   writeonly float L[580];
+   writeonly float L[560];
 };
 layout(std430, set = 0, binding = 6) buffer f_buf
 {
-   readonly float f[580];
+   readonly float f[560];
 };
 layout(std430, set = 0, binding = 7) buffer offset_buf
 {

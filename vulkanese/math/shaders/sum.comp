@@ -10,25 +10,25 @@
 
 #define PI 3.1415926
 
-#define INPUT_LENGTH 65536
+#define INPUT_LENGTH 67108864
 #define PROCTYPE float
-#define TOTAL_THREAD_COUNT 4096
+#define TOTAL_THREAD_COUNT 268435456
 #define LG_WG_SIZE 7
 #define THREADS_PER_WORKGROUP 128
-#define N 64
+#define N 16384
 #define INTERLEAVE 0
 // This will be (or has been) replaced by constant definitions
-layout(std430, set = 0, binding = 18) buffer inBuf_buf
+layout(std430, set = 0, binding = 0) buffer inBuf_buf
 {
-   readonly float inBuf[2048];
+   readonly float inBuf[1048576];
 };
-layout(std430, set = 0, binding = 19) buffer Lr0_buf
+layout(std430, set = 0, binding = 9) buffer Lr0_buf
 {
-    float Lr0[2048];
+    float Lr0[1048576];
 };
-layout(std430, set = 0, binding = 20) buffer sumOut_buf
+layout(std430, set = 0, binding = 10) buffer sumOut_buf
 {
-   writeonly float sumOut[64];
+   writeonly float sumOut[16384];
 };
 // This will be (or has been) replaced by buffer definitions
     

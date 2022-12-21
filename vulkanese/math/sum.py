@@ -11,7 +11,7 @@ import vulkan as vk
 
 
 # Create a compute shader
-class Sum(ve.shader.ComputeShader):
+class Sum(ve.shader.Shader):
     def __init__(
         self,
         device,
@@ -23,9 +23,6 @@ class Sum(ve.shader.ComputeShader):
         buffType="float",
         interleave=0,
         memProperties=0
-        | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-        | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-        outMemProperties=0
         | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
         | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
     ):
@@ -85,12 +82,11 @@ class Sum(ve.shader.ComputeShader):
 
         # Create a compute shader
         # Compute Stage: the only stage
-        ve.shader.ComputeShader.__init__(
+        ve.shader.Shader.__init__(
             self,
             sourceFilename=os.path.join(
                 sum_home, "shaders/sum.c"
             ),  # can be GLSL or SPIRV
-            parent=self.instance,
             constantsDict=self.constantsDict,
             stage=vk.VK_SHADER_STAGE_COMPUTE_BIT,
             device=self.device,

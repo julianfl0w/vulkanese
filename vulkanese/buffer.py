@@ -52,7 +52,11 @@ def glsltype2bytesize(glsltype):
 
 class Buffer(sinode.Sinode):
     currLocation = 0
-
+    def __str__(self):
+        outstr = ""
+        outstr += self.name
+        return outstr
+    
     def __init__(
         self,
         device,

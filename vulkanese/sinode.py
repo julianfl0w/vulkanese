@@ -17,12 +17,16 @@ class Node(object):
 
     def asDict(self):
         retList = []
+        if hasattr(self, "name"):
+            retList += [self.name]
+        
         for child in self.children:
             try:
                 retList += [child.asDict()]
             except:
                 retList += [str(child)]  # + " " + hex(id(child))]
 
+                
         retDict = {}
         retDict[str(type(self))] = retList
         return retDict
