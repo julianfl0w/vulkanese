@@ -161,7 +161,8 @@ class Shader(sinode.Sinode):
             os.remove(compiledFilename)
         self.device.instance.debug("running " + glslFilename)
         # os.system("glslc --scalar-block-layout " + glslFilename)
-        os.system("glslc --target-env=vulkan1.1 " + glslFilename)
+        glslcbin = os.path.join(here, "glslc")
+        os.system(glslcbin + " --target-env=vulkan1.1 " + glslFilename)
         with open(compiledFilename, "rb") as f:
             spirv = f.read()
         return spirv
