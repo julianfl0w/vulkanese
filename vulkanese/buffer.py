@@ -266,7 +266,7 @@ class Buffer(sinode.Sinode):
     def oneInitialize(self):
         self.set(np.ones((self.itemCount), dtype=self.pythonType))
 
-    def getAsNumpyArray(self, asComplex=False, flat=False, order="C"):
+    def get(self, asComplex=False, flat=False, order="C"):
         # glsl to python
         flatArray = np.frombuffer(self.pmap, self.pythonType)
         # because GLSL only allows 16-byte access,

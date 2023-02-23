@@ -1,1 +1,2 @@
-python vulkanese/math/loiacono/loiacono_gpu.py
+pip install -r requirements.txt
+python shift_left.py

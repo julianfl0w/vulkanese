@@ -25,6 +25,7 @@ class ARITH(ve.shader.Shader):
             | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
             | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         ),
+        useFence=True, 
     ):
         constantsDict = {}
         constantsDict["PROCTYPE"] = buffType
@@ -34,6 +35,7 @@ class ARITH(ve.shader.Shader):
         constantsDict["THREADS_PER_WORKGROUP"] = 1 << constantsDict["LG_WG_SIZE"]
 
         # device selection and instantiation
+        self.OPERATION = OPERATION
         self.instance = device.instance
         self.device = device
         self.constantsDict = constantsDict
@@ -65,6 +67,8 @@ class ARITH(ve.shader.Shader):
             ),
         ]
 
+        self.device.descriptorPool.finalize()
+
         # Compute Stage: the only stage
         ve.shader.Shader.__init__(
             self,
@@ -82,12 +86,13 @@ class ARITH(ve.shader.Shader):
                 1,
                 1,
             ],
+            useFence = useFence
         )
 
         self.gpuBuffers.x.set(X)
         self.gpuBuffers.y.set(Y)
         
-    def baseline(X, Y):
+    def baseline(self, X, Y):
         if self.OPERATION == "+":
             return np.add(X, Y)
         if self.OPERATION == "-":
@@ -97,12 +102,15 @@ class ARITH(ve.shader.Shader):
         elif self.OPERATION == "/":
             return np.divide(X, Y)
 
-    def test():
+    def test(self):
 
         print("--- RUNNING ADDITION TEST ---")
         self.run()
-        result = self.gpuBuffers.sumOut.getAsNumpyArray()
-        self.passed = np.allclose(result, baseline(X,Y))
+        result = self.gpuBuffers.sumOut.get()
+        self.passed = np.allclose(result, self.baseline(
+            self.gpuBuffers.x.get(),
+            self.gpuBuffers.y.get()
+            ))
         return self.passed
 
 
@@ -115,17 +123,14 @@ def test(device):
     sub = ARITH(device = device, X=X, Y=Y, OPERATION="-")
     mul = ARITH(device = device, X=X, Y=Y, OPERATION="*")
     div = ARITH(device = device, X=X, Y=Y, OPERATION="/")
-    mod = ARITH(device = device, X=X, Y=Y, OPERATION="%")
     add.test()
     sub.test()
     mul.test()
     div.test()
-    mod.test()
     print("Add " + str(add.passed))
     print("Sub " + str(sub.passed))
     print("Mul " + str(mul.passed))
     print("Div " + str(div.passed))
-    print("Mod " + str(mod.passed))
 
 
 

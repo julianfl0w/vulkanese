@@ -13,7 +13,7 @@ jobs:
     # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
     docker:
       #- image: cimg/base:stable
-      - image: ubuntu-2204:2022.04.2
+      - image: ubuntu:22.04
     # Add steps to the job
     # See: https://circleci.com/docs/2.0/configuration-reference/#steps
     steps:
@@ -22,10 +22,10 @@ jobs:
       #    pkg-manager: pip
       - store_test_results: 
           path: 'test_results'
-      - run: bash -x docker_runtests.sh
+      - run: bash -x deployment/docker_runtests.sh
   localRun:    
     machine:
-      image: ubuntu-2204:2022.04.2
+      image: ubuntu:22.04
     # Add steps to the job
     # See: https://circleci.com/docs/2.0/configuration-reference/#steps
     steps:

@@ -13,6 +13,7 @@ from . import descriptor
 from . import device
 from . import buffer
 from . import sinode
+from inspect import getframeinfo, stack
 
 vulkanesehome = os.path.dirname(os.path.abspath(__file__))
 
@@ -110,7 +111,9 @@ class Instance(sinode.Sinode):
 
     def debug(self, *args):
         if self.verbose:
-            print(args)
+            caller = getframeinfo(stack()[1][0])
+            print("%s:%d - %s" % (os.path.basename(caller.filename), caller.lineno, args)) # python3 syntax print
+
 
     def getDeviceList(self):
         self.physical_devices = vk.vkEnumeratePhysicalDevices(self.vkInstance)

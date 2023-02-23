@@ -2,21 +2,21 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float64 : require
 #extension GL_ARB_separate_shader_objects : enable
 #define PROCTYPE float64_t
-#define OPERATION +
+#define OPERATION /
 #define YLEN 4096
 #define LG_WG_SIZE 7
 #define THREADS_PER_WORKGROUP 128
 // This will be (or has been) replaced by constant definitions
     
-layout(std430, set = 0, binding = 0) buffer x_buf
+layout(std430, set = 0, binding = 9) buffer x_buf
 {
    readonly float64_t x[4096];
 };
-layout(std430, set = 0, binding = 1) buffer y_buf
+layout(std430, set = 0, binding = 10) buffer y_buf
 {
    readonly float64_t y[4096];
 };
-layout(std430, set = 0, binding = 2) buffer sumOut_buf
+layout(std430, set = 0, binding = 11) buffer sumOut_buf
 {
    writeonly float64_t sumOut[4096];
 };
