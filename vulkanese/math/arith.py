@@ -10,13 +10,13 @@ import vulkanese as ve
 import vulkan as vk
 
 
-class ARITH(ve.shader.ComputeShader):
+class ARITH(ve.shader.Shader):
     def __init__(
         self,
-        constantsDict,
         device,
         X,
         Y,
+        OPERATION="+",
         DEBUG=False,
         buffType="float64_t",
         shader_basename="shaders/arith",
@@ -26,8 +26,9 @@ class ARITH(ve.shader.ComputeShader):
             | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         ),
     ):
-
+        constantsDict = {}
         constantsDict["PROCTYPE"] = buffType
+        constantsDict["OPERATION"] = OPERATION
         constantsDict["YLEN"] = np.prod(np.shape(Y))
         constantsDict["LG_WG_SIZE"] = 7  # corresponding to 128 threads, a good number
         constantsDict["THREADS_PER_WORKGROUP"] = 1 << constantsDict["LG_WG_SIZE"]
@@ -65,12 +66,11 @@ class ARITH(ve.shader.ComputeShader):
         ]
 
         # Compute Stage: the only stage
-        ve.shader.ComputeShader.__init__(
+        ve.shader.Shader.__init__(
             self,
             sourceFilename=os.path.join(
                 arith_home, shader_basename + ".c"
             ),  # can be GLSL or SPIRV
-            parent=self.instance,
             constantsDict=self.constantsDict,
             device=self.device,
             name=shader_basename,
@@ -84,56 +84,56 @@ class ARITH(ve.shader.ComputeShader):
             ],
         )
 
+        self.gpuBuffers.x.set(X)
+        self.gpuBuffers.y.set(Y)
+        
+    def baseline(X, Y):
+        if self.OPERATION == "+":
+            return np.add(X, Y)
+        if self.OPERATION == "-":
+            return np.subtract(X, Y)
+        elif self.OPERATION == "*":
+            return np.multiply(X, Y)
+        elif self.OPERATION == "/":
+            return np.divide(X, Y)
 
-def numpyTest(X, Y):
+    def test():
 
-    # get numpy time, for comparison
-    print("--- RUNNING NUMPY TEST ---")
-    for i in range(10):
-        nstart = time.time()
-        nval = np.add(X, Y)
-        nlen = time.time() - nstart
-        print("Time " + str(nlen) + " seconds")
-    return nval
+        print("--- RUNNING ADDITION TEST ---")
+        self.run()
+        result = self.gpuBuffers.sumOut.getAsNumpyArray()
+        self.passed = np.allclose(result, baseline(X,Y))
+        return self.passed
 
 
-def floatTest(X, Y, device, expectation):
+def test(device):
+    print("Testing Arithmatic")
+    signalLen = 2 ** 12
+    X = np.random.random((signalLen))
+    Y = np.random.random((signalLen))
+    add = ARITH(device = device, X=X, Y=Y, OPERATION="+")
+    sub = ARITH(device = device, X=X, Y=Y, OPERATION="-")
+    mul = ARITH(device = device, X=X, Y=Y, OPERATION="*")
+    div = ARITH(device = device, X=X, Y=Y, OPERATION="/")
+    mod = ARITH(device = device, X=X, Y=Y, OPERATION="%")
+    add.test()
+    sub.test()
+    mul.test()
+    div.test()
+    mod.test()
+    print("Add " + str(add.passed))
+    print("Sub " + str(sub.passed))
+    print("Mul " + str(mul.passed))
+    print("Div " + str(div.passed))
+    print("Mod " + str(mod.passed))
 
-    print("--- RUNNING GPU TEST ---")
-    s = ARITH(
-        {"OPERATION": "+"},
-        device=device,
-        X=X,
-        Y=Y,
-        buffType="float",
-        memProperties=0 | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-        # | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-    )
-
-    s.gpuBuffers.x.set(X)
-    s.gpuBuffers.y.set(Y)
-    for i in range(10):
-        vstart = time.time()
-        s.run()
-        vlen = time.time() - vstart
-        print("Time " + str(vlen) + " seconds")
-    vval = s.gpuBuffers.sumOut.getAsNumpyArray()
-    print("--- Testing for accuracy ---")
-    print(np.allclose(expectation, vval))
-    s.release()
 
 
 if __name__ == "__main__":
 
-    signalLen = 2 ** 23
-    X = np.random.random((signalLen))
-    Y = np.random.random((signalLen))
-
     # begin GPU test
     instance = ve.instance.Instance(verbose=False)
     device = instance.getDevice(0)
-    nval = numpyTest(X, Y)
-    floatTest(X, Y, device, expectation=nval)
-
+    
+    test(device=device)
     instance.release()

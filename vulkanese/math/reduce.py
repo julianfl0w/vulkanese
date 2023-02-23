@@ -11,7 +11,7 @@ import vulkan as vk
 
 
 # Create a compute shader
-class Sum(ve.shader.ComputeShader):
+class Sum(ve.shader.Shader):
     def __init__(
         self,
         device,
