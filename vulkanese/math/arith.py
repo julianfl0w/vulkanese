@@ -115,7 +115,6 @@ class ARITH(ve.shader.Shader):
 
     def test(self):
 
-        print("--- RUNNING ADDITION TEST ---")
         self.run(blocking=True)
         result = self.gpuBuffers.sumOut.get()
         expectation = self.baseline(
@@ -124,11 +123,11 @@ class ARITH(ve.shader.Shader):
             )
         self.passed = np.allclose(result.astype(float), expectation.astype(float))
         if self.OPERATION is not None:
-            print(self.OPERATION + str(self.passed))
+            print(self.OPERATION + ": " + str(self.passed))
         if self.FUNCTION1 is not None:
-            print(self.FUNCTION1 + str(self.passed))
+            print(self.FUNCTION1 + ": " + str(self.passed))
         if self.FUNCTION2 is not None:
-            print(self.FUNCTION2 + str(self.passed))
+            print(self.FUNCTION2 + ": " + str(self.passed))
         return self.passed
 
 
@@ -142,8 +141,8 @@ def test(device):
         ARITH(device = device, X=X, Y=Y, OPERATION="-"   , npEquivalent=np.subtract),
         ARITH(device = device, X=X, Y=Y, OPERATION="*"   , npEquivalent=np.multiply),
         ARITH(device = device, X=X, Y=Y, OPERATION="/"   , npEquivalent=np.divide),
-        ARITH(device = device, X=X, Y=Y, FUNCTION1="sin" ),
         ARITH(device = device, X=X, Y=Y, FUNCTION1="cos" ),
+        ARITH(device = device, X=X, Y=Y, FUNCTION1="sin" ),
         ARITH(device = device, X=X, Y=Y, FUNCTION1="tan" ),
         ARITH(device = device, X=X, Y=Y, FUNCTION1="exp" ),
         ARITH(device = device, X=X, Y=Y, FUNCTION1="asin"),
@@ -156,6 +155,7 @@ def test(device):
     ]
     for s in toTest:
         s.test()
+        #s.release()
 
 
 if __name__ == "__main__":
