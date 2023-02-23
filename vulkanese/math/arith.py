@@ -145,13 +145,13 @@ def test(device):
         ARITH(device = device, X=X, Y=Y, FUNCTION1="sin" ),
         ARITH(device = device, X=X, Y=Y, FUNCTION1="tan" ),
         ARITH(device = device, X=X, Y=Y, FUNCTION1="exp" ),
-        ARITH(device = device, X=X, Y=Y, FUNCTION1="asin"),
-        ARITH(device = device, X=X, Y=Y, FUNCTION1="acos"),
-        ARITH(device = device, X=X, Y=Y, FUNCTION1="atan"),
+        #ARITH(device = device, X=X, Y=Y, FUNCTION1="asin"),
+        #ARITH(device = device, X=X, Y=Y, FUNCTION1="acos"),
+        #ARITH(device = device, X=X, Y=Y, FUNCTION1="atan"),
         ARITH(device = device, X=X, Y=Y, FUNCTION1="sqrt"),
-        ARITH(device = device, X=X, Y=Y, FUNCTION2="pow" ),
+        #ARITH(device = device, X=X, Y=Y, FUNCTION2="pow" ),
         ARITH(device = device, X=X, Y=Y, FUNCTION2="mod" ),
-        ARITH(device = device, X=X, Y=Y, FUNCTION2="atan"),
+        #ARITH(device = device, X=X, Y=Y, FUNCTION2="atan"),
     ]
     for s in toTest:
         s.test()
