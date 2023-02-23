@@ -1,24 +1,24 @@
 #version 450
 #extension GL_EXT_shader_explicit_arithmetic_types_float64 : require
 #extension GL_ARB_separate_shader_objects : enable
-#define PROCTYPE float64_t
-#define OPERATION /
+#define PROCTYPE float
+#define FUNCTION2 atan
 #define YLEN 4096
 #define LG_WG_SIZE 7
 #define THREADS_PER_WORKGROUP 128
 // This will be (or has been) replaced by constant definitions
     
-layout(std430, set = 0, binding = 9) buffer x_buf
+layout(std430, set = 0, binding = 42) buffer x_buf
 {
-   readonly float64_t x[4096];
+   readonly float x[4096];
 };
-layout(std430, set = 0, binding = 10) buffer y_buf
+layout(std430, set = 0, binding = 43) buffer y_buf
 {
-   readonly float64_t y[4096];
+   readonly float y[4096];
 };
-layout(std430, set = 0, binding = 11) buffer sumOut_buf
+layout(std430, set = 0, binding = 44) buffer sumOut_buf
 {
-   writeonly float64_t sumOut[4096];
+   writeonly float sumOut[4096];
 };
 // This will be (or has been) replaced by buffer definitions
     
@@ -26,5 +26,13 @@ layout (local_size_x = THREADS_PER_WORKGROUP, local_size_y = 1, local_size_z = 1
 
 void main() {
     uint workgroup_ix = gl_GlobalInvocationID.x;
+    #ifdef OPERATION
     sumOut[workgroup_ix] = x[workgroup_ix] OPERATION y[workgroup_ix%YLEN];
+    #endif
+    #ifdef FUNCTION1
+    sumOut[workgroup_ix] = FUNCTION1 (x[workgroup_ix]);
+    #endif
+    #ifdef FUNCTION2
+    sumOut[workgroup_ix] = FUNCTION2 (x[workgroup_ix] , y[workgroup_ix%YLEN]);
+    #endif
 }

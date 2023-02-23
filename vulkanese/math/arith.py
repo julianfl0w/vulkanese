@@ -16,9 +16,12 @@ class ARITH(ve.shader.Shader):
         device,
         X,
         Y,
-        OPERATION="+",
+        OPERATION=None,
+        FUNCTION1=None,
+        FUNCTION2=None,
+        npEquivalent=None,
         DEBUG=False,
-        buffType="float64_t",
+        buffType="float",
         shader_basename="shaders/arith",
         memProperties=(
             vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
@@ -29,13 +32,21 @@ class ARITH(ve.shader.Shader):
     ):
         constantsDict = {}
         constantsDict["PROCTYPE"] = buffType
-        constantsDict["OPERATION"] = OPERATION
+        if OPERATION is not None:
+            constantsDict["OPERATION"] = OPERATION
+        if FUNCTION1 is not None:
+            constantsDict["FUNCTION1"] = FUNCTION1
+        if FUNCTION2 is not None:
+            constantsDict["FUNCTION2"] = FUNCTION2
         constantsDict["YLEN"] = np.prod(np.shape(Y))
         constantsDict["LG_WG_SIZE"] = 7  # corresponding to 128 threads, a good number
         constantsDict["THREADS_PER_WORKGROUP"] = 1 << constantsDict["LG_WG_SIZE"]
 
         # device selection and instantiation
+        self.npEquivalent = npEquivalent
         self.OPERATION = OPERATION
+        self.FUNCTION1 = FUNCTION1
+        self.FUNCTION2 = FUNCTION2
         self.instance = device.instance
         self.device = device
         self.constantsDict = constantsDict
@@ -93,24 +104,31 @@ class ARITH(ve.shader.Shader):
         self.gpuBuffers.y.set(Y)
         
     def baseline(self, X, Y):
-        if self.OPERATION == "+":
-            return np.add(X, Y)
-        if self.OPERATION == "-":
-            return np.subtract(X, Y)
-        elif self.OPERATION == "*":
-            return np.multiply(X, Y)
-        elif self.OPERATION == "/":
-            return np.divide(X, Y)
+        if self.OPERATION is not None:
+            retval = self.npEquivalent(X,Y)
+            return retval
+        if self.FUNCTION1 is not None:
+            return eval("np." + self.FUNCTION1  + "(X)")
+        if self.FUNCTION2 is not None:
+            return eval("np." + self.FUNCTION2  + "(X, Y)")
+            
 
     def test(self):
 
         print("--- RUNNING ADDITION TEST ---")
-        self.run()
+        self.run(blocking=True)
         result = self.gpuBuffers.sumOut.get()
-        self.passed = np.allclose(result, self.baseline(
+        expectation = self.baseline(
             self.gpuBuffers.x.get(),
             self.gpuBuffers.y.get()
-            ))
+            )
+        self.passed = np.allclose(result.astype(float), expectation.astype(float))
+        if self.OPERATION is not None:
+            print(self.OPERATION + str(self.passed))
+        if self.FUNCTION1 is not None:
+            print(self.FUNCTION1 + str(self.passed))
+        if self.FUNCTION2 is not None:
+            print(self.FUNCTION2 + str(self.passed))
         return self.passed
 
 
@@ -119,19 +137,25 @@ def test(device):
     signalLen = 2 ** 12
     X = np.random.random((signalLen))
     Y = np.random.random((signalLen))
-    add = ARITH(device = device, X=X, Y=Y, OPERATION="+")
-    sub = ARITH(device = device, X=X, Y=Y, OPERATION="-")
-    mul = ARITH(device = device, X=X, Y=Y, OPERATION="*")
-    div = ARITH(device = device, X=X, Y=Y, OPERATION="/")
-    add.test()
-    sub.test()
-    mul.test()
-    div.test()
-    print("Add " + str(add.passed))
-    print("Sub " + str(sub.passed))
-    print("Mul " + str(mul.passed))
-    print("Div " + str(div.passed))
-
+    toTest = [
+        ARITH(device = device, X=X, Y=Y, OPERATION="+"   , npEquivalent=np.add),
+        ARITH(device = device, X=X, Y=Y, OPERATION="-"   , npEquivalent=np.subtract),
+        ARITH(device = device, X=X, Y=Y, OPERATION="*"   , npEquivalent=np.multiply),
+        ARITH(device = device, X=X, Y=Y, OPERATION="/"   , npEquivalent=np.divide),
+        ARITH(device = device, X=X, Y=Y, FUNCTION1="sin" ),
+        ARITH(device = device, X=X, Y=Y, FUNCTION1="cos" ),
+        ARITH(device = device, X=X, Y=Y, FUNCTION1="tan" ),
+        ARITH(device = device, X=X, Y=Y, FUNCTION1="exp" ),
+        ARITH(device = device, X=X, Y=Y, FUNCTION1="asin"),
+        ARITH(device = device, X=X, Y=Y, FUNCTION1="acos"),
+        ARITH(device = device, X=X, Y=Y, FUNCTION1="atan"),
+        ARITH(device = device, X=X, Y=Y, FUNCTION1="sqrt"),
+        ARITH(device = device, X=X, Y=Y, FUNCTION2="pow" ),
+        ARITH(device = device, X=X, Y=Y, FUNCTION2="mod" ),
+        ARITH(device = device, X=X, Y=Y, FUNCTION2="atan"),
+    ]
+    for s in toTest:
+        s.test()
 
 
 if __name__ == "__main__":
