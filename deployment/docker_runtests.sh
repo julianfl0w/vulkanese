@@ -1,2 +1,2 @@
-bash -x su_setup.sh
-bash -x runtests.sh
+bash -x deployment/su_setup.sh
+bash -x deployment/runtests.sh
