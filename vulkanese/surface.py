@@ -38,6 +38,7 @@ class Surface(sinode.Sinode):
 
         self.wm_info = sdl2.SDL_SysWMinfo()
         sdl2.SDL_VERSION(self.wm_info.version)
+        
         sdl2.SDL_GetWindowWMInfo(self.window, ctypes.byref(self.wm_info))
 
         #extensions = ["vk.VK_KHR_surface", "vk.VK_EXT_debug_report"]
@@ -124,6 +125,7 @@ class Surface(sinode.Sinode):
         print("selected colorspace: %s" % self.surface_format.colorSpace)
         print("%s available swapchain present modes" % len(self.present_modes))
         print("image count " + str(self.imageCount))
+        
         self.swapchain_create = vk.VkSwapchainCreateInfoKHR(
             sType=vk.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
             flags=0,
@@ -240,5 +242,11 @@ class Surface(sinode.Sinode):
 
     def release(self):
         print("destroying surface")
+        self.vkDestroySwapchainKHR = vk.vkGetInstanceProcAddr(
+            self.instance.vkInstance, "vkDestroySwapchainKHR"
+        )
+        self.vkDestroySurfaceKHR = vk.vkGetInstanceProcAddr(
+            self.instance.vkInstance, "vkDestroySurfaceKHR"
+        )
         self.vkDestroySwapchainKHR(self.device.vkDevice, self.swapchain, None)
         self.vkDestroySurfaceKHR(self.instance.vkInstance, self.vkSurface, None)

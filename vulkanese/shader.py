@@ -43,7 +43,7 @@ class Shader(sinode.Sinode):
         self.stage = stage
         self.buffers = buffers
         self.gpuBuffers = Empty()
-        sinode.Sinode.__init__(self, device)
+        sinode.Sinode.__init__(self, parent=device)
 
         self.debugBuffers = []
         for b in buffers:
