@@ -1,6 +1,8 @@
 import json
-from . import sinode
+import sys
 import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode")))
+import sinode.sinode as sinode
 import re
 import vulkan as vk
 from . import buffer

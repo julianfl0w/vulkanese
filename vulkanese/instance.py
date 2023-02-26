@@ -12,7 +12,9 @@ from . import shader
 from . import descriptor
 from . import device
 from . import buffer
-from . import sinode
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode")))
+import sinode.sinode as sinode
+
 from inspect import getframeinfo, stack
 
 vulkanesehome = os.path.dirname(os.path.abspath(__file__))
@@ -20,7 +22,7 @@ vulkanesehome = os.path.dirname(os.path.abspath(__file__))
 
 class Instance(sinode.Sinode):
     def __init__(self, verbose=False):
-        sinode.Sinode.__init__(self, None)
+        sinode.Sinode.__init__(self, parent = None)
         self.verbose = verbose
         self.debug("version number ")
         packedVersion = vk.vkEnumerateInstanceVersion()

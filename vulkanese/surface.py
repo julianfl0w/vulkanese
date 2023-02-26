@@ -1,11 +1,14 @@
 import vulkan as vk
-from . import sinode
 from . import device as dd
 
 import sdl2
 import sdl2.ext
 import ctypes
 import json
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode")))
+import sinode.sinode as sinode
 
 
 class Surface(sinode.Sinode):

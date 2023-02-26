@@ -1,6 +1,8 @@
 import json
-from . import sinode
+import sys
 import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode")))
+import sinode.sinode as sinode
 
 import vulkan as vk
 import numpy as np
@@ -54,46 +56,37 @@ class Buffer(sinode.Sinode):
     currLocation = 0
     def __str__(self):
         outstr = ""
-        outstr += self.name
+        if hasattr(self, "name"):
+            outstr += self.name
+        else:
+            outstr += str(type(self))
+
         return outstr
     
     def __init__(
-        self,
-        device,
-        name,
-        location,
-        dimensionVals,
-        DEBUG=False,
-        format=vk.VK_FORMAT_R64_SFLOAT,
-        readFromCPU=True,
-        usage=vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        memProperties=0
-        | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-        | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-        | vk.VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
-        sharingMode=vk.VK_SHARING_MODE_EXCLUSIVE,
-        stageFlags=vk.VK_SHADER_STAGE_COMPUTE_BIT,
-        qualifier="",
-        memtype="float",
-        rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
-        stride=4,
-        compress=True,
+        self, **kwargs
     ):
-        self.stageFlags =stageFlags
-        self.DEBUG = DEBUG
-        self.format = format
-        self.compress = compress
-        self.dimensionVals = dimensionVals
-        # this should be fixed in vulkan wrapper
-        self.released = False
-        self.usage = usage
-        sinode.Sinode.__init__(self, device)
-        self.device = device
-        self.location = location
+        self.kwdefault = {
+            "DEBUG":False,
+            "format":vk.VK_FORMAT_R64_SFLOAT,
+            "readFromCPU":True,
+            "usage":vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            "memProperties":0
+            | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+            | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+            | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+            | vk.VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+            "sharingMode":vk.VK_SHARING_MODE_EXCLUSIVE,
+            "stageFlags":vk.VK_SHADER_STAGE_COMPUTE_BIT,
+            "qualifier":"",
+            "memtype":"float",
+            "rate":vk.VK_VERTEX_INPUT_RATE_VERTEX,
+            "stride":4,
+            "compress":True,
+        }
+
+        sinode.Sinode.__init__(self, parent=parent)
         self.vkDevice = device.vkDevice
-        self.qualifier = qualifier
-        self.type = memtype
         self.itemSize = glsltype2bytesize(self.type)
         self.pythonType = glsltype2python(self.type)
         self.getSkipval()
@@ -472,39 +465,34 @@ class StorageBuffer(Buffer):
         device,
         name,
         dimensionVals,
-        DEBUG=False,
-        qualifier="",
-        memProperties=0
-        | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-        | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-        | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        descriptorSet=None,
-        memtype="float",
-        rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
-        stride=12,
-        compress=True,
+        **kwargs,
     ):
-        self.descriptorSet = descriptorSet
-        if descriptorSet is None:
-            self.descriptorSet = device.descriptorPool.descSetGlobal
-        Buffer.__init__(
-            self,
-            DEBUG=False,
-            device=device,
-            name=name,
-            location=0,
-            dimensionVals=dimensionVals,
-            format=vk.VK_FORMAT_R64_SFLOAT,
-            readFromCPU=True,
-            usage=vk.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-            memProperties=memProperties,
-            sharingMode=vk.VK_SHARING_MODE_EXCLUSIVE,
-            stageFlags=vk.VK_SHADER_STAGE_COMPUTE_BIT,
-            qualifier=qualifier,
-            memtype=memtype,
-            rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
-            stride=4,
-            compress=compress,
+        self.kwdefault = {
+            "DEBUG":False,
+            "qualifier":"",
+            "memProperties":0
+                | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+                | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            "descriptorSet":None,
+            "memtype":"float",
+            "rate":vk.VK_VERTEX_INPUT_RATE_VERTEX,
+            "compress":True,
+            "location":0,
+            "format":vk.VK_FORMAT_R64_SFLOAT,
+            "readFromCPU":True,
+            "usage":vk.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            "sharingMode":vk.VK_SHARING_MODE_EXCLUSIVE,
+            "stageFlags":vk.VK_SHADER_STAGE_COMPUTE_BIT,
+            "rate":vk.VK_VERTEX_INPUT_RATE_VERTEX,
+            "stride":4,
+        }
+
+        sinode.Sinode.__init__(self, **kwargs)
+
+        if "descriptorSet" not in kwargs.keys():
+            self.descriptorSet = self.fromAbove("descriptorPool").descSetGlobal
+        Buffer.__init__(self
         )
         self.getDescriptorBinding()
 

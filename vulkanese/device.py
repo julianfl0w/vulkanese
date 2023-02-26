@@ -1,10 +1,13 @@
 import ctypes
+import sys
 import os
 import time
 import json
 import vulkan as vk
 from . import vulkanese as ve
-from . import sinode
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode")))
+import sinode.sinode as sinode
+
 
 def ctypes2dict(props, depth=0):
     outDict = dict()
@@ -30,7 +33,7 @@ def ctypes2dict(props, depth=0):
 
 class Device(sinode.Sinode):
     def __init__(self, instance, deviceIndex):
-        sinode.Sinode.__init__(self, instance)
+        sinode.Sinode.__init__(self, parent = instance)
         self.instance = instance
         self.deviceIndex = deviceIndex
 
@@ -202,7 +205,7 @@ class Device(sinode.Sinode):
             print("    SUBGROUP SIZE UNKNOWN. DEFAULTING TO 32")
             self.subgroupSize = 32
 
-        self.descriptorPool = ve.descriptor.DescriptorPool(self)
+        # self.descriptorPool = ve.descriptor.DescriptorPool(self)
 
 
     # find memory type with desired properties.

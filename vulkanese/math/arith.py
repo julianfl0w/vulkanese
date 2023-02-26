@@ -16,6 +16,7 @@ class ARITH(ve.shader.Shader):
         device,
         X,
         Y,
+        parent=None,
         OPERATION=None,
         FUNCTION1=None,
         FUNCTION2=None,
@@ -30,6 +31,9 @@ class ARITH(ve.shader.Shader):
         ),
         useFence=True, 
     ):
+        self.parent = parent
+        self.ancestors = []
+        self.path = []
         constantsDict = {}
         constantsDict["PROCTYPE"] = buffType
         if OPERATION is not None:
@@ -50,6 +54,8 @@ class ARITH(ve.shader.Shader):
         self.instance = device.instance
         self.device = device
         self.constantsDict = constantsDict
+
+        self.descriptorPool = ve.descriptor.DescriptorPool(device=device, parent = self)
 
         buffers = [
             ve.buffer.StorageBuffer(
@@ -78,7 +84,7 @@ class ARITH(ve.shader.Shader):
             ),
         ]
 
-        self.device.descriptorPool.finalize()
+        self.descriptorPool.finalize()
 
         # Compute Stage: the only stage
         ve.shader.Shader.__init__(
