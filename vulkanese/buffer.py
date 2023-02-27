@@ -85,26 +85,26 @@ class Buffer(sinode.Sinode):
             "compress":True,
         }
 
-        sinode.Sinode.__init__(self, parent=parent)
-        self.vkDevice = device.vkDevice
-        self.itemSize = glsltype2bytesize(self.type)
-        self.pythonType = glsltype2python(self.type)
+        sinode.Sinode.__init__(self, **kwargs)
+        self.device = self.fromAbove("device")
+        self.vkDevice = self.device.vkDevice
+        self.itemSize = glsltype2bytesize(self.memtype)
+        self.pythonType = glsltype2python(self.memtype)
         self.getSkipval()
 
         # for vec3 etc, the size is already bakd in
-        self.itemCount = int(np.prod(dimensionVals))
+        self.itemCount = int(np.prod(self.dimensionVals))
         self.sizeBytes = int(self.itemCount * self.itemSize * self.skipval)
-        self.name = name
         
 
-        self.device.instance.debug("creating buffer " + name)
+        self.device.instance.debug("creating buffer " + self.name)
 
         # We will now create a buffer with these options
         self.bufferCreateInfo = vk.VkBufferCreateInfo(
             sType=vk.VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
             size=self.sizeBytes,  # buffer size in bytes.
-            usage=usage,  # buffer is used as a storage buffer.
-            sharingMode=sharingMode,  # buffer is exclusive to a single queue family at a time.
+            usage=self.usage,  # buffer is used as a storage buffer.
+            sharingMode=self.sharingMode,  # buffer is exclusive to a single queue family at a time.
         )
         self.device.instance.debug(self.vkDevice)
         self.device.instance.debug(self.bufferCreateInfo)
@@ -124,7 +124,7 @@ class Buffer(sinode.Sinode):
         # Also, by setting VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, memory written by the device(GPU) will be easily
         # visible to the host(CPU), without having to call any extra flushing commands. So mainly for convenience, we set
         # this flag.
-        index = device.findMemoryType(memoryRequirements.memoryTypeBits, memProperties)
+        index = self.device.findMemoryType(memoryRequirements.memoryTypeBits, self.memProperties)
 
         if index < 0:
             raise Exception("Requested memory type not available on this device")
@@ -160,7 +160,7 @@ class Buffer(sinode.Sinode):
         # self.device.instance.debug(len(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType)))
 
         # sometimes you may want to unmap from CPU
-        if not readFromCPU:
+        if not self.readFromCPU:
             vk.vkUnmapMemory(self.vkDevice, self.vkDeviceMemory)
             self.pmap = None
 
@@ -271,7 +271,7 @@ class Buffer(sinode.Sinode):
             rcvdArrayComplex = rcvdArrayReal + rcvdArrayImag
             # finally, reshape according to the expected dims
             rcvdArray = np.array(rcvdArrayComplex).reshape(self.dimensionVals)
-        elif self.type == "vec2":
+        elif self.memtype == "vec2":
             rcvdArrayList = list(flatArray.astype(float))
             rcvdArray = np.zeros(self.dimensionVals + [2])
             rcvdArray = np.append(
@@ -372,7 +372,7 @@ class Buffer(sinode.Sinode):
             + "_buf\n{\n   "
             + self.qualifier
             + " "
-            + self.type
+            + self.memtype
             + " "
             + self.name
             + "["
@@ -462,9 +462,6 @@ class Buffer(sinode.Sinode):
 class StorageBuffer(Buffer):
     def __init__(
         self,
-        device,
-        name,
-        dimensionVals,
         **kwargs,
     ):
         self.kwdefault = {
@@ -484,7 +481,6 @@ class StorageBuffer(Buffer):
             "usage":vk.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
             "sharingMode":vk.VK_SHARING_MODE_EXCLUSIVE,
             "stageFlags":vk.VK_SHADER_STAGE_COMPUTE_BIT,
-            "rate":vk.VK_VERTEX_INPUT_RATE_VERTEX,
             "stride":4,
         }
 
@@ -492,7 +488,7 @@ class StorageBuffer(Buffer):
 
         if "descriptorSet" not in kwargs.keys():
             self.descriptorSet = self.fromAbove("descriptorPool").descSetGlobal
-        Buffer.__init__(self
+        Buffer.__init__(self,**kwargs
         )
         self.getDescriptorBinding()
 

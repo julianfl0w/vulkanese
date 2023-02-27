@@ -46,9 +46,9 @@ class DescriptorPool(sinode.Sinode):
         ]
 
     def getBinding(self, buffer, descSet):
-        self.device.instance.debug("Allocating ")
-        self.device.instance.debug(buffer)
-        self.device.instance.debug(bindname)
+        self.fromAbove("debug")("Allocating ")
+        self.fromAbove("debug")(buffer)
+        self.fromAbove("debug")(bindname)
         return self.descSet.attachBuffer(buffer)
 
     # We first need to describe which descriptor types our descriptor sets are going to contain and how many of them, using VkDescriptorPoolSize structures.
@@ -214,34 +214,3 @@ class DescriptorSet(sinode.Sinode):
                 self.vkDevice, self.vkDescriptorSetLayout, None
             )
 
-
-# 	def updateDescriptorSet():
-# 		std::vector<VkWriteDescriptorSet> writes;
-#
-# 		# Camera matrices and scene description
-# 		VkDescriptorBufferInfo dbiUnif{self.bGlobals.buffer, 0, VK_WHOLE_SIZE};
-# 		writes += [self.descSetLayoutBind.makeWrite(self.descSet, "engineGlobal", &dbiUnif));
-#
-# 		VkDescriptorBufferInfo dbiSceneDesc{self.bObjDesc.buffer, 0, VK_WHOLE_SIZE};
-# 		writes += [self.descSetLayoutBind.makeWrite(self.descSet, "perObject", &dbiSceneDesc));
-#
-# 		# All texture samplers
-# 		std::vector<VkDescriptorImageInfo> diit;
-# 		for(auto& texture : self.textures)
-# 		{
-# 		diit += [texture.descriptor);
-# 		}
-# 		writes += [self.descSetLayoutBind.makeWriteArray(self.descSet, "perPass", diit.data()));
-#
-# 		# Writing the information
-# 		vkUpdateDescriptorSets(self.device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
-
-# 	def updatePostDescriptorSet():
-# 		VkWriteDescriptorSet writeDescriptorSets = self.postDescSetLayoutBind.makeWrite(self.postDescSet, 0, &self.offscreenColor.descriptor);
-# 		vkUpdateDescriptorSets(self.device, 1, &writeDescriptorSets, 0, nullptr);
-
-# 	def createPostDescriptor():
-# 		self.postDescSetLayoutBind.addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
-# 		self.postDescSetLayout = self.postDescSetLayoutBind.createLayout(self.device);
-# 		self.postDescPool      = self.postDescSetLayoutBind.createPool(self.device);
-# 		self.postDescSet       = nvvk::allocateDescriptorSet(self.device, self.postDescPool, self.postDescSetLayout)

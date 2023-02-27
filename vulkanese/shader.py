@@ -97,6 +97,7 @@ class Shader(sinode.Sinode):
         if stage == vk.VK_SHADER_STAGE_COMPUTE_BIT:
             # generate a compute cmd buffer
             self.computePipeline = compute_pipeline.ComputePipeline(
+                parent=self,
                 computeShader=self,
                 device=self.device,
                 constantsDict=self.constantsDict,
