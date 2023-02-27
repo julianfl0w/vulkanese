@@ -20,10 +20,9 @@ class ARITH(ve.shader.Shader):
         self.kwdefault = {
 
             "parent":None,
-            "OPERATION":None,
+            #"OPERATION":None,
             "FUNCTION1":None,
             "FUNCTION2":None,
-            "npEquivalent":None,
             "DEBUG":False,
             "buffType":"float",
             "shader_basename":"shaders/arith",
