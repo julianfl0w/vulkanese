@@ -3,22 +3,22 @@
 #extension GL_ARB_separate_shader_objects : enable
 #define PROCTYPE float
 #define OPERATION +
-#define YLEN 16
+#define YLEN 1024
 #define LG_WG_SIZE 7
 #define THREADS_PER_WORKGROUP 128
 // This will be (or has been) replaced by constant definitions
     
 layout(std430, set = 0, binding = 0) buffer x_buf
 {
-    float x[16];
+    float x[1024];
 };
 layout(std430, set = 0, binding = 1) buffer y_buf
 {
-    float y[16];
+    float y[1024];
 };
 layout(std430, set = 0, binding = 2) buffer sumOut_buf
 {
-    float sumOut[16];
+    float sumOut[1024];
 };
 // This will be (or has been) replaced by buffer definitions
     

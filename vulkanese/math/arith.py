@@ -39,10 +39,12 @@ class ARITH(ve.shader.Shader):
         constantsDict["PROCTYPE"] = self.buffType
         if self.OPERATION is not None:
             constantsDict["OPERATION"] = self.OPERATION
-        if self.FUNCTION1 is not None:
+        elif self.FUNCTION1 is not None:
             constantsDict["FUNCTION1"] = self.FUNCTION1
-        if self.FUNCTION2 is not None:
+        elif self.FUNCTION2 is not None:
             constantsDict["FUNCTION2"] = self.FUNCTION2
+        else:
+            die
         constantsDict["YLEN"] = np.prod(np.shape(self.Y))
         constantsDict["LG_WG_SIZE"] = 7  # corresponding to 128 threads, a good number
         constantsDict["THREADS_PER_WORKGROUP"] = 1 << constantsDict["LG_WG_SIZE"]
@@ -128,8 +130,10 @@ class ARITH(ve.shader.Shader):
             self.gpuBuffers.y.get()
             )
         print("------------")
+        print(self.gpuBuffers.x.get())
+        print(self.gpuBuffers.y.get())
         print(expectation)
-        print(self.gpuBuffers.sumOut.get())
+        print(result)
         self.passed = np.allclose(result.astype(float), expectation.astype(float))
         if self.OPERATION is not None:
             print(self.OPERATION + ": " + str(self.passed))
@@ -142,7 +146,7 @@ class ARITH(ve.shader.Shader):
 
 def test(device):
     print("Testing Arithmatic")
-    signalLen = 2 ** 4
+    signalLen = 2 ** 10
     X = np.random.random((signalLen))
     Y = np.random.random((signalLen))
     toTest = [
