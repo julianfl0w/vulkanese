@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import numpy as np
+import json
 
 arith_home = os.path.dirname(os.path.abspath(__file__))
 
@@ -60,7 +61,7 @@ class ARITH(ve.shader.Shader):
                 qualifier="readonly",
                 dimensionVals=np.shape(self.X),
                 memProperties=self.memProperties,
-                parent=self,
+                descriptorSet = self.descriptorPool.descSetGlobal
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
@@ -69,7 +70,7 @@ class ARITH(ve.shader.Shader):
                 qualifier="readonly",
                 dimensionVals=np.shape(self.Y),
                 memProperties=self.memProperties,
-                parent=self,
+                descriptorSet = self.descriptorPool.descSetGlobal
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
@@ -78,7 +79,7 @@ class ARITH(ve.shader.Shader):
                 qualifier="writeonly",
                 dimensionVals=np.shape(self.X),
                 memProperties=self.memProperties,
-                parent=self,
+                descriptorSet = self.descriptorPool.descSetGlobal
             ),
         ]
 
@@ -145,7 +146,7 @@ def test(device):
     X = np.random.random((signalLen))
     Y = np.random.random((signalLen))
     toTest = [
-        ARITH(device = device, X=X, Y=Y, OPERATION="+"   , npEquivalent=np.add),
+        ARITH(parent=device, device = device, X=X, Y=Y, OPERATION="+"   , npEquivalent=np.add),
         #ARITH(device = device, X=X, Y=Y, OPERATION="-"   , npEquivalent=np.subtract),
         #ARITH(device = device, X=X, Y=Y, OPERATION="*"   , npEquivalent=np.multiply),
         #ARITH(device = device, X=X, Y=Y, OPERATION="/"   , npEquivalent=np.divide),
@@ -161,6 +162,8 @@ def test(device):
         ##ARITH(device = device, X=X, Y=Y, FUNCTION2="mod" ),
         ##ARITH(device = device, X=X, Y=Y, FUNCTION2="atan"),
     ]
+    print(json.dumps(device.asDict(), indent=2))
+    
     for s in toTest:
         s.test()
         #s.release()
@@ -169,7 +172,7 @@ def test(device):
 if __name__ == "__main__":
 
     # begin GPU test
-    instance = ve.instance.Instance(verbose=False)
+    instance = ve.instance.Instance(verbose=True)
     device = instance.getDevice(0)
     
     test(device=device)

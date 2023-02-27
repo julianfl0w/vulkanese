@@ -83,6 +83,7 @@ class Buffer(sinode.Sinode):
             "rate":vk.VK_VERTEX_INPUT_RATE_VERTEX,
             "stride":4,
             "compress":True,
+            "released":False,
         }
 
         sinode.Sinode.__init__(self, **kwargs)
@@ -234,7 +235,7 @@ class Buffer(sinode.Sinode):
         if (
             self.compress
             and self.usage == vk.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-            and (self.type == "float64_t" or self.type == "float")
+            and (self.memtype == "float64_t" or self.memtype == "float")
         ):
             self.skipval = 1
         elif (
@@ -471,7 +472,6 @@ class StorageBuffer(Buffer):
                 | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
                 | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
                 | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            "descriptorSet":None,
             "memtype":"float",
             "rate":vk.VK_VERTEX_INPUT_RATE_VERTEX,
             "compress":True,
@@ -483,13 +483,13 @@ class StorageBuffer(Buffer):
             "stageFlags":vk.VK_SHADER_STAGE_COMPUTE_BIT,
             "stride":4,
         }
+        newKwargs = sinode.depthFirstDictMerge(priority = kwargs, additions = self.kwdefault)
+        self.parent = kwargs["descriptorSet"]
+        Buffer.__init__(self,**newKwargs)
+        #if "descriptorSet" not in kwargs.keys():
+        #    self.descriptorSet = self.fromAbove("descriptorPool").descSetGlobal
 
-        sinode.Sinode.__init__(self, **kwargs)
 
-        if "descriptorSet" not in kwargs.keys():
-            self.descriptorSet = self.fromAbove("descriptorPool").descSetGlobal
-        Buffer.__init__(self,**kwargs
-        )
         self.getDescriptorBinding()
 
 class DebugBuffer(StorageBuffer):

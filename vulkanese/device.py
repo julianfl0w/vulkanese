@@ -32,14 +32,12 @@ def ctypes2dict(props, depth=0):
         die
 
 class Device(sinode.Sinode):
-    def __init__(self, instance, deviceIndex):
-        sinode.Sinode.__init__(self, parent = instance)
-        self.instance = instance
-        self.deviceIndex = deviceIndex
+    def __init__(self, **kwargs):
+        sinode.Sinode.__init__(self, **kwargs)
 
-        self.instance.debug("initializing device " + str(deviceIndex))
+        self.instance.debug("initializing device " + str(self.deviceIndex))
         self.physical_device = vk.vkEnumeratePhysicalDevices(self.instance.vkInstance)[
-            deviceIndex
+            self.deviceIndex
         ]
 
         self.memoryProperties = self.getMemoryProperties()

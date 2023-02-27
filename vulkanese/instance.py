@@ -133,7 +133,7 @@ class Instance(sinode.Sinode):
         return devdict
 
     def getDevice(self, deviceIndex):
-        newDev = device.Device(self, deviceIndex)
+        newDev = device.Device(parent = self, instance=self, deviceIndex = deviceIndex)
         return newDev
 
     def release(self):

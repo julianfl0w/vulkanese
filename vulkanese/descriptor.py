@@ -10,14 +10,14 @@ from vulkan import *
 
 
 class DescriptorPool(sinode.Sinode):
-    def __init__(self, device, MAX_FRAMES_IN_FLIGHT=3, parent=None):
-        if parent is None:
-            sinode.Sinode.__init__(self, parent = device)
-        else:
-            sinode.Sinode.__init__(self, parent = parent)
-        self.device = device
-        self.vkDevice = device.vkDevice
-        self.MAX_FRAMES_IN_FLIGHT = MAX_FRAMES_IN_FLIGHT
+    def __init__(self, **kwargs):
+
+        self.kwdefault = {
+            "MAX_FRAMES_IN_FLIGHT":3,
+        }
+        sinode.Sinode.__init__(self, **kwargs)
+
+        self.vkDevice = self.device.vkDevice
 
         # The descriptor set number 0 will be used for engine-global resources, and bound once per frame.
         self.descSetGlobal = DescriptorSet(

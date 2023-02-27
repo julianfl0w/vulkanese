@@ -113,6 +113,8 @@ class Shader(sinode.Sinode):
         # self.run()
 
     def release(self):
+        for c in self.children:
+            c.release()
         self.device.instance.debug("destroying Stage")
         vk.vkDestroyShaderModule(self.device.vkDevice, self.vkShaderModule, None)
 

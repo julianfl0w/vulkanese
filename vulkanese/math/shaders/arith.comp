@@ -10,15 +10,15 @@
     
 layout(std430, set = 0, binding = 0) buffer x_buf
 {
-   readonly float x[16];
+    float x[16];
 };
 layout(std430, set = 0, binding = 1) buffer y_buf
 {
-   readonly float y[16];
+    float y[16];
 };
 layout(std430, set = 0, binding = 2) buffer sumOut_buf
 {
-   writeonly float sumOut[16];
+    float sumOut[16];
 };
 // This will be (or has been) replaced by buffer definitions
     
