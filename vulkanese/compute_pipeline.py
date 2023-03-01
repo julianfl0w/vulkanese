@@ -28,6 +28,8 @@ class ComputePipeline(sinode.Sinode):
         self,
         **kwargs
     ):
+        sinode.Sinode.__init__(self, **kwargs)
+        # set the defaults here
         self.proc_kwargs(
             workgroupCount=[1, 1, 1],
             signalSemaphoreCount=0,
@@ -35,7 +37,6 @@ class ComputePipeline(sinode.Sinode):
             waitSemaphores=[],
             waitStages=[],
         )
-        sinode.Sinode.__init__(self, **kwargs)
         self.descriptorPool = self.fromAbove("descriptorPool")
 
         # synchronization is owned by the pipeline (command buffer?)

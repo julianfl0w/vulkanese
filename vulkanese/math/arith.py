@@ -22,9 +22,6 @@ class ARITH(ve.shader.Shader):
         self.proc_kwargs(**{
 
             "parent":None,
-            "OPERATION":None,
-            "FUNCTION1":None,
-            "FUNCTION2":None,
             "DEBUG":False,
             "buffType":"float",
             "shader_basename":"shaders/arith",
@@ -35,13 +32,15 @@ class ARITH(ve.shader.Shader):
             ),
             "useFence":True, 
         })
+        
         constantsDict = {}
         constantsDict["PROCTYPE"] = self.buffType
-        if self.OPERATION is not None:
+
+        if hasattr(self, "OPERATION"):
             constantsDict["OPERATION"] = self.OPERATION
-        elif self.FUNCTION1 is not None:
+        elif hasattr(self, "FUNCTION1"):
             constantsDict["FUNCTION1"] = self.FUNCTION1
-        elif self.FUNCTION2 is not None:
+        elif hasattr(self, "FUNCTION2"):
             constantsDict["FUNCTION2"] = self.FUNCTION2
         else:
             die
@@ -111,12 +110,12 @@ class ARITH(ve.shader.Shader):
         self.gpuBuffers.y.set(self.Y)
         
     def baseline(self, X, Y):
-        if self.OPERATION is not None:
+        if hasattr(self, "OPERATION"):
             retval = self.npEquivalent(X,Y)
             return retval
-        if self.FUNCTION1 is not None:
+        elif hasattr(self, "FUNCTION1"):
             return eval("np." + self.FUNCTION1  + "(X)")
-        if self.FUNCTION2 is not None:
+        elif hasattr(self, "FUNCTION2"):
             return eval("np." + self.FUNCTION2  + "(X, Y)")
         else:
             die
@@ -130,12 +129,16 @@ class ARITH(ve.shader.Shader):
             self.gpuBuffers.y.get()
             )
         self.passed = np.allclose(result.astype(float), expectation.astype(float))
-        if self.OPERATION is not None:
+        
+        if hasattr(self, "OPERATION"):
             print(self.OPERATION + ": " + str(self.passed))
-        if self.FUNCTION1 is not None:
+        elif hasattr(self, "FUNCTION1"):
             print(self.FUNCTION1 + ": " + str(self.passed))
-        if self.FUNCTION2 is not None:
+        elif hasattr(self, "FUNCTION2"):
             print(self.FUNCTION2 + ": " + str(self.passed))
+        else:
+            die
+        
         return self.passed
 
 

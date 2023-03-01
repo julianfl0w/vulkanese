@@ -23,6 +23,7 @@ class Shader(sinode.Sinode):
         self,
         **kwargs
     ):
+        sinode.Sinode.__init__(self, **kwargs)
         self.proc_kwargs(**{ 
             "sourceFilename":"",
             "stage":vk.VK_SHADER_STAGE_VERTEX_BIT,
@@ -37,7 +38,6 @@ class Shader(sinode.Sinode):
             "useFence":False,
         })
 
-        sinode.Sinode.__init__(self, **kwargs)
         self.gpuBuffers = Empty()
         self.basename = self.sourceFilename[:-2]  # take out ".c"
 
@@ -84,7 +84,7 @@ class Shader(sinode.Sinode):
             pSpecializationInfo=None,
             pName="main",
         )
-        self.device.instance.debug("creating Stage " + str(stage))
+        self.device.instance.debug("creating Stage " + str(self.stage))
 
         # if this is a compute shader, it corresponds with a single pipeline. we create that here
         if self.stage == vk.VK_SHADER_STAGE_COMPUTE_BIT:
