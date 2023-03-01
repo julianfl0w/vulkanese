@@ -66,7 +66,12 @@ class Buffer(sinode.Sinode):
     def __init__(
         self, **kwargs
     ):
-        self.kwdefault = {
+
+        sinode.Sinode.__init__(self, **kwargs)
+
+        # set defaults
+        self.proc_kwargs(**{
+            "overwrite":False, 
             "DEBUG":False,
             "format":vk.VK_FORMAT_R64_SFLOAT,
             "readFromCPU":True,
@@ -84,9 +89,8 @@ class Buffer(sinode.Sinode):
             "stride":4,
             "compress":True,
             "released":False,
-        }
+        })
 
-        sinode.Sinode.__init__(self, **kwargs)
         self.device = self.fromAbove("device")
         self.vkDevice = self.device.vkDevice
         self.itemSize = glsltype2bytesize(self.memtype)
@@ -465,7 +469,12 @@ class StorageBuffer(Buffer):
         self,
         **kwargs,
     ):
-        self.kwdefault = {
+
+        self.parent = kwargs["descriptorSet"]
+
+        # set defaults first
+        self.proc_kwargs(**{
+            "overwrite":False,
             "DEBUG":False,
             "qualifier":"",
             "memProperties":0
@@ -483,9 +492,10 @@ class StorageBuffer(Buffer):
             "stageFlags":vk.VK_SHADER_STAGE_COMPUTE_BIT,
             "stride":4,
         }
-        newKwargs = sinode.depthFirstDictMerge(priority = kwargs, additions = self.kwdefault)
-        self.parent = kwargs["descriptorSet"]
-        Buffer.__init__(self,**newKwargs)
+        )
+
+        Buffer.__init__(self,**kwargs)
+
         #if "descriptorSet" not in kwargs.keys():
         #    self.descriptorSet = self.fromAbove("descriptorPool").descSetGlobal
 

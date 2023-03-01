@@ -21,34 +21,28 @@ class Empty:
 class Shader(sinode.Sinode):
     def __init__(
         self,
-        device,
-        constantsDict,
-        buffers,
-        sourceFilename="",
-        stage=vk.VK_SHADER_STAGE_VERTEX_BIT,
-        name="mandlebrot",
-        DEBUG=False,
-        workgroupCount=[1, 1, 1],
-        compressBuffers=True,
-        waitSemaphores=[],
-        waitStages=None,
-        signalSemaphoreCount=0,  # these only used for compute shaders
-        fenceCount=0,  # these only used for compute shaders
-        useFence=False,
+        **kwargs
     ):
-        self.waitStages = waitStages
-        self.constantsDict = constantsDict
-        self.DEBUG = DEBUG
-        self.device = device
-        self.name = name
-        self.basename = sourceFilename[:-2]  # take out ".c"
-        self.stage = stage
-        self.buffers = buffers
+        self.proc_kwargs(**{ 
+            "sourceFilename":"",
+            "stage":vk.VK_SHADER_STAGE_VERTEX_BIT,
+            "name":"mandlebrot",
+            "DEBUG":False,
+            "workgroupCount":[1, 1, 1],
+            "compressBuffers":True,
+            "waitSemaphores":[],
+            "waitStages":None,
+            "signalSemaphoreCount":0,  # these only used for compute shaders
+            "fenceCount":0,  # these only used for compute shaders
+            "useFence":False,
+        })
+
+        sinode.Sinode.__init__(self, **kwargs)
         self.gpuBuffers = Empty()
-        sinode.Sinode.__init__(self, parent=device)
+        self.basename = self.sourceFilename[:-2]  # take out ".c"
 
         self.debugBuffers = []
-        for b in buffers:
+        for b in self.buffers:
             # make the buffer accessable as a local attribute
             exec("self.gpuBuffers." + b.name + "= b")
 
@@ -57,18 +51,17 @@ class Shader(sinode.Sinode):
                 self.debugBuffers += [b]
 
         outfilename = self.basename + ".spv"
-        self.sourceFilename = sourceFilename
         # if its spv (compiled), just run it
-        if sourceFilename.endswith(".spv"):
-            with open(sourceFilename, "rb") as f:
+        if self.sourceFilename.endswith(".spv"):
+            with open(self.sourceFilename, "rb") as f:
                 spirv = f.read()
         # if its not an spv, compile it
-        elif sourceFilename.endswith(".c"):
+        elif self.sourceFilename.endswith(".c"):
             spirv = self.compile()
             with open(outfilename, "wb+") as f:
                 f.write(spirv)
         else:
-            raise Exception("source template filename must end with .c")
+            raise Exception("source template filename " + self.sourceFilename + " must end with .c")
 
         # Create Stage
         self.vkShaderModuleCreateInfo = vk.VkShaderModuleCreateInfo(
@@ -94,17 +87,17 @@ class Shader(sinode.Sinode):
         self.device.instance.debug("creating Stage " + str(stage))
 
         # if this is a compute shader, it corresponds with a single pipeline. we create that here
-        if stage == vk.VK_SHADER_STAGE_COMPUTE_BIT:
+        if self.stage == vk.VK_SHADER_STAGE_COMPUTE_BIT:
             # generate a compute cmd buffer
             self.computePipeline = compute_pipeline.ComputePipeline(
                 parent=self,
                 computeShader=self,
                 device=self.device,
                 constantsDict=self.constantsDict,
-                workgroupCount=workgroupCount,
-                waitSemaphores=waitSemaphores,
-                signalSemaphoreCount=signalSemaphoreCount,
-                useFence=useFence,
+                workgroupCount=self.workgroupCount,
+                waitSemaphores=self.waitSemaphores,
+                signalSemaphoreCount=self.signalSemaphoreCount,
+                useFence=self.useFence,
             )
             #self.computePipeline.children += [self]
 

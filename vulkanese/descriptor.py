@@ -12,10 +12,10 @@ from vulkan import *
 class DescriptorPool(sinode.Sinode):
     def __init__(self, **kwargs):
 
-        self.kwdefault = {
-            "MAX_FRAMES_IN_FLIGHT":3,
-        }
         sinode.Sinode.__init__(self, **kwargs)
+        self.proc_kwargs(**{
+            "MAX_FRAMES_IN_FLIGHT":3,
+        })
 
         self.vkDevice = self.device.vkDevice
 

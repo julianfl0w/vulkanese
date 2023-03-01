@@ -28,13 +28,13 @@ class ComputePipeline(sinode.Sinode):
         self,
         **kwargs
     ):
-        self.kwdefault = {
-            "workgroupCount":[1, 1, 1],
-            "signalSemaphoreCount":0,
-            "useFence":False,
-            "waitSemaphores":[],
-            "waitStages":[],
-        }
+        self.proc_kwargs(
+            workgroupCount=[1, 1, 1],
+            signalSemaphoreCount=0,
+            useFence=False,
+            waitSemaphores=[],
+            waitStages=[],
+        )
         sinode.Sinode.__init__(self, **kwargs)
         self.descriptorPool = self.fromAbove("descriptorPool")
 

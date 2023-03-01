@@ -18,10 +18,11 @@ class ARITH(ve.shader.Shader):
         self,
         **kwargs
     ):
-        self.kwdefault = {
+        sinode.Sinode.__init__(self, **kwargs)
+        self.proc_kwargs(**{
 
             "parent":None,
-            #"OPERATION":None,
+            "OPERATION":None,
             "FUNCTION1":None,
             "FUNCTION2":None,
             "DEBUG":False,
@@ -33,8 +34,7 @@ class ARITH(ve.shader.Shader):
                 | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
             ),
             "useFence":True, 
-        }
-        sinode.Sinode.__init__(self, **kwargs)
+        })
         constantsDict = {}
         constantsDict["PROCTYPE"] = self.buffType
         if self.OPERATION is not None:
@@ -129,11 +129,6 @@ class ARITH(ve.shader.Shader):
             self.gpuBuffers.x.get(),
             self.gpuBuffers.y.get()
             )
-        print("------------")
-        print(self.gpuBuffers.x.get())
-        print(self.gpuBuffers.y.get())
-        print(expectation)
-        print(result)
         self.passed = np.allclose(result.astype(float), expectation.astype(float))
         if self.OPERATION is not None:
             print(self.OPERATION + ": " + str(self.passed))
@@ -151,22 +146,22 @@ def test(device):
     Y = np.random.random((signalLen))
     toTest = [
         ARITH(parent=device, device = device, X=X, Y=Y, OPERATION="+"   , npEquivalent=np.add),
-        #ARITH(device = device, X=X, Y=Y, OPERATION="-"   , npEquivalent=np.subtract),
-        #ARITH(device = device, X=X, Y=Y, OPERATION="*"   , npEquivalent=np.multiply),
-        #ARITH(device = device, X=X, Y=Y, OPERATION="/"   , npEquivalent=np.divide),
-        #ARITH(device = device, X=X, Y=Y, FUNCTION1="sin" ),
-        #ARITH(device = device, X=X, Y=Y, FUNCTION1="cos" ),
-        #ARITH(device = device, X=X, Y=Y, FUNCTION1="tan" ),
-        #ARITH(device = device, X=X, Y=Y, FUNCTION1="exp" ),
-        ##ARITH(device = device, X=X, Y=Y, FUNCTION1="asin"),
-        ##ARITH(device = device, X=X, Y=Y, FUNCTION1="acos"),
-        ##ARITH(device = device, X=X, Y=Y, FUNCTION1="atan"),
-        #ARITH(device = device, X=X, Y=Y, FUNCTION1="sqrt"),
-        ##ARITH(device = device, X=X, Y=Y, FUNCTION2="pow" ),
-        ##ARITH(device = device, X=X, Y=Y, FUNCTION2="mod" ),
-        ##ARITH(device = device, X=X, Y=Y, FUNCTION2="atan"),
+        ARITH(device = device, X=X, Y=Y, OPERATION="-"   , npEquivalent=np.subtract),
+        ARITH(device = device, X=X, Y=Y, OPERATION="*"   , npEquivalent=np.multiply),
+        ARITH(device = device, X=X, Y=Y, OPERATION="/"   , npEquivalent=np.divide),
+        ARITH(device = device, X=X, Y=Y, FUNCTION1="sin" ),
+        ARITH(device = device, X=X, Y=Y, FUNCTION1="cos" ),
+        ARITH(device = device, X=X, Y=Y, FUNCTION1="tan" ),
+        ARITH(device = device, X=X, Y=Y, FUNCTION1="exp" ),
+        #ARITH(device = device, X=X, Y=Y, FUNCTION1="asin"),
+        #ARITH(device = device, X=X, Y=Y, FUNCTION1="acos"),
+        #ARITH(device = device, X=X, Y=Y, FUNCTION1="atan"),
+        ARITH(device = device, X=X, Y=Y, FUNCTION1="sqrt"),
+        #ARITH(device = device, X=X, Y=Y, FUNCTION2="pow" ),
+        #ARITH(device = device, X=X, Y=Y, FUNCTION2="mod" ),
+        #ARITH(device = device, X=X, Y=Y, FUNCTION2="atan"),
     ]
-    print(json.dumps(device.asDict(), indent=2))
+    #print(json.dumps(device.asDict(), indent=2))
     
     for s in toTest:
         s.test()
