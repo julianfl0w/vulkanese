@@ -41,7 +41,7 @@ class Shader(sinode.Sinode):
         )
 
         self.gpuBuffers = Empty()
-        self.basename = self.sourceFilename[:-2]  # take out ".c"
+        self.basename = self.sourceFilename.replace(".template", "")
 
         self.debugBuffers = []
         for b in self.buffers:
@@ -58,13 +58,13 @@ class Shader(sinode.Sinode):
             with open(self.sourceFilename, "rb") as f:
                 spirv = f.read()
         # if its not an spv, compile it
-        elif self.sourceFilename.endswith(".c"):
+        elif self.sourceFilename.endswith(".template"):
             spirv = self.compile()
             with open(outfilename, "wb+") as f:
                 f.write(spirv)
         else:
             raise Exception(
-                "source template filename " + self.sourceFilename + " must end with .c"
+                "source template filename " + self.sourceFilename + " must end with .template"
             )
 
         # Create Stage
@@ -147,12 +147,8 @@ class Shader(sinode.Sinode):
 
         # COMPILE GLSL TO SPIR-V
         self.device.instance.debug("compiling Stage")
-        if self.stage == vk.VK_SHADER_STAGE_VERTEX_BIT:
-            glslFilename = os.path.join(self.basename + ".vert")
-        elif self.stage == vk.VK_SHADER_STAGE_COMPUTE_BIT:
-            glslFilename = os.path.join(self.basename + ".comp")
-        elif self.stage == vk.VK_SHADER_STAGE_FRAGMENT_BIT:
-            glslFilename = os.path.join(self.basename + ".frag")
+        glslFilename = self.basename
+            
         with open(glslFilename, "w+") as f:
             f.write(glslCode)
 
