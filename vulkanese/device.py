@@ -5,7 +5,10 @@ import time
 import json
 import vulkan as vk
 from . import vulkanese as ve
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode")))
+
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode"))
+)
 import sinode.sinode as sinode
 
 
@@ -20,9 +23,7 @@ def ctypes2dict(props, depth=0):
             if fieldType.type.kind == "primitive":
                 outDict[fieldName] = eval("props." + fieldName)
             else:
-                outDict[fieldName] = ctypes2dict(
-                    eval("props." + fieldName), depth + 1
-                )
+                outDict[fieldName] = ctypes2dict(eval("props." + fieldName), depth + 1)
         return outDict
     elif type.kind == "array":
         return [ctypes2dict(p, depth + 1) for p in props]
@@ -30,6 +31,7 @@ def ctypes2dict(props, depth=0):
         self.instance.debug(" " * depth + type.kind)
         self.instance.debug(" " * depth + dir(type))
         die
+
 
 class Device(sinode.Sinode):
     def __init__(self, **kwargs):
@@ -89,7 +91,6 @@ class Device(sinode.Sinode):
                 self.queue_family_present_index = i
             # if queue_family.queueCount > 0 and support_present:
             #     self.queue_family_present_index = i
-
 
         self.instance.debug(
             "indice of selected queue families, graphic: %s, presentation: %s\n"
@@ -205,7 +206,6 @@ class Device(sinode.Sinode):
 
         # self.descriptorPool = ve.descriptor.DescriptorPool(self)
 
-
     # find memory type with desired properties.
     def findMemoryType(self, memoryTypeBits, properties):
 
@@ -219,7 +219,7 @@ class Device(sinode.Sinode):
                 return i
 
         return -1
-    
+
     def debug(self, *args):
         self.instance.debug(args)
 

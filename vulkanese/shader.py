@@ -1,7 +1,10 @@
 import json
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode")))
+
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode"))
+)
 import sinode.sinode as sinode
 import re
 import vulkan as vk
@@ -19,24 +22,23 @@ class Empty:
 
 
 class Shader(sinode.Sinode):
-    def __init__(
-        self,
-        **kwargs
-    ):
+    def __init__(self, **kwargs):
         sinode.Sinode.__init__(self, **kwargs)
-        self.proc_kwargs(**{ 
-            "sourceFilename":"",
-            "stage":vk.VK_SHADER_STAGE_VERTEX_BIT,
-            "name":"mandlebrot",
-            "DEBUG":False,
-            "workgroupCount":[1, 1, 1],
-            "compressBuffers":True,
-            "waitSemaphores":[],
-            "waitStages":None,
-            "signalSemaphoreCount":0,  # these only used for compute shaders
-            "fenceCount":0,  # these only used for compute shaders
-            "useFence":False,
-        })
+        self.proc_kwargs(
+            **{
+                "sourceFilename": "",
+                "stage": vk.VK_SHADER_STAGE_VERTEX_BIT,
+                "name": "mandlebrot",
+                "DEBUG": False,
+                "workgroupCount": [1, 1, 1],
+                "compressBuffers": True,
+                "waitSemaphores": [],
+                "waitStages": None,
+                "signalSemaphoreCount": 0,  # these only used for compute shaders
+                "fenceCount": 0,  # these only used for compute shaders
+                "useFence": False,
+            }
+        )
 
         self.gpuBuffers = Empty()
         self.basename = self.sourceFilename[:-2]  # take out ".c"
@@ -61,7 +63,9 @@ class Shader(sinode.Sinode):
             with open(outfilename, "wb+") as f:
                 f.write(spirv)
         else:
-            raise Exception("source template filename " + self.sourceFilename + " must end with .c")
+            raise Exception(
+                "source template filename " + self.sourceFilename + " must end with .c"
+            )
 
         # Create Stage
         self.vkShaderModuleCreateInfo = vk.VkShaderModuleCreateInfo(
@@ -99,7 +103,7 @@ class Shader(sinode.Sinode):
                 signalSemaphoreCount=self.signalSemaphoreCount,
                 useFence=self.useFence,
             )
-            #self.computePipeline.children += [self]
+            # self.computePipeline.children += [self]
 
         # first run is always slow
         # run once in init so people dont judge the first run

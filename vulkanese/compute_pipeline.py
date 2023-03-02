@@ -7,7 +7,10 @@ import vulkan as vk
 import re
 from . import buffer
 from . import synchronization
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode")))
+
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode"))
+)
 import sinode.sinode as sinode
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -24,10 +27,7 @@ def getVulkanesePath():
 # shader
 # All in one. it is self-contained
 class ComputePipeline(sinode.Sinode):
-    def __init__(
-        self,
-        **kwargs
-    ):
+    def __init__(self, **kwargs):
         sinode.Sinode.__init__(self, **kwargs)
         # set the defaults here
         self.proc_kwargs(
@@ -56,9 +56,7 @@ class ComputePipeline(sinode.Sinode):
             sType=vk.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             flags=0,
             setLayoutCount=len(self.descriptorPool.descSets),
-            pSetLayouts=[
-                d.vkDescriptorSetLayout for d in self.descriptorPool.descSets
-            ],
+            pSetLayouts=[d.vkDescriptorSetLayout for d in self.descriptorPool.descSets],
             pushConstantRangeCount=0,
             pPushConstantRanges=[push_constant_ranges],
         )
@@ -109,7 +107,7 @@ class ComputePipeline(sinode.Sinode):
         # We need to bind a pipeline, AND a descriptor set before we dispatch.
         # The validation layer will NOT give warnings if you forget these, so be very careful not to forget them.
         vk.vkCmdBindPipeline(
-            self.vkCommandBuffer, vk.VK_PIPELINE_BIND_POINT_COMPUTE, self.vkPipeline,
+            self.vkCommandBuffer, vk.VK_PIPELINE_BIND_POINT_COMPUTE, self.vkPipeline
         )
 
         vk.vkCmdBindDescriptorSets(

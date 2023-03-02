@@ -1,7 +1,10 @@
 import json
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode")))
+
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode"))
+)
 import sinode.sinode as sinode
 
 
@@ -13,9 +16,7 @@ class DescriptorPool(sinode.Sinode):
     def __init__(self, **kwargs):
 
         sinode.Sinode.__init__(self, **kwargs)
-        self.proc_kwargs(**{
-            "MAX_FRAMES_IN_FLIGHT":3,
-        })
+        self.proc_kwargs(**{"MAX_FRAMES_IN_FLIGHT": 3})
 
         self.vkDevice = self.device.vkDevice
 
@@ -163,7 +164,7 @@ class DescriptorPool(sinode.Sinode):
 
 class DescriptorSet(sinode.Sinode):
     def __init__(self, descriptorPool, binding, name, type, MAX_FRAMES_IN_FLIGHT=3):
-        sinode.Sinode.__init__(self, parent = descriptorPool)
+        sinode.Sinode.__init__(self, parent=descriptorPool)
         self.name = name
         self.device = descriptorPool.device
         self.vkDevice = descriptorPool.vkDevice
@@ -213,4 +214,3 @@ class DescriptorSet(sinode.Sinode):
             vkDestroyDescriptorSetLayout(
                 self.vkDevice, self.vkDescriptorSetLayout, None
             )
-

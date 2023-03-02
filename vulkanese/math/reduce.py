@@ -142,7 +142,7 @@ if __name__ == "__main__":
     # begin GPU test
     instance = Instance(verbose=False)
     device = instance.getDevice(0)
-    linst_gpu = Sum(device=device, fprime=fprime, multiple=linst.multiple,)
+    linst_gpu = Sum(device=device, fprime=fprime, multiple=linst.multiple)
     linst_gpu.gpuBuffers.x.set(z)
     for i in range(10):
         linst_gpu.debugRun()
