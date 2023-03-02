@@ -15,7 +15,8 @@ This repository
 
 It is comparable to
 * Nvidia's CUDA
-* Linux's Kompute
+* [Linux's Kompute](https://github.com/KomputeProject/kompute)
+* [Alibaba's MNN](https://github.com/alibaba/MNN)
 
 ## Sponsorship Request
 This repository is looking for a sponsor! It has potential to simplify the fields of
