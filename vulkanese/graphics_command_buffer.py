@@ -3,14 +3,27 @@ import os
 import time
 import json
 import vulkan as vk
-from . import sinode
+import sys
 from . import synchronization
 import numpy as np
 
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode"))
+)
+import sinode.sinode as sinode
+
 
 class GraphicsCommandBuffer(sinode.Sinode):
-    def __init__(self, device, pipeline, renderpass, vkCommandBuffer, surface, index,
-        waitStages=[vk.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT]):
+    def __init__(
+        self,
+        device,
+        pipeline,
+        renderpass,
+        vkCommandBuffer,
+        surface,
+        index,
+        waitStages=[vk.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT],
+    ):
         sinode.Sinode.__init__(self, pipeline)
         self.device = device
         self.renderpass = renderpass
@@ -46,11 +59,14 @@ class GraphicsCommandBuffer(sinode.Sinode):
             subresourceRange=self.subresourceRange,
         )
 
-        self.imageView = vk.vkCreateImageView(self.device.vkDevice, self.vkImageViewCreateInfo, None)
+        self.imageView = vk.vkCreateImageView(
+            self.device.vkDevice, self.vkImageViewCreateInfo, None
+        )
 
-            
         # Create Graphics render pass
-        self.render_area = vk.VkRect2D(offset=vk.VkOffset2D(x=0, y=0), extent=self.surface.extent)
+        self.render_area = vk.VkRect2D(
+            offset=vk.VkOffset2D(x=0, y=0), extent=self.surface.extent
+        )
         # Framebuffers creation
         self.framebuffer_create = vk.VkFramebufferCreateInfo(
             sType=vk.VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
@@ -94,15 +110,14 @@ class GraphicsCommandBuffer(sinode.Sinode):
             pSignalSemaphores=[self.pipeline.renderSemaphore.vkSemaphore],
         )
 
-        
     def release(self):
-        
+
         print("destroying framebuffer ")
         vk.vkDestroyFramebuffer(self.device.vkDevice, self.vkFramebuffer, None)
         vk.vkDestroyImageView(self.device.vkDevice, self.imageView, None)
-        
+
     def recordBuffer(self):
-        
+
         # start recording commands into it
         vkCommandBufferBeginInfo = vk.VkCommandBufferBeginInfo(
             sType=vk.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -112,10 +127,10 @@ class GraphicsCommandBuffer(sinode.Sinode):
         )
 
         vk.vkBeginCommandBuffer(self.vkCommandBuffer, vkCommandBufferBeginInfo)
-        
-        # bind the buffers  
+
+        # bind the buffers
         print([b.name for b in self.pipeline.allVertexBuffers])
-        #die
+        # die
         vk.vkCmdBindVertexBuffers(
             commandBuffer=self.vkCommandBuffer,
             firstBinding=0,
@@ -130,7 +145,7 @@ class GraphicsCommandBuffer(sinode.Sinode):
             offset=0,
             indexType=vk.VK_INDEX_TYPE_UINT32,
         )
-        
+
         vk.vkCmdBeginRenderPass(
             self.vkCommandBuffer,
             self.vkRenderPassBeginInfo,
@@ -138,9 +153,11 @@ class GraphicsCommandBuffer(sinode.Sinode):
         )
         # Bind graphicsPipeline
         vk.vkCmdBindPipeline(
-            self.vkCommandBuffer, vk.VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.vkPipeline,
+            self.vkCommandBuffer,
+            vk.VK_PIPELINE_BIND_POINT_GRAPHICS,
+            self.pipeline.vkPipeline,
         )
-        
+
         # Draw
         # void vkCmdDraw(
         # 	self.vkCommandBuffer commandBuffer,
@@ -169,4 +186,3 @@ class GraphicsCommandBuffer(sinode.Sinode):
         # End
         vk.vkCmdEndRenderPass(self.vkCommandBuffer)
         vk.vkEndCommandBuffer(self.vkCommandBuffer)
-        

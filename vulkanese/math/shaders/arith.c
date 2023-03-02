@@ -9,5 +9,13 @@ layout (local_size_x = THREADS_PER_WORKGROUP, local_size_y = 1, local_size_z = 1
 
 void main() {
     uint workgroup_ix = gl_GlobalInvocationID.x;
+    #ifdef OPERATION
     sumOut[workgroup_ix] = x[workgroup_ix] OPERATION y[workgroup_ix%YLEN];
+    #endif
+    #ifdef FUNCTION1
+    sumOut[workgroup_ix] = FUNCTION1 (x[workgroup_ix]);
+    #endif
+    #ifdef FUNCTION2
+    sumOut[workgroup_ix] = FUNCTION2 (x[workgroup_ix] , y[workgroup_ix%YLEN]);
+    #endif
 }

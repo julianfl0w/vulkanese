@@ -17,6 +17,9 @@ class Node(object):
 
     def asDict(self):
         retList = []
+        if hasattr(self, "name"):
+            retList += [self.name]
+
         for child in self.children:
             try:
                 retList += [child.asDict()]
@@ -127,4 +130,3 @@ class Minode(Node):
         if str(type(self.parent)) == ancestorType:
             return self
         return self.parent.getAncestor(ancestorType)
-

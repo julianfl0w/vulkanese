@@ -12,14 +12,20 @@ from . import shader
 from . import descriptor
 from . import device
 from . import buffer
-from . import sinode
+
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode"))
+)
+import sinode.sinode as sinode
+
+from inspect import getframeinfo, stack
 
 vulkanesehome = os.path.dirname(os.path.abspath(__file__))
 
 
 class Instance(sinode.Sinode):
     def __init__(self, verbose=False):
-        sinode.Sinode.__init__(self, None)
+        sinode.Sinode.__init__(self, parent=None)
         self.verbose = verbose
         self.debug("version number ")
         packedVersion = vk.vkEnumerateInstanceVersion()
@@ -64,13 +70,13 @@ class Instance(sinode.Sinode):
         print(json.dumps(self.layers, indent=2))
 
         self.layerList = []
-        #if "VK_LAYER_RENDERDOC_Capture" in self.layers:
+        # if "VK_LAYER_RENDERDOC_Capture" in self.layers:
         #    self.layerList += ["VK_LAYER_RENDERDOC_Capture"]
         if "VK_LAYER_KHRONOS_validation" in self.layers:
             self.layerList += ["VK_LAYER_KHRONOS_validation"]
         elif "VK_LAYER_LUNARG_standard_validation" in self.layers:
             self.layerList += ["VK_LAYER_LUNARG_standard_validation"]
-            
+
         if self.verbose:
             self.debug("applying layers " + str(self.layerList))
         createInfo = vk.VkInstanceCreateInfo(
@@ -110,7 +116,10 @@ class Instance(sinode.Sinode):
 
     def debug(self, *args):
         if self.verbose:
-            print(args)
+            caller = getframeinfo(stack()[1][0])
+            print(
+                "%s:%d - %s" % (os.path.basename(caller.filename), caller.lineno, args)
+            )  # python3 syntax print
 
     def getDeviceList(self):
         self.physical_devices = vk.vkEnumeratePhysicalDevices(self.vkInstance)
@@ -128,7 +137,7 @@ class Instance(sinode.Sinode):
         return devdict
 
     def getDevice(self, deviceIndex):
-        newDev = device.Device(self, deviceIndex)
+        newDev = device.Device(parent=self, instance=self, deviceIndex=deviceIndex)
         return newDev
 
     def release(self):

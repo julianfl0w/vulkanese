@@ -14,26 +14,29 @@ import vulkan as vk
 import gc
 import shapes
 
+
 class PyramidExample(simple_graphics.SimpleGraphicsPipeline):
     def __init__(self, device, surface, constantsDict):
-        simple_graphics.SimpleGraphicsPipeline.__init__(self, device=device, surface=surface, constantsDict=constantsDict)
-        
+        simple_graphics.SimpleGraphicsPipeline.__init__(
+            self, device=device, surface=surface, constantsDict=constantsDict
+        )
+
         # create the pyramid
-        self.pyramid = vulkanese.shapes.Pyramid()
-        
+        self.pyramid = ve.shapes.Pyramid()
+
         # set the buffers. vulkanese will automatically flush them
-        self.indexBuffer.set(np.array(self.pyramid.mesh.triangles, dtype = np.uint32).flatten())
+        self.indexBuffer.set(
+            np.array(self.pyramid.mesh.triangles, dtype=np.uint32).flatten()
+        )
         self.vertexStage.gpuBuffers.position.set(
             np.array(self.pyramid.mesh.vertices).flatten()
         )
-        self.vertexStage.gpuBuffers.color.set(
-            self.pyramid.verticesColorBGR
-        )
-        
+        self.vertexStage.gpuBuffers.color.set(self.pyramid.verticesColorBGR)
+
         print(self.indexBuffer.getAsNumpyArray())
         print(self.vertexStage.gpuBuffers.position.getAsNumpyArray())
         print(self.vertexStage.gpuBuffers.color.getAsNumpyArray())
-        
+
     def run(self):
         # rotate and redraw the pyramid
         self.pyramid.rotate(self.fps_last)
@@ -60,7 +63,7 @@ if __name__ == "__main__":
     # disable the garbage collector,
     # otherwise python may delete vulkan objects
     gc.disable()
-    
+
     # constants declared here will be visible in this class as an attribute,
     # and in the shader as a #define
     # we need 12 verts for a pyramid
@@ -77,21 +80,18 @@ if __name__ == "__main__":
     instance = ve.instance.Instance(verbose=True)
     print("naively choosing device 0")
     device = instance.getDevice(0)
-    
+
     surface = ve.surface.Surface(
-        instance=instance,
-        device=device,
-        width=width,
-        height=height,
+        instance=instance, device=device, width=width, height=height
     )
-        
+
     ht = PyramidExample(device=device, surface=surface, constantsDict=constantsDict)
-    
+
     # print the object hierarchy
     print("Object tree:")
     print(json.dumps(instance.asDict(), indent=4))
 
-    while(ht.running):
+    while ht.running:
         ht.run()
 
     # elegantly free all memory

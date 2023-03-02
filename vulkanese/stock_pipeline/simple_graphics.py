@@ -17,8 +17,8 @@ htHere = os.path.dirname(os.path.abspath(__file__))
 
 
 class SimpleGraphicsPipeline(ve.graphics_pipeline.GraphicsPipeline):
-    def __init__(self, device, surface, constantsDict): 
-        self.width  = 700
+    def __init__(self, device, surface, constantsDict):
+        self.width = 700
         self.height = 700
         self.device = device
         self.constantsDict = constantsDict
@@ -32,7 +32,7 @@ class SimpleGraphicsPipeline(ve.graphics_pipeline.GraphicsPipeline):
             qualifier="out",
             location=3,
             dimensionVals=[self.VERTEX_COUNT, self.SPATIAL_DIMENSIONS],
-            #dimensionVals=[self.width, self.height],
+            # dimensionVals=[self.width, self.height],
             stride=12,
             compress=False,
         )
@@ -42,7 +42,7 @@ class SimpleGraphicsPipeline(ve.graphics_pipeline.GraphicsPipeline):
             dimensionVals=[self.TRIANGLE_COUNT, self.VERTS_PER_TRIANGLE],
             stride=4,
         )
-        
+
         # Input buffers to the shader
         self.vertexBuffers = [
             ve.buffer.VertexBuffer(

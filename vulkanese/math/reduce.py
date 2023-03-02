@@ -25,9 +25,6 @@ class Sum(ve.shader.Shader):
         memProperties=0
         | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
         | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-        outMemProperties=0
-        | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-        | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
     ):
 
         # the constants will be placed into the shader.comp file,
@@ -85,12 +82,11 @@ class Sum(ve.shader.Shader):
 
         # Create a compute shader
         # Compute Stage: the only stage
-        ve.shader.ComputeShader.__init__(
+        ve.shader.Shader.__init__(
             self,
             sourceFilename=os.path.join(
                 sum_home, "shaders/sum.c"
             ),  # can be GLSL or SPIRV
-            parent=self.instance,
             constantsDict=self.constantsDict,
             stage=vk.VK_SHADER_STAGE_COMPUTE_BIT,
             device=self.device,
@@ -146,7 +142,7 @@ if __name__ == "__main__":
     # begin GPU test
     instance = Instance(verbose=False)
     device = instance.getDevice(0)
-    linst_gpu = Sum(device=device, fprime=fprime, multiple=linst.multiple,)
+    linst_gpu = Sum(device=device, fprime=fprime, multiple=linst.multiple)
     linst_gpu.gpuBuffers.x.set(z)
     for i in range(10):
         linst_gpu.debugRun()

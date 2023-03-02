@@ -12,8 +12,13 @@ from . import renderpass
 from . import surface
 from . import graphics_command_buffer
 
-from . import sinode
 import numpy as np
+import sys
+
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode"))
+)
+import sinode.sinode as sinode
 
 
 class GraphicsPipeline(sinode.Sinode):
@@ -51,7 +56,7 @@ class GraphicsPipeline(sinode.Sinode):
         self.renderFence = synchronization.Fence(device=self.device)
         self.acquireFence = synchronization.Fence(device=self.device)
         self.fences = [self.renderFence]
-        self.renderSemaphore  = synchronization.Semaphore(device=self.device)
+        self.renderSemaphore = synchronization.Semaphore(device=self.device)
         self.presentSemaphore = synchronization.Semaphore(device=self.device)
 
         push_constant_ranges = vk.VkPushConstantRange(stageFlags=0, offset=0, size=0)
@@ -60,10 +65,10 @@ class GraphicsPipeline(sinode.Sinode):
         self.vkPipelineLayoutCreateInfo = vk.VkPipelineLayoutCreateInfo(
             sType=vk.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             flags=0,
-            #setLayoutCount=len(device.descriptorPool.descSets),
-            #pSetLayouts=[
+            # setLayoutCount=len(device.descriptorPool.descSets),
+            # pSetLayouts=[
             #    d.vkDescriptorSetLayout for d in device.descriptorPool.descSets
-            #],
+            # ],
             pushConstantRangeCount=0,
             pPushConstantRanges=[push_constant_ranges],
         )
@@ -83,7 +88,7 @@ class GraphicsPipeline(sinode.Sinode):
         for b in self.vertexStage.buffers:
             if b.usage == vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or b.name == "index":
                 self.allVertexBuffers += [b]
-        #self.allVertexBuffers += [self.indexBuffer]
+        # self.allVertexBuffers += [self.indexBuffer]
         self.allVertexBuffers = list(set(self.allVertexBuffers))
 
         self.vkAcquireNextImageKHR = vk.vkGetInstanceProcAddr(
@@ -107,25 +112,25 @@ class GraphicsPipeline(sinode.Sinode):
             self.device.instance.vkInstance, "vkQueuePresentKHR"
         )
 
-        
         print(self.surface.vkSwapchain)
         # presentation creator
         self.vkPresentInfoKHR = vk.VkPresentInfoKHR(
             sType=vk.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
             waitSemaphoreCount=1,
-            pWaitSemaphores=[self.renderSemaphore.vkSemaphore], # wait on the render before presenting
+            pWaitSemaphores=[
+                self.renderSemaphore.vkSemaphore
+            ],  # wait on the render before presenting
             swapchainCount=1,
             pSwapchains=[self.surface.vkSwapchain],
             pImageIndices=[0],
             pResults=None,
         )
-        
+
         self.last_time = time.time()
         self.fps_last = 60
         self.fps = 0
         self.running = True
-        
-        
+
     def draw_frame(self):
 
         # timing
@@ -135,35 +140,37 @@ class GraphicsPipeline(sinode.Sinode):
             self.fps_last = self.fps
             self.fps = 0
             self.device.debug("FPS: %s" % self.fps)
-        
+
         # acquire a writeable image
         self.device.debug("getting current GCB")
         image_index = self.vkAcquireNextImageKHR(
-            device = self.device.vkDevice,
-            swapchain = self.surface.vkSwapchain,
-            timeout = vk.UINT64_MAX,
-            #semaphore = None,
-            semaphore = self.presentSemaphore.vkSemaphore,
-            #fence = self.acquireFence.vkFence,
-            fence = None,
+            device=self.device.vkDevice,
+            swapchain=self.surface.vkSwapchain,
+            timeout=vk.UINT64_MAX,
+            # semaphore = None,
+            semaphore=self.presentSemaphore.vkSemaphore,
+            # fence = self.acquireFence.vkFence,
+            fence=None,
         )
         self.device.debug("acquired image " + str(image_index))
         thisGCB = self.GraphicsCommandBuffers[image_index]
-        #self.acquireFence.wait()
-        
+        # self.acquireFence.wait()
+
         # submit the appropriate queue
         self.device.debug("submitting queue")
-        vk.vkQueueSubmit(self.device.graphic_queue, 1, [thisGCB.vkSubmitInfo], fence=None)#self.renderFence.vkFence)
-        #self.renderFence.wait()
+        vk.vkQueueSubmit(
+            self.device.graphic_queue, 1, [thisGCB.vkSubmitInfo], fence=None
+        )  # self.renderFence.vkFence)
+        # self.renderFence.wait()
         self.device.debug("presenting")
-        
+
         # present it when finished
         self.vkPresentInfoKHR.pImageIndices[0] = image_index
         self.vkQueuePresentKHR(self.device.presentation_queue, self.vkPresentInfoKHR)
-        
+
         vk.vkQueueWaitIdle(self.device.presentation_queue)
-        
-        #self.frameNumber = (self.frameNumber + 1) % 3
+
+        # self.frameNumber = (self.frameNumber + 1) % 3
 
     def getAllBuffers(self):
         self.device.debug("Getting all buffers")
@@ -176,10 +183,10 @@ class GraphicsPipeline(sinode.Sinode):
     def createGraphicsPipeline(self):
         self.device.debug("Creating graphics pipeline")
 
-        #print([b.name for b in self.allVertexBuffers])
-        #print([b.location for b in self.allVertexBuffers])
-        #print(len(self.allVertexBuffers))
-        
+        # print([b.name for b in self.allVertexBuffers])
+        # print([b.location for b in self.allVertexBuffers])
+        # print(len(self.allVertexBuffers))
+
         # Create graphic Pipeline
         self.vertex_input_create = vk.VkPipelineVertexInputStateCreateInfo(
             sType=vk.VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
@@ -340,12 +347,11 @@ class GraphicsPipeline(sinode.Sinode):
             g.release()
 
         self.renderpass.release()
-        
+
         self.renderFence.release()
         self.acquireFence.release()
         self.renderSemaphore.release()
         self.presentSemaphore.release()
-            
+
         vk.vkDestroyPipeline(self.device.vkDevice, self.vkPipeline, None)
         vk.vkDestroyPipelineLayout(self.device.vkDevice, self.vkPipelineLayout, None)
-        
