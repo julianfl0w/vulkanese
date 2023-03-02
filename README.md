@@ -37,8 +37,7 @@ Possible avenues for development include
 Please send me an email at jcloiacon@gmail.com
 
 ## The Hierarchy  
-![Vulkanese - Simple Hierarchy](https://user-images.githubusercontent.com/8158655/222509266-7af4d0d2-3c25-4ec7-8bd2-ae8859ca5b1a.png | width=50%)
-
+<img src="https://user-images.githubusercontent.com/8158655/222509266-7af4d0d2-3c25-4ec7-8bd2-ae8859ca5b1a.png" width="50%">
 
 ## GPGPU Example: Simple Addition
 
