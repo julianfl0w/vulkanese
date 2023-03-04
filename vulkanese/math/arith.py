@@ -10,38 +10,38 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import vulkanese as ve
 import vulkan as vk
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode")))
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode"))
+)
 import sinode.sinode as sinode
 
-class ARITH(ve.shader.Shader):
-    def __init__(
-        self,
-        **kwargs
-    ):
-        sinode.Sinode.__init__(self, **kwargs)
-        self.proc_kwargs(**{
 
-            "parent":None,
-            "OPERATION":None,
-            "FUNCTION1":None,
-            "FUNCTION2":None,
-            "DEBUG":False,
-            "buffType":"float",
-            "shader_basename":"shaders/arith",
-            "memProperties":(
-                vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-                | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-            ),
-            "useFence":True, 
-        })
+class ARITH(ve.shader.Shader):
+    def __init__(self, **kwargs):
+        sinode.Sinode.__init__(self, **kwargs)
+        self.proc_kwargs(
+            **{
+                "parent": None,
+                "DEBUG": False,
+                "buffType": "float",
+                "shader_basename": "shaders/arith",
+                "memProperties": (
+                    vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+                    | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                    | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+                ),
+                "useFence": True,
+            }
+        )
+
         constantsDict = {}
         constantsDict["PROCTYPE"] = self.buffType
-        if self.OPERATION is not None:
+
+        if hasattr(self, "OPERATION"):
             constantsDict["OPERATION"] = self.OPERATION
-        elif self.FUNCTION1 is not None:
+        elif hasattr(self, "FUNCTION1"):
             constantsDict["FUNCTION1"] = self.FUNCTION1
-        elif self.FUNCTION2 is not None:
+        elif hasattr(self, "FUNCTION2"):
             constantsDict["FUNCTION2"] = self.FUNCTION2
         else:
             die
@@ -53,7 +53,9 @@ class ARITH(ve.shader.Shader):
         self.instance = self.device.instance
         self.constantsDict = constantsDict
 
-        self.descriptorPool = ve.descriptor.DescriptorPool(device=self.device, parent = self)
+        self.descriptorPool = ve.descriptor.DescriptorPool(
+            device=self.device, parent=self
+        )
 
         buffers = [
             ve.buffer.StorageBuffer(
@@ -63,7 +65,7 @@ class ARITH(ve.shader.Shader):
                 qualifier="readonly",
                 dimensionVals=np.shape(self.X),
                 memProperties=self.memProperties,
-                descriptorSet = self.descriptorPool.descSetGlobal
+                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
@@ -72,7 +74,7 @@ class ARITH(ve.shader.Shader):
                 qualifier="readonly",
                 dimensionVals=np.shape(self.Y),
                 memProperties=self.memProperties,
-                descriptorSet = self.descriptorPool.descSetGlobal
+                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
@@ -81,7 +83,7 @@ class ARITH(ve.shader.Shader):
                 qualifier="writeonly",
                 dimensionVals=np.shape(self.X),
                 memProperties=self.memProperties,
-                descriptorSet = self.descriptorPool.descSetGlobal
+                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
         ]
 
@@ -91,7 +93,7 @@ class ARITH(ve.shader.Shader):
         ve.shader.Shader.__init__(
             self,
             sourceFilename=os.path.join(
-                arith_home, self.shader_basename + ".c"
+                arith_home, self.shader_basename + ".comp.template"
             ),  # can be GLSL or SPIRV
             constantsDict=self.constantsDict,
             device=self.device,
@@ -100,24 +102,26 @@ class ARITH(ve.shader.Shader):
             buffers=buffers,
             DEBUG=self.DEBUG,
             workgroupCount=[
-                int(np.prod(np.shape(self.X)) / (constantsDict["THREADS_PER_WORKGROUP"])),
+                int(
+                    np.prod(np.shape(self.X)) / (constantsDict["THREADS_PER_WORKGROUP"])
+                ),
                 1,
                 1,
             ],
-            useFence = self.useFence
+            useFence=self.useFence,
         )
 
         self.gpuBuffers.x.set(self.X)
         self.gpuBuffers.y.set(self.Y)
-        
+
     def baseline(self, X, Y):
-        if self.OPERATION is not None:
-            retval = self.npEquivalent(X,Y)
+        if hasattr(self, "OPERATION"):
+            retval = self.npEquivalent(X, Y)
             return retval
-        if self.FUNCTION1 is not None:
-            return eval("np." + self.FUNCTION1  + "(X)")
-        if self.FUNCTION2 is not None:
-            return eval("np." + self.FUNCTION2  + "(X, Y)")
+        elif hasattr(self, "FUNCTION1"):
+            return eval("np." + self.FUNCTION1 + "(X)")
+        elif hasattr(self, "FUNCTION2"):
+            return eval("np." + self.FUNCTION2 + "(X, Y)")
         else:
             die
 
@@ -125,17 +129,18 @@ class ARITH(ve.shader.Shader):
 
         self.run(blocking=True)
         result = self.gpuBuffers.sumOut.get()
-        expectation = self.baseline(
-            self.gpuBuffers.x.get(),
-            self.gpuBuffers.y.get()
-            )
+        expectation = self.baseline(self.gpuBuffers.x.get(), self.gpuBuffers.y.get())
         self.passed = np.allclose(result.astype(float), expectation.astype(float))
-        if self.OPERATION is not None:
+
+        if hasattr(self, "OPERATION"):
             print(self.OPERATION + ": " + str(self.passed))
-        if self.FUNCTION1 is not None:
+        elif hasattr(self, "FUNCTION1"):
             print(self.FUNCTION1 + ": " + str(self.passed))
-        if self.FUNCTION2 is not None:
+        elif hasattr(self, "FUNCTION2"):
             print(self.FUNCTION2 + ": " + str(self.passed))
+        else:
+            die
+
         return self.passed
 
 
@@ -145,27 +150,29 @@ def test(device):
     X = np.random.random((signalLen))
     Y = np.random.random((signalLen))
     toTest = [
-        ARITH(parent=device, device = device, X=X, Y=Y, OPERATION="+"   , npEquivalent=np.add),
-        ARITH(device = device, X=X, Y=Y, OPERATION="-"   , npEquivalent=np.subtract),
-        ARITH(device = device, X=X, Y=Y, OPERATION="*"   , npEquivalent=np.multiply),
-        ARITH(device = device, X=X, Y=Y, OPERATION="/"   , npEquivalent=np.divide),
-        ARITH(device = device, X=X, Y=Y, FUNCTION1="sin" ),
-        ARITH(device = device, X=X, Y=Y, FUNCTION1="cos" ),
-        ARITH(device = device, X=X, Y=Y, FUNCTION1="tan" ),
-        ARITH(device = device, X=X, Y=Y, FUNCTION1="exp" ),
-        #ARITH(device = device, X=X, Y=Y, FUNCTION1="asin"),
-        #ARITH(device = device, X=X, Y=Y, FUNCTION1="acos"),
-        #ARITH(device = device, X=X, Y=Y, FUNCTION1="atan"),
-        ARITH(device = device, X=X, Y=Y, FUNCTION1="sqrt"),
-        #ARITH(device = device, X=X, Y=Y, FUNCTION2="pow" ),
-        #ARITH(device = device, X=X, Y=Y, FUNCTION2="mod" ),
-        #ARITH(device = device, X=X, Y=Y, FUNCTION2="atan"),
+        ARITH(
+            parent=device, device=device, X=X, Y=Y, OPERATION="+", npEquivalent=np.add
+        ),
+        ARITH(device=device, X=X, Y=Y, OPERATION="-", npEquivalent=np.subtract),
+        ARITH(device=device, X=X, Y=Y, OPERATION="*", npEquivalent=np.multiply),
+        ARITH(device=device, X=X, Y=Y, OPERATION="/", npEquivalent=np.divide),
+        ARITH(device=device, X=X, Y=Y, FUNCTION1="sin"),
+        ARITH(device=device, X=X, Y=Y, FUNCTION1="cos"),
+        ARITH(device=device, X=X, Y=Y, FUNCTION1="tan"),
+        ARITH(device=device, X=X, Y=Y, FUNCTION1="exp"),
+        # ARITH(device = device, X=X, Y=Y, FUNCTION1="asin"),
+        # ARITH(device = device, X=X, Y=Y, FUNCTION1="acos"),
+        # ARITH(device = device, X=X, Y=Y, FUNCTION1="atan"),
+        ARITH(device=device, X=X, Y=Y, FUNCTION1="sqrt"),
+        # ARITH(device = device, X=X, Y=Y, FUNCTION2="pow" ),
+        # ARITH(device = device, X=X, Y=Y, FUNCTION2="mod" ),
+        # ARITH(device = device, X=X, Y=Y, FUNCTION2="atan"),
     ]
-    #print(json.dumps(device.asDict(), indent=2))
-    
+    # print(json.dumps(device.asDict(), indent=2))
+
     for s in toTest:
         s.test()
-        #s.release()
+        # s.release()
 
 
 if __name__ == "__main__":
@@ -173,6 +180,6 @@ if __name__ == "__main__":
     # begin GPU test
     instance = ve.instance.Instance(verbose=True)
     device = instance.getDevice(0)
-    
+
     test(device=device)
     instance.release()

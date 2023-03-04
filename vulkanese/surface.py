@@ -7,7 +7,10 @@ import ctypes
 import json
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode")))
+
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode"))
+)
 import sinode.sinode as sinode
 
 
@@ -41,17 +44,17 @@ class Surface(sinode.Sinode):
 
         self.wm_info = sdl2.SDL_SysWMinfo()
         sdl2.SDL_VERSION(self.wm_info.version)
-        
+
         sdl2.SDL_GetWindowWMInfo(self.window, ctypes.byref(self.wm_info))
 
-        #extensions = ["vk.VK_KHR_surface", "vk.VK_EXT_debug_report"]
-        #if self.wm_info.subsystem == sdl2.SDL_SYSWM_WINDOWS:
+        # extensions = ["vk.VK_KHR_surface", "vk.VK_EXT_debug_report"]
+        # if self.wm_info.subsystem == sdl2.SDL_SYSWM_WINDOWS:
         #    extensions.append("vk.VK_KHR_win32_surface")
-        #elif self.wm_info.subsystem == sdl2.SDL_SYSWM_X11:
+        # elif self.wm_info.subsystem == sdl2.SDL_SYSWM_X11:
         #    extensions.append("vk.VK_KHR_xlib_surface")
-        #elif self.wm_info.subsystem == sdl2.SDL_SYSWM_WAYLAND:
+        # elif self.wm_info.subsystem == sdl2.SDL_SYSWM_WAYLAND:
         #    extensions.append("vk.VK_KHR_wayland_surface")
-        #else:
+        # else:
         #    raise Exception("Platform not supported: " + str(self.wm_info.subsystem))
 
         self.surface_mapping = {
@@ -68,15 +71,16 @@ class Surface(sinode.Sinode):
         )
         for i, queue_family in enumerate(device.queueFamilies):
             print(queue_family)
-            
+
             queue_familyPre = dd.ctypes2dict(queue_family)
             print(json.dumps(queue_familyPre, indent=2))
             support_present = vkGetPhysicalDeviceSurfaceSupportKHR(
                 physicalDevice=device.physical_device,
                 queueFamilyIndex=i,
-                surface=self.vkSurface)
+                surface=self.vkSurface,
+            )
             print(support_present)
-            
+
         # ----------
         # Create swapchain
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR = vk.vkGetInstanceProcAddr(
@@ -128,7 +132,7 @@ class Surface(sinode.Sinode):
         print("selected colorspace: %s" % self.surface_format.colorSpace)
         print("%s available swapchain present modes" % len(self.present_modes))
         print("image count " + str(self.imageCount))
-        
+
         self.swapchain_create = vk.VkSwapchainCreateInfoKHR(
             sType=vk.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
             flags=0,
@@ -152,7 +156,9 @@ class Surface(sinode.Sinode):
         vkCreateSwapchainKHR = vk.vkGetInstanceProcAddr(
             self.instance.vkInstance, "vkCreateSwapchainKHR"
         )
-        self.vkSwapchain = vkCreateSwapchainKHR(self.device.vkDevice, self.swapchain_create, None)
+        self.vkSwapchain = vkCreateSwapchainKHR(
+            self.device.vkDevice, self.swapchain_create, None
+        )
         vkGetSwapchainImagesKHR = vk.vkGetInstanceProcAddr(
             self.instance.vkInstance, "vkGetSwapchainImagesKHR"
         )
