@@ -1,3 +1,3 @@
 from . import arith, reduce
-from . import loiacono
+from . import signals
 from . import machine_learning

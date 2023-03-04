@@ -10,9 +10,13 @@ sys.path.insert(
     0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 )
 import vulkanese as ve
-from . import loiacono
 import vulkan as vk
 import numpy as np
+
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "sinode"))
+)
+import sinode.sinode as sinode
 
 loiacono_home = os.path.dirname(os.path.abspath(__file__))
 
@@ -31,7 +35,7 @@ class Loiacono_GPU(ve.shader.Shader):
         | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
         | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
     ):
-
+        sinode.Sinode.__init__(self)
         # the constants will be placed into the shader.comp file,
         # and also available in Python
         constantsDict["multiple"] = multiple
@@ -51,6 +55,11 @@ class Loiacono_GPU(ve.shader.Shader):
         self.numSubgroupsPerFprime = int(self.numSubgroups / len(fprime))
         self.spectrum = np.zeros((len(fprime)))
 
+        # every shader chain has its own descriptor pool
+        self.descriptorPool = ve.descriptor.DescriptorPool(
+            device=self.device, parent=self
+        )
+
         # declare buffers. they will be in GPU memory, but visible from the host (!)
         buffers = [
             # x is the input signal
@@ -61,6 +70,7 @@ class Loiacono_GPU(ve.shader.Shader):
                 qualifier="readonly",
                 dimensionVals=[2 ** 15],  # always 32**3
                 memProperties=memProperties,
+                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             # The following 4 are reduction buffers
             # Intermediate buffers for computing the sum
@@ -69,24 +79,28 @@ class Loiacono_GPU(ve.shader.Shader):
                 name="Li1",
                 memtype=buffType,
                 dimensionVals=[len(fprime), self.device.subgroupSize ** 2],
+                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
                 name="Lr1",
                 memtype=buffType,
                 dimensionVals=[len(fprime), self.device.subgroupSize ** 2],
+                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
                 name="Li0",
                 memtype=buffType,
                 dimensionVals=[len(fprime), self.device.subgroupSize],
+                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
                 name="Lr0",
                 memtype=buffType,
                 dimensionVals=[len(fprime), self.device.subgroupSize],
+                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             # L is the final output
             ve.buffer.StorageBuffer(
@@ -96,6 +110,7 @@ class Loiacono_GPU(ve.shader.Shader):
                 qualifier="writeonly",
                 dimensionVals=[len(fprime)],
                 memProperties=memProperties,
+                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
@@ -104,6 +119,7 @@ class Loiacono_GPU(ve.shader.Shader):
                 qualifier="readonly",
                 dimensionVals=[len(fprime)],
                 memProperties=memProperties,
+                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
@@ -112,6 +128,7 @@ class Loiacono_GPU(ve.shader.Shader):
                 qualifier="readonly",
                 dimensionVals=[16],
                 memProperties=memProperties,
+                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             # DebugBuffer(
             #    device=self.device,
@@ -120,6 +137,7 @@ class Loiacono_GPU(ve.shader.Shader):
             #    dimensionVals=[constantsDict["TOTAL_THREAD_COUNT"]],
             # ),
         ]
+
         if constantsDict["windowed"]:
             buffers += [
                 ve.buffer.StorageBuffer(
@@ -132,14 +150,14 @@ class Loiacono_GPU(ve.shader.Shader):
                 )
             ]
 
-        # finalize the buffers
-        device.descriptorPool.finalize()
+        self.descriptorPool.finalize()
+
 
         # Create a compute shader
         # Compute Stage: the only stage
         ve.shader.Shader.__init__(
             self,
-            sourceFilename=os.path.join(loiacono_home, "shaders/loiacono.c"),
+            sourceFilename=os.path.join(loiacono_home, "shaders/loiacono.comp.template"),
             constantsDict=self.constantsDict,
             device=self.device,
             name="loiacono",
@@ -201,7 +219,7 @@ if __name__ == "__main__":
 
     # generate a Loiacono based on this SR
     # (this one runs in CPU. reference only)
-    linst = loiacono.Loiacono(fprime=fprime, multiple=multiple, dtftlen=2 ** 15)
+    linst = ve.math.signals.loiacono.Loiacono(fprime=fprime, multiple=multiple, dtftlen=2 ** 15)
     # begin GPU test
     instance = ve.instance.Instance(verbose=False)
     device = instance.getDevice(0)

@@ -477,6 +477,8 @@ class StorageBuffer(Buffer):
 
         self.parent = kwargs["descriptorSet"]
 
+        sinode.Sinode.__init__(self, **kwargs)
+
         # set defaults first
         self.proc_kwargs(
             **{
