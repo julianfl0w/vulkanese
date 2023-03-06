@@ -52,6 +52,6 @@ ax1.set_title("Signal")
 ax2.plot(fprime, linst_gpu.spectrum)
 ax2.set_title("Spectrum")
 plt.show()
-print(linst_gpu.spectrum
+print(linst_gpu.spectrum)
 # elegantly release everything
 instance.release()
