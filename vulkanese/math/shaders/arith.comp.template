@@ -5,15 +5,15 @@ DEFINE_STRING// This will be (or has been) replaced by constant definitions
 
 layout(std430, set = 0, binding = 0) buffer x_buf
 {
-   readonly float x[];
+   readonly float x[128];
 };
 layout(std430, set = 0, binding = 1) buffer y_buf
 {
-   readonly float y[];
+   readonly float y[128];
 };
 layout(std430, set = 0, binding = 2) buffer result_buf
 {
-   writeonly float result[];
+   writeonly float result[128];
 };
 
 layout (local_size_x = THREADS_PER_WORKGROUP, local_size_y = 1, local_size_z = 1 ) in;
