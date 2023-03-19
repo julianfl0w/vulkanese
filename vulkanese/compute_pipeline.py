@@ -167,7 +167,6 @@ class ComputePipeline(sinode.Sinode):
     def run(self, blocking=True):
         vkFence = None
         if hasattr(self, "fence"):
-            print(self.fence.vkFence)
             vkFence = self.fence.vkFence
 
         # We submit the command buffer on the queue, at the same time giving a fence.
