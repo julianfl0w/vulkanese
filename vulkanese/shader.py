@@ -10,6 +10,7 @@ import re
 import vulkan as vk
 from . import buffer
 from . import compute_pipeline
+from . import vulkanese as ve
 
 from pathlib import Path
 
@@ -33,24 +34,39 @@ class Shader(sinode.Sinode):
                 "workgroupCount": [1, 1, 1],
                 "compressBuffers": True,
                 "waitSemaphores": [],
+                "depends":[],
                 "waitStages": None,
-                "signalSemaphoreCount": 0,  # these only used for compute shaders
+                "signalSemaphores": [],  # these only used for compute shaders
                 "fenceCount": 0,  # these only used for compute shaders
                 "useFence": False,
             }
+        )
+
+        for shader in self.depends:
+            newSemaphore = self.device.getSemaphore()
+            shader.signalSemaphores += [newSemaphore]
+            self.waitSemaphores += [newSemaphore]
+
+        self.descriptorPool = ve.descriptor.DescriptorPool(
+            device=self.device, parent=self
         )
 
         self.gpuBuffers = Empty()
         self.basename = self.sourceFilename.replace(".template", "")
 
         self.debugBuffers = []
-        for b in self.buffers:
+        for buffer in self.buffers:
+            # add the buffer to the descriptor pool
+            self.descriptorPool.addBuffer(buffer)
+
             # make the buffer accessable as a local attribute
-            exec("self.gpuBuffers." + b.name + "= b")
+            exec("self.gpuBuffers." + buffer.name + "= buffer")
 
             # keep the debug buffers separately
-            if b.DEBUG:
-                self.debugBuffers += [b]
+            if buffer.DEBUG:
+                self.debugBuffers += [buffer]
+
+        self.descriptorPool.finalize()
 
         outfilename = self.basename + ".spv"
         # if its spv (compiled), just run it
@@ -64,7 +80,9 @@ class Shader(sinode.Sinode):
                 f.write(spirv)
         else:
             raise Exception(
-                "source template filename " + self.sourceFilename + " must end with .template"
+                "source template filename "
+                + self.sourceFilename
+                + " must end with .template"
             )
 
         # Create Stage
@@ -90,6 +108,7 @@ class Shader(sinode.Sinode):
         )
         self.device.instance.debug("creating Stage " + str(self.stage))
 
+    def finalize(self):
         # if this is a compute shader, it corresponds with a single pipeline. we create that here
         if self.stage == vk.VK_SHADER_STAGE_COMPUTE_BIT:
             # generate a compute cmd buffer
@@ -100,7 +119,7 @@ class Shader(sinode.Sinode):
                 constantsDict=self.constantsDict,
                 workgroupCount=self.workgroupCount,
                 waitSemaphores=self.waitSemaphores,
-                signalSemaphoreCount=self.signalSemaphoreCount,
+                signalSemaphores=self.signalSemaphores,
                 useFence=self.useFence,
             )
             # self.computePipeline.children += [self]
@@ -148,7 +167,7 @@ class Shader(sinode.Sinode):
         # COMPILE GLSL TO SPIR-V
         self.device.instance.debug("compiling Stage")
         glslFilename = self.basename
-            
+
         with open(glslFilename, "w+") as f:
             f.write(glslCode)
 
@@ -204,7 +223,7 @@ class Shader(sinode.Sinode):
                 indexedVarString += d
                 # since GLSL doesnt allow multidim arrays (kinda, see gl_arb_arrays_of_arrays)
                 # ok i dont understand Vulkan multidim
-                for j, rd in enumerate(b.dimensionVals[i + 1 :]):
+                for j, rd in enumerate(b.shape[i + 1 :]):
                     indexedVarString += "*" + str(rd)
                 if i < (len(b.dimIndexNames) - 1):
                     indexedVarString += "+"

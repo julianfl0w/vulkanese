@@ -14,7 +14,10 @@ import vulkan as vk
 import numpy as np
 
 sys.path.insert(
-    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "sinode"))
+    0,
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "sinode")
+    ),
 )
 import sinode.sinode as sinode
 
@@ -152,12 +155,13 @@ class Loiacono_GPU(ve.shader.Shader):
 
         self.descriptorPool.finalize()
 
-
         # Create a compute shader
         # Compute Stage: the only stage
         ve.shader.Shader.__init__(
             self,
-            sourceFilename=os.path.join(loiacono_home, "shaders/loiacono.comp.template"),
+            sourceFilename=os.path.join(
+                loiacono_home, "shaders/loiacono.comp.template"
+            ),
             constantsDict=self.constantsDict,
             device=self.device,
             name="loiacono",
@@ -219,7 +223,9 @@ if __name__ == "__main__":
 
     # generate a Loiacono based on this SR
     # (this one runs in CPU. reference only)
-    linst = ve.math.signals.loiacono.Loiacono(fprime=fprime, multiple=multiple, dtftlen=2 ** 15)
+    linst = ve.math.signals.loiacono.Loiacono(
+        fprime=fprime, multiple=multiple, dtftlen=2 ** 15
+    )
     # begin GPU test
     instance = ve.instance.Instance(verbose=False)
     device = instance.getDevice(0)

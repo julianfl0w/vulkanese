@@ -27,8 +27,8 @@ def glsltype2python(glsltype):
     elif "vec" in glsltype:
         return np.float32
     else:
-        self.device.instance.debug("type")
-        self.device.instance.debug(glsltype)
+        self.debug("type")
+        self.debug(glsltype)
         die
 
 
@@ -69,9 +69,9 @@ class Buffer(sinode.Sinode):
         return outstr
 
     def __init__(self, **kwargs):
-
-        sinode.Sinode.__init__(self, **kwargs)
-
+        
+        sinode.Sinode.__init__(self, parent = self.device, **kwargs)
+        
         # set defaults
         self.proc_kwargs(
             **{
@@ -96,6 +96,8 @@ class Buffer(sinode.Sinode):
             }
         )
 
+        self.proc_kwargs(**kwargs)
+
         self.device = self.fromAbove("device")
         self.vkDevice = self.device.vkDevice
         self.itemSize = glsltype2bytesize(self.memtype)
@@ -103,10 +105,10 @@ class Buffer(sinode.Sinode):
         self.getSkipval()
 
         # for vec3 etc, the size is already bakd in
-        self.itemCount = int(np.prod(self.dimensionVals))
+        self.itemCount = int(np.prod(self.shape))
         self.sizeBytes = int(self.itemCount * self.itemSize * self.skipval)
 
-        self.device.instance.debug("creating buffer " + self.name)
+        self.debug("creating buffer " + self.name)
 
         # We will now create a buffer with these options
         self.bufferCreateInfo = vk.VkBufferCreateInfo(
@@ -115,8 +117,8 @@ class Buffer(sinode.Sinode):
             usage=self.usage,  # buffer is used as a storage buffer.
             sharingMode=self.sharingMode,  # buffer is exclusive to a single queue family at a time.
         )
-        self.device.instance.debug(self.vkDevice)
-        self.device.instance.debug(self.bufferCreateInfo)
+        self.debug(self.vkDevice)
+        self.debug(self.bufferCreateInfo)
         self.vkBuffer = vk.vkCreateBuffer(self.vkDevice, self.bufferCreateInfo, None)
 
         # But the buffer doesn't allocate memory for itself, so we must do that manually.
@@ -148,14 +150,14 @@ class Buffer(sinode.Sinode):
         )
 
         # allocate memory on device.
-        self.device.instance.debug("allocating")
+        self.debug("allocating")
         self.vkDeviceMemory = vk.vkAllocateMemory(
             self.vkDevice, self.allocateInfo, None
         )
 
-        self.device.instance.debug("done allocating")
+        self.debug("done allocating")
 
-        self.device.instance.debug("mapping")
+        self.debug("mapping")
         # Map the buffer memory, so that we can read from it on the CPU.
         self.pmap = vk.vkMapMemory(
             device=self.vkDevice,
@@ -164,18 +166,18 @@ class Buffer(sinode.Sinode):
             size=self.sizeBytes,
             flags=0,
         )
-        self.device.instance.debug("done mapping")
+        self.debug("done mapping")
 
         # these debug prints take forever
-        # self.device.instance.debug(len(self.pmap[:]))
-        # self.device.instance.debug(len(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType)))
+        # self.debug(len(self.pmap[:]))
+        # self.debug(len(np.zeros((self.itemCount * self.skipval), dtype=self.pythonType)))
 
         # sometimes you may want to unmap from CPU
         if not self.readFromCPU:
             vk.vkUnmapMemory(self.vkDevice, self.vkDeviceMemory)
             self.pmap = None
 
-        self.device.instance.debug("binding to device")
+        self.debug("binding to device")
         # Now associate that allocated memory with the buffer. With that, the buffer is backed by actual memory.
         vk.vkBindBufferMemory(
             device=self.vkDevice,
@@ -183,7 +185,7 @@ class Buffer(sinode.Sinode):
             memory=self.vkDeviceMemory,
             memoryOffset=0,
         )
-        self.device.instance.debug("done binding to device")
+        self.debug("done binding to device")
 
         self.vkMappedMemoryRange = vk.VkMappedMemoryRange(
             sType=vk.VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
@@ -196,7 +198,7 @@ class Buffer(sinode.Sinode):
         # initialize to zero
         self.zeroInitialize()
         self.flush()
-        self.device.instance.debug("done initializing")
+        self.debug("done initializing")
 
         # NEEDED FOR RAYTRACING, FAILS BEFORE VULKAN 1.3
         # self.bufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
@@ -213,31 +215,6 @@ class Buffer(sinode.Sinode):
             device=self.device.vkDevice,
             memoryRangeCount=1,
             pMemoryRanges=[self.vkMappedMemoryRange],
-        )
-
-    def getDescriptorBinding(self):
-
-        self.binding = self.descriptorSet.getBufferBinding()
-        self.descriptorSet.buffers += [self]
-        # descriptorCount is the number of descriptors contained in the binding,
-        # accessed in a shader as an array, except if descriptorType is
-        # VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK in which case descriptorCount
-        # is the size in bytes of the inline uniform block
-        # self.device.instance.debug("BUFFER DTYPE")
-        # self.device.instance.debug(descriptorSet.type)
-        self.descriptorSetLayoutBinding = vk.VkDescriptorSetLayoutBinding(
-            binding=self.binding,
-            descriptorType=self.descriptorSet.type,
-            descriptorCount=1,
-            stageFlags=self.stageFlags,
-        )
-
-        # Specify the buffer to bind to the descriptor.
-        # Every buffer contains its own info for descriptor set
-        # Next, we need to connect our actual storage buffer with the descrptor.
-        # We use vkUpdateDescriptorSets() to update the descriptor set.
-        self.descriptorBufferInfo = vk.VkDescriptorBufferInfo(
-            buffer=self.vkBuffer, offset=0, range=self.sizeBytes
         )
 
     # in some cases, memory access from the shader must be in increments of 16 bytes
@@ -261,10 +238,10 @@ class Buffer(sinode.Sinode):
             self.skipval = int(1)
 
     def debugSizeParams(self):
-        self.device.instance.debug("itemCount " + str(self.itemCount))
-        self.device.instance.debug("itemSize " + str(self.itemSize))
-        self.device.instance.debug("skipval " + str(self.skipval))
-        self.device.instance.debug("sizeBytes " + str(self.sizeBytes))
+        self.debug("itemCount " + str(self.itemCount))
+        self.debug("itemSize " + str(self.itemSize))
+        self.debug("skipval " + str(self.skipval))
+        self.debug("sizeBytes " + str(self.sizeBytes))
 
     def zeroInitialize(self):
         self.set(np.zeros((self.itemCount), dtype=self.pythonType))
@@ -283,10 +260,10 @@ class Buffer(sinode.Sinode):
             rcvdArrayImag = 1j * flatArray[1::4].astype(complex)
             rcvdArrayComplex = rcvdArrayReal + rcvdArrayImag
             # finally, reshape according to the expected dims
-            rcvdArray = np.array(rcvdArrayComplex).reshape(self.dimensionVals)
+            rcvdArray = np.array(rcvdArrayComplex).reshape(self.shape)
         elif self.memtype == "vec2":
             rcvdArrayList = list(flatArray.astype(float))
-            rcvdArray = np.zeros(self.dimensionVals + [2])
+            rcvdArray = np.zeros(self.shape + [2])
             rcvdArray = np.append(
                 np.expand_dims(rcvdArrayList[::4], 1),
                 np.expand_dims(rcvdArrayList[1::4], 1),
@@ -298,11 +275,11 @@ class Buffer(sinode.Sinode):
                 if flat:
                     rcvdArray = flatArray
                 else:
-                    rcvdArray = flatArray.reshape(self.dimensionVals, order=order)
+                    rcvdArray = flatArray.reshape(self.shape, order=order)
 
             else:
                 indices = np.arange(0, len(flatArray), self.skipval).astype(int)
-                rcvdArray = np.array(flatArray[indices]).reshape(self.dimensionVals)
+                rcvdArray = np.array(flatArray[indices]).reshape(self.shape)
         return rcvdArray
 
     def saveAsImage(self, height, width, path="mandelbrot.png"):
@@ -326,7 +303,7 @@ class Buffer(sinode.Sinode):
 
     def release(self):
         if not self.released:
-            self.device.instance.debug("destroying buffer " + self.name)
+            self.debug("destroying buffer " + self.name)
             vk.vkFreeMemory(self.vkDevice, self.vkDeviceMemory, None)
             vk.vkDestroyBuffer(self.vkDevice, self.vkBuffer, None)
             self.released = True
@@ -374,7 +351,7 @@ class Buffer(sinode.Sinode):
             "layout("
             + std
             + ", set = "
-            + str(self.descriptorSet.binding)
+            + str(self.descriptorSetBinding)
             + ", binding = "
             + str(self.binding)
             # + ", "
@@ -402,16 +379,16 @@ class Buffer(sinode.Sinode):
         return startByte
 
     def setByIndexVec(self, index, data):
-        # self.device.instance.debug(self.name + " setting " + str(index) + " to " + str(data))
+        # self.debug(self.name + " setting " + str(index) + " to " + str(data))
         startByte = index * self.itemSize * self.skipval
         self.pmap[startByte : startByte + 4] = np.real(data).astype(np.float32)
         self.pmap[startByte + 4 : startByte + 8] = np.imag(data).astype(np.float32)
 
-        # self.device.instance.debug("setting " + str(index) + " to " + str(np.real(data).astype(np.float32)))
-        # self.device.instance.debug("setting " + str(index) + ".i to " + str(np.imag(data).astype(np.float32)))
+        # self.debug("setting " + str(index) + " to " + str(np.real(data).astype(np.float32)))
+        # self.debug("setting " + str(index) + ".i to " + str(np.imag(data).astype(np.float32)))
 
     def setByIndex(self, index, data):
-        # self.device.instance.debug(self.name + " setting " + str(index) + " to " + str(data))
+        # self.debug(self.name + " setting " + str(index) + " to " + str(data))
         startByte = index * self.itemSize * self.skipval
         endByte = index * self.itemSize * self.skipval + self.itemSize
         self.pmap[startByte:endByte] = np.array(data, dtype=self.pythonType)
@@ -419,13 +396,13 @@ class Buffer(sinode.Sinode):
     def setByIndexStart(self, startIndex, data):
         # if self.skipval != 1:
         #    raise ("You can only do this with new-format storage buffers!")
-        # self.device.instance.debug(self.name + " setting " + str(index) + " to " + str(data))
+        # self.debug(self.name + " setting " + str(index) + " to " + str(data))
         startByte = startIndex * self.itemSize * self.skipval
         endByte = startIndex * self.itemSize * self.skipval + self.itemSize * len(data)
         self.pmap[startByte:endByte] = np.array(data, dtype=self.pythonType)
 
     def getByIndex(self, index):
-        # self.device.instance.debug(self.name + " setting " + str(index) + " to " + str(data))
+        # self.debug(self.name + " setting " + str(index) + " to " + str(data))
         startByte = index * self.itemSize * self.skipval
         endByte = index * self.itemSize * self.skipval + self.itemSize
         return np.frombuffer(self.pmap[startByte:endByte], dtype=self.pythonType)
@@ -442,11 +419,9 @@ class Buffer(sinode.Sinode):
                 self.pmap[:] = data.astype(self.pythonType).flatten()
 
         except:
-            self.device.instance.debug("WRONG SIZE")
-            self.device.instance.debug("pmap (bytes): " + str(len(self.pmap[:])))
-            self.device.instance.debug(
-                "data (bytes): " + str(len(data) * self.itemSize)
-            )
+            self.debug("WRONG SIZE")
+            self.debug("pmap (bytes): " + str(len(self.pmap[:])))
+            self.debug("data (bytes): " + str(len(data) * self.itemSize))
             raise Exception("Wrong Size")
 
         if flush:
@@ -475,7 +450,7 @@ class Buffer(sinode.Sinode):
 class StorageBuffer(Buffer):
     def __init__(self, **kwargs):
 
-        self.parent = kwargs["descriptorSet"]
+        self.parent = kwargs["device"]
 
         sinode.Sinode.__init__(self, **kwargs)
 
@@ -507,8 +482,6 @@ class StorageBuffer(Buffer):
         # if "descriptorSet" not in kwargs.keys():
         #    self.descriptorSet = self.fromAbove("descriptorPool").descSetGlobal
 
-        self.getDescriptorBinding()
-
 
 class DebugBuffer(StorageBuffer):
     def __init__(
@@ -516,7 +489,7 @@ class DebugBuffer(StorageBuffer):
         device,
         name,
         dimIndexNames,
-        dimensionVals,
+        shape,
         memtype="vec3",
         memProperties=0
         | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
@@ -531,7 +504,7 @@ class DebugBuffer(StorageBuffer):
             device=device,
             name=name,
             location=0,
-            dimensionVals=dimensionVals,
+            shape=shape,
             format=VK_FORMAT_R64_SFLOAT,
             readFromCPU=True,
             memProperties=memProperties,
@@ -550,7 +523,7 @@ class VertexBuffer(Buffer):
         self,
         device,
         name,
-        dimensionVals,
+        shape,
         location,
         DEBUG=False,
         qualifier="",
@@ -572,7 +545,7 @@ class VertexBuffer(Buffer):
             device=device,
             name=name,
             location=location,
-            dimensionVals=dimensionVals,
+            shape=shape,
             format=vk.VK_FORMAT_R32G32B32_SFLOAT,
             readFromCPU=True,
             usage=vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
@@ -604,7 +577,7 @@ class IndexBuffer(Buffer):
     def __init__(
         self,
         device,
-        dimensionVals,
+        shape,
         DEBUG=False,
         qualifier="",
         memProperties=0
@@ -620,7 +593,7 @@ class IndexBuffer(Buffer):
             device=device,
             name="index",
             location=0,
-            dimensionVals=dimensionVals,
+            shape=shape,
             format=vk.VK_FORMAT_R32_UINT,
             readFromCPU=True,
             usage=vk.VK_BUFFER_USAGE_TRANSFER_DST_BIT
@@ -641,7 +614,7 @@ class FragmentBuffer(Buffer):
         self,
         device,
         name,
-        dimensionVals,
+        shape,
         DEBUG=False,
         qualifier="",
         memProperties=0
@@ -659,7 +632,7 @@ class FragmentBuffer(Buffer):
             device=device,
             name=name,
             location=0,
-            dimensionVals=dimensionVals,
+            shape=shape,
             format=vk.VK_FORMAT_R64_SFLOAT,
             readFromCPU=True,
             usage=vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,

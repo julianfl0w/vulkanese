@@ -15,7 +15,6 @@ sys.path.insert(
 )
 import sinode.sinode as sinode
 
-
 class ARITH(ve.shader.Shader):
     def __init__(self, **kwargs):
         sinode.Sinode.__init__(self, **kwargs)
@@ -23,6 +22,7 @@ class ARITH(ve.shader.Shader):
             **{
                 "parent": None,
                 "DEBUG": False,
+                "buffers": [],
                 "buffType": "float",
                 "shader_basename": "shaders/arith",
                 "memProperties": (
@@ -37,15 +37,15 @@ class ARITH(ve.shader.Shader):
         constantsDict = {}
         constantsDict["PROCTYPE"] = self.buffType
 
-        if hasattr(self, "OPERATION"):
-            constantsDict["OPERATION"] = self.OPERATION
+        if hasattr(self, "operation"):
+            constantsDict["operation"] = self.operation
         elif hasattr(self, "FUNCTION1"):
             constantsDict["FUNCTION1"] = self.FUNCTION1
         elif hasattr(self, "FUNCTION2"):
             constantsDict["FUNCTION2"] = self.FUNCTION2
         else:
             die
-        constantsDict["YLEN"] = np.prod(np.shape(self.Y))
+        constantsDict["YLEN"] = np.prod(np.shape(self.y))
         constantsDict["LG_WG_SIZE"] = 7  # corresponding to 128 threads, a good number
         constantsDict["THREADS_PER_WORKGROUP"] = 1 << constantsDict["LG_WG_SIZE"]
 
@@ -53,41 +53,43 @@ class ARITH(ve.shader.Shader):
         self.instance = self.device.instance
         self.constantsDict = constantsDict
 
-        self.descriptorPool = ve.descriptor.DescriptorPool(
-            device=self.device, parent=self
-        )
-
-        buffers = [
+        if isinstance(self.x, ve.buffer.StorageBuffer):
+            self.buffers = [self.x, self.y]
+            self.x.name = "x"
+            self.y.name = "y"
+            
+        else:
+            self.gpuBuffers.x.set(self.x)
+            self.gpuBuffers.y.set(self.y)
+            self.buffers += [
+                ve.buffer.StorageBuffer(
+                    device=self.device,
+                    name="x",
+                    memtype=self.buffType,
+                    qualifier="readonly",
+                    shape=np.shape(self.X),
+                    memProperties=self.memProperties,
+                ),
+                ve.buffer.StorageBuffer(
+                    device=self.device,
+                    name="y",
+                    memtype=self.buffType,
+                    qualifier="readonly",
+                    shape=np.shape(self.Y),
+                    memProperties=self.memProperties,
+                )]
+        
+        self.buffers += [
             ve.buffer.StorageBuffer(
                 device=self.device,
-                name="x",
-                memtype=self.buffType,
-                qualifier="readonly",
-                dimensionVals=np.shape(self.X),
-                memProperties=self.memProperties,
-                descriptorSet=self.descriptorPool.descSetGlobal,
-            ),
-            ve.buffer.StorageBuffer(
-                device=self.device,
-                name="y",
-                memtype=self.buffType,
-                qualifier="readonly",
-                dimensionVals=np.shape(self.Y),
-                memProperties=self.memProperties,
-                descriptorSet=self.descriptorPool.descSetGlobal,
-            ),
-            ve.buffer.StorageBuffer(
-                device=self.device,
-                name="sumOut",
+                name="result",
                 memtype=self.buffType,
                 qualifier="writeonly",
-                dimensionVals=np.shape(self.X),
+                shape=self.buffers[0].shape,
                 memProperties=self.memProperties,
-                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
         ]
 
-        self.descriptorPool.finalize()
 
         # Compute Stage: the only stage
         ve.shader.Shader.__init__(
@@ -99,11 +101,11 @@ class ARITH(ve.shader.Shader):
             device=self.device,
             name=self.shader_basename,
             stage=vk.VK_SHADER_STAGE_COMPUTE_BIT,
-            buffers=buffers,
+            buffers=self.buffers,
             DEBUG=self.DEBUG,
             workgroupCount=[
                 int(
-                    np.prod(np.shape(self.X)) / (constantsDict["THREADS_PER_WORKGROUP"])
+                    np.prod(self.x.shape) / (constantsDict["THREADS_PER_WORKGROUP"])
                 ),
                 1,
                 1,
@@ -111,11 +113,8 @@ class ARITH(ve.shader.Shader):
             useFence=self.useFence,
         )
 
-        self.gpuBuffers.x.set(self.X)
-        self.gpuBuffers.y.set(self.Y)
-
     def baseline(self, X, Y):
-        if hasattr(self, "OPERATION"):
+        if hasattr(self, "operation"):
             retval = self.npEquivalent(X, Y)
             return retval
         elif hasattr(self, "FUNCTION1"):
@@ -128,12 +127,12 @@ class ARITH(ve.shader.Shader):
     def test(self):
 
         self.run(blocking=True)
-        result = self.gpuBuffers.sumOut.get()
+        result = self.gpuBuffers.result.get()
         expectation = self.baseline(self.gpuBuffers.x.get(), self.gpuBuffers.y.get())
         self.passed = np.allclose(result.astype(float), expectation.astype(float))
 
-        if hasattr(self, "OPERATION"):
-            print(self.OPERATION + ": " + str(self.passed))
+        if hasattr(self, "operation"):
+            print(self.operation + ": " + str(self.passed))
         elif hasattr(self, "FUNCTION1"):
             print(self.FUNCTION1 + ": " + str(self.passed))
         elif hasattr(self, "FUNCTION2"):
@@ -151,11 +150,11 @@ def test(device):
     Y = np.random.random((signalLen))
     toTest = [
         ARITH(
-            parent=device, device=device, X=X, Y=Y, OPERATION="+", npEquivalent=np.add
+            parent=device, device=device, X=X, Y=Y, operation="+", npEquivalent=np.add
         ),
-        ARITH(device=device, X=X, Y=Y, OPERATION="-", npEquivalent=np.subtract),
-        ARITH(device=device, X=X, Y=Y, OPERATION="*", npEquivalent=np.multiply),
-        ARITH(device=device, X=X, Y=Y, OPERATION="/", npEquivalent=np.divide),
+        ARITH(device=device, X=X, Y=Y, operation="-", npEquivalent=np.subtract),
+        ARITH(device=device, X=X, Y=Y, operation="*", npEquivalent=np.multiply),
+        ARITH(device=device, X=X, Y=Y, operation="/", npEquivalent=np.divide),
         ARITH(device=device, X=X, Y=Y, FUNCTION1="sin"),
         ARITH(device=device, X=X, Y=Y, FUNCTION1="cos"),
         ARITH(device=device, X=X, Y=Y, FUNCTION1="tan"),
@@ -173,6 +172,16 @@ def test(device):
     for s in toTest:
         s.test()
         # s.release()
+
+class add(ARITH):
+    def __init__(self, **kwargs):
+        kwargs["operation"] = "+"
+        ARITH.__init__(self, **kwargs)
+
+class multiply(ARITH):
+    def __init__(self, **kwargs):
+        kwargs["operation"] = "*"
+        ARITH.__init__(self, **kwargs)
 
 
 if __name__ == "__main__":

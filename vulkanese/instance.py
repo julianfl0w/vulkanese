@@ -114,9 +114,9 @@ class Instance(sinode.Sinode):
             self.vkInstance, debug_create, None
         )
 
-    def debug(self, *args):
+    def _debug(self, *args):
         if self.verbose:
-            caller = getframeinfo(stack()[1][0])
+            caller = getframeinfo(stack()[2][0])
             print(
                 "%s:%d - %s" % (os.path.basename(caller.filename), caller.lineno, args)
             )  # python3 syntax print

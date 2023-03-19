@@ -2,23 +2,23 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float64 : require
 #extension GL_ARB_separate_shader_objects : enable
 #define PROCTYPE float
-#define FUNCTION1 sqrt
-#define YLEN 1024
+#define operation *
+#define YLEN 128
 #define LG_WG_SIZE 7
 #define THREADS_PER_WORKGROUP 128
 // This will be (or has been) replaced by constant definitions
     
 layout(std430, set = 0, binding = 0) buffer x_buf
 {
-    float x[1024];
+   writeonly float x[128];
 };
 layout(std430, set = 0, binding = 1) buffer y_buf
 {
-    float y[1024];
+   writeonly float y[128];
 };
-layout(std430, set = 0, binding = 2) buffer sumOut_buf
+layout(std430, set = 0, binding = 2) buffer result_buf
 {
-    float sumOut[1024];
+   writeonly float result[128];
 };
 // This will be (or has been) replaced by buffer definitions
     
@@ -27,12 +27,12 @@ layout (local_size_x = THREADS_PER_WORKGROUP, local_size_y = 1, local_size_z = 1
 void main() {
     uint workgroup_ix = gl_GlobalInvocationID.x;
     #ifdef OPERATION
-    sumOut[workgroup_ix] = x[workgroup_ix] OPERATION y[workgroup_ix%YLEN];
+    result[workgroup_ix] = x[workgroup_ix] OPERATION y[workgroup_ix%YLEN];
     #endif
     #ifdef FUNCTION1
-    sumOut[workgroup_ix] = FUNCTION1 (x[workgroup_ix]);
+    result[workgroup_ix] = FUNCTION1 (x[workgroup_ix]);
     #endif
     #ifdef FUNCTION2
-    sumOut[workgroup_ix] = FUNCTION2 (x[workgroup_ix] , y[workgroup_ix%YLEN]);
+    result[workgroup_ix] = FUNCTION2 (x[workgroup_ix] , y[workgroup_ix%YLEN]);
     #endif
 }

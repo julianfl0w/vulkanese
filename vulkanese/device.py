@@ -4,7 +4,7 @@ import os
 import time
 import json
 import vulkan as vk
-from . import vulkanese as ve
+import vulkanese as ve
 
 sys.path.insert(
     0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode"))
@@ -36,6 +36,13 @@ def ctypes2dict(props, depth=0):
 class Device(sinode.Sinode):
     def __init__(self, **kwargs):
         sinode.Sinode.__init__(self, **kwargs)
+
+        self.proc_kwargs(
+            buffers = [],
+            shaders = [],
+            fences = [],
+            semaphores = [],
+        )
 
         self.instance.debug("initializing device " + str(self.deviceIndex))
         self.physical_device = vk.vkEnumeratePhysicalDevices(self.instance.vkInstance)[
@@ -341,14 +348,45 @@ class Device(sinode.Sinode):
         )
         return [self.features, self.properties, self.memoryProperties]
 
-    def createShader(self, path, stage):
-        return Shader(self.vkDevice, path, stage)
+    def getShader(self, **kwargs):
+        newShader = ve.shader.Shader(self.vkDevice, **kwargs)
+        self.shaders += [newShader]
+        return newShader
 
+    def getFence(self):
+        newFence = ve.synchronization.Fence(device=self)
+        self.fences += [newFence]
+        return newFence
+
+    def getSemaphore(self):
+        newSemaphore = ve.synchronization.Semaphore(device=self)
+        self.semaphores += [newSemaphore]
+        return newSemaphore
+
+    def getUniformBuffer(self, **kwargs):
+        newBuffer = ve.buffer.UniformBuffer(device=self, **kwargs)
+        self.buffers += [newBuffer]
+        return newBuffer
+    
+    def getStorageBuffer(self, **kwargs):
+        newBuffer = ve.buffer.StorageBuffer(device=self, **kwargs)
+        self.buffers += [newBuffer]
+        return newBuffer
+    
     def release(self):
 
         self.instance.debug("destroying children")
         for child in self.children:
             child.release()
+
+        for buffer in self.buffers:
+            buffer.release()
+        for fence in self.fences:
+            fence.release()
+        for semaphore in self.semaphores:
+            semaphore.release()
+        for shader in self.shaders:
+            shader.release()
 
         self.instance.debug("destroying command pool")
         vk.vkDestroyCommandPool(self.vkDevice, self.vkGraphicsCommandPool, None)
