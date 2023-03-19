@@ -26,37 +26,36 @@ loiacono_home = os.path.dirname(os.path.abspath(__file__))
 # Create a compute shader
 class Loiacono_GPU(ve.shader.Shader):
     def __init__(
-        self,
-        device,
-        fprime,
-        multiple,
-        signalLength=2 ** 15,
-        constantsDict={},
-        DEBUG=False,
-        buffType="float",
-        memProperties=0
-        | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-        | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+        self, **kwargs
     ):
-        sinode.Sinode.__init__(self)
+        sinode.Sinode.__init__(self, **kwargs)
+        self.proc_kwargs(
+            signalLength=2 ** 15,
+            constantsDict={},
+            DEBUG=False,
+            buffType="float",
+            memProperties=0
+            | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+            | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+        )
+
         # the constants will be placed into the shader.comp file,
         # and also available in Python
-        constantsDict["multiple"] = multiple
-        constantsDict["SIGNAL_LENGTH"] = signalLength
-        constantsDict["PROCTYPE"] = buffType
-        constantsDict["TOTAL_THREAD_COUNT"] = signalLength * len(fprime)
+        constantsDict = {}
+        constantsDict["multiple"] = self.multiple
+        constantsDict["SIGNAL_LENGTH"] = self.signalLength
+        constantsDict["PROCTYPE"] = self.buffType
+        constantsDict["TOTAL_THREAD_COUNT"] = self.signalLength * len(self.fprime)
         constantsDict["LG_WG_SIZE"] = 7
         constantsDict["THREADS_PER_WORKGROUP"] = 1 << constantsDict["LG_WG_SIZE"]
         constantsDict["windowed"] = 0
-        self.signalLength = signalLength
 
         # device selection and instantiation
-        self.instance = device.instance
-        self.device = device
+        self.instance = self.device.instance
         self.constantsDict = constantsDict
-        self.numSubgroups = signalLength * len(fprime) / self.device.subgroupSize
-        self.numSubgroupsPerFprime = int(self.numSubgroups / len(fprime))
-        self.spectrum = np.zeros((len(fprime)))
+        self.numSubgroups = self.signalLength * len(self.fprime) / self.device.subgroupSize
+        self.numSubgroupsPerFprime = int(self.numSubgroups / len(self.fprime))
+        self.spectrum = np.zeros((len(self.fprime)))
 
         # every shader chain has its own descriptor pool
         self.descriptorPool = ve.descriptor.DescriptorPool(
@@ -69,59 +68,65 @@ class Loiacono_GPU(ve.shader.Shader):
             ve.buffer.StorageBuffer(
                 device=self.device,
                 name="x",
-                memtype=buffType,
+                memtype=self.buffType,
                 qualifier="readonly",
                 dimensionVals=[2 ** 15],  # always 32**3
-                memProperties=memProperties,
+                memProperties=self.memProperties,
                 descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             # The following 4 are reduction buffers
             # Intermediate buffers for computing the sum
-            ve.buffer.StorageBuffer(
+            ve.buffer.DebugBuffer(
                 device=self.device,
                 name="Li1",
-                memtype=buffType,
-                dimensionVals=[len(fprime), self.device.subgroupSize ** 2],
+                memtype=self.buffType,
+                dimensionVals=[len(self.fprime), self.device.subgroupSize ** 2],
+                dimIndexNames=["frequency_ix", "sg"],
                 descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
                 name="Lr1",
-                memtype=buffType,
-                dimensionVals=[len(fprime), self.device.subgroupSize ** 2],
+                memtype=self.buffType,
+                dimensionVals=[len(self.fprime), self.device.subgroupSize ** 2],
+                dimIndexNames=["F", "sg"],
                 descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
                 name="Li0",
-                memtype=buffType,
-                dimensionVals=[len(fprime), self.device.subgroupSize],
+                memtype=self.buffType,
+                dimensionVals=[len(self.fprime), self.device.subgroupSize],
+                dimIndexNames=["F", "sg"],
                 descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
                 name="Lr0",
-                memtype=buffType,
-                dimensionVals=[len(fprime), self.device.subgroupSize],
+                memtype=self.buffType,
+                dimensionVals=[len(self.fprime), self.device.subgroupSize],
+                dimIndexNames=["F", "sg"],
                 descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             # L is the final output
             ve.buffer.StorageBuffer(
                 device=self.device,
                 name="L",
-                memtype=buffType,
+                memtype=self.buffType,
                 qualifier="writeonly",
-                dimensionVals=[len(fprime)],
-                memProperties=memProperties,
+                dimensionVals=[len(self.fprime)],
+                dimIndexNames=["F"],
+                memProperties=self.memProperties,
                 descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
                 name="f",
-                memtype=buffType,
+                memtype=self.buffType,
                 qualifier="readonly",
-                dimensionVals=[len(fprime)],
-                memProperties=memProperties,
+                dimensionVals=[len(self.fprime)],
+                dimIndexNames=["F"],
+                memProperties=self.memProperties,
                 descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             ve.buffer.StorageBuffer(
@@ -130,10 +135,10 @@ class Loiacono_GPU(ve.shader.Shader):
                 memtype="uint",
                 qualifier="readonly",
                 dimensionVals=[16],
-                memProperties=memProperties,
+                memProperties=self.memProperties,
                 descriptorSet=self.descriptorPool.descSetGlobal,
             ),
-            # DebugBuffer(
+            # StorageBuffer(
             #    device=self.device,
             #    name="allShaders",
             #    memtype=buffType,
@@ -146,10 +151,10 @@ class Loiacono_GPU(ve.shader.Shader):
                 ve.buffer.StorageBuffer(
                     device=self.device,
                     name="window",
-                    memtype=buffType,
+                    memtype=self.buffType,
                     qualifier="readonly",
                     dimensionVals=[1024],  # always 32**3
-                    memProperties=memProperties,
+                    memProperties=self.memProperties,
                 )
             ]
 
@@ -167,11 +172,11 @@ class Loiacono_GPU(ve.shader.Shader):
             name="loiacono",
             stage=vk.VK_SHADER_STAGE_COMPUTE_BIT,
             buffers=buffers,
-            DEBUG=DEBUG,
+            DEBUG=self.DEBUG,
             workgroupCount=[
                 int(
-                    signalLength
-                    * len(fprime)
+                    self.signalLength
+                    * len(self.fprime)
                     / (constantsDict["THREADS_PER_WORKGROUP"])
                 ),
                 1,
@@ -180,7 +185,7 @@ class Loiacono_GPU(ve.shader.Shader):
             useFence=True,
         )
 
-        self.gpuBuffers.f.set(fprime)
+        self.gpuBuffers.f.set(self.fprime)
         self.gpuBuffers.offset.zeroInitialize()
         self.offset = 0
         if constantsDict["windowed"]:

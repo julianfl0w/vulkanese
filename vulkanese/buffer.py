@@ -486,35 +486,30 @@ class StorageBuffer(Buffer):
 class DebugBuffer(StorageBuffer):
     def __init__(
         self,
-        device,
-        name,
-        dimIndexNames,
-        shape,
-        memtype="vec3",
-        memProperties=0
-        | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-        | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-        rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
-        stride=12,
+        **kwargs
     ):
-        self.dimIndexNames = dimIndexNames
-        StorageBuffer.__init__(
-            self,
+        sinode.Sinode.__init__(self, **kwargs)
+
+        self.proc_kwargs(
             DEBUG=True,
-            device=device,
-            name=name,
             location=0,
             shape=shape,
-            format=VK_FORMAT_R64_SFLOAT,
+            format=vk.VK_FORMAT_R64_SFLOAT,
             readFromCPU=True,
-            memProperties=memProperties,
-            sharingMode=VK_SHARING_MODE_EXCLUSIVE,
-            stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
+            memProperties=0
+            | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+            | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            sharingMode=vk.VK_SHARING_MODE_EXCLUSIVE,
+            stageFlags=vk.VK_SHADER_STAGE_COMPUTE_BIT,
             qualifier="",
-            memtype=memtype,
+            memtype="vec3",
             rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
             stride=12,
             compress=True,
+        )
+        StorageBuffer.__init__(
+            self, 
+            **kwargs
         )
 
 
