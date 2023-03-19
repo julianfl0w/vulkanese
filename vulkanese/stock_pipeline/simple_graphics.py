@@ -11,7 +11,8 @@ import sdl2
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import vulkanese as ve
 import vulkan as vk
-from sinode import Sinode
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode")))
+import sinode.sinode as sinode
 
 htHere = os.path.dirname(os.path.abspath(__file__))
 

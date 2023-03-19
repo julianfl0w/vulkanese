@@ -24,12 +24,16 @@ class Empty:
 
 class Shader(sinode.Sinode):
     def __init__(self, **kwargs):
-        sinode.Sinode.__init__(self, **kwargs)
+
+        sinode.Sinode.__init__(self, parent = kwargs["device"], **kwargs)
+
+        if self not in self.device.shaders:
+            self.device.shaders += [self]
+        
         self.proc_kwargs(
             **{
                 "sourceFilename": "",
                 "stage": vk.VK_SHADER_STAGE_VERTEX_BIT,
-                "name": "mandlebrot",
                 "DEBUG": False,
                 "workgroupCount": [1, 1, 1],
                 "compressBuffers": True,
@@ -37,10 +41,9 @@ class Shader(sinode.Sinode):
                 "depends":[],
                 "waitStages": None,
                 "signalSemaphores": [],  # these only used for compute shaders
-                "fenceCount": 0,  # these only used for compute shaders
-                "useFence": False,
             }
         )
+
 
         for shader in self.depends:
             newSemaphore = self.device.getSemaphore()
@@ -106,7 +109,7 @@ class Shader(sinode.Sinode):
             pSpecializationInfo=None,
             pName="main",
         )
-        self.device.instance.debug("creating Stage " + str(self.stage))
+        self.debug("creating Stage " + str(self.stage))
 
     def finalize(self):
         # if this is a compute shader, it corresponds with a single pipeline. we create that here
@@ -120,18 +123,20 @@ class Shader(sinode.Sinode):
                 workgroupCount=self.workgroupCount,
                 waitSemaphores=self.waitSemaphores,
                 signalSemaphores=self.signalSemaphores,
-                useFence=self.useFence,
             )
-            # self.computePipeline.children += [self]
 
         # first run is always slow
         # run once in init so people dont judge the first run
         # self.run()
 
     def release(self):
-        for c in self.children:
-            c.release()
-        self.device.instance.debug("destroying Stage")
+        
+        self.debug("destroying descriptor Pool")
+        self.descriptorPool.release()
+        if hasattr(self, "computePipeline"):
+            self.debug("destroying Pipeline")
+            self.computePipeline.release()
+        self.debug("destroying shader")
         vk.vkDestroyShaderModule(self.device.vkDevice, self.vkShaderModule, None)
 
     def compile(self):
@@ -165,7 +170,7 @@ class Shader(sinode.Sinode):
         glslCode = glslCode.replace("DEFINE_STRING", DEFINE_STRING)
 
         # COMPILE GLSL TO SPIR-V
-        self.device.instance.debug("compiling Stage")
+        self.debug("compiling Stage")
         glslFilename = self.basename
 
         with open(glslFilename, "w+") as f:
@@ -176,7 +181,7 @@ class Shader(sinode.Sinode):
         compiledFilename = "a.spv"
         if os.path.exists(compiledFilename):
             os.remove(compiledFilename)
-        self.device.instance.debug("running " + glslFilename)
+        self.debug("running " + glslFilename)
         # os.system("glslc --scalar-block-layout " + glslFilename)
         glslcbin = os.path.join(here, "glslc")
         os.system(glslcbin + " --target-env=vulkan1.1 " + glslFilename)
@@ -193,7 +198,7 @@ class Shader(sinode.Sinode):
     def getVertexBuffers(self):
         allVertexBuffers = []
         for b in self.buffers:
-            if b.usage == VK_BUFFER_USAGE_VERTEX_BUFFER_BIT:
+            if b.usage == vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT:
                 allVertexBuffers += [b]
         return allVertexBuffers
 
@@ -207,7 +212,7 @@ class Shader(sinode.Sinode):
             # convert to list to make it JSON serializable
             outdict[b.name] = rcvdArray.tolist()  # nested lists with same data, indices
         with open(filename, "w+") as f:
-            self.device.instance.debug("dumping to " + filename)
+            self.debug("dumping to " + filename)
             json.dump(outdict, f, indent=4)
 
     # take the template GLSL file

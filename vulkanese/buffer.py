@@ -9,6 +9,7 @@ import sinode.sinode as sinode
 
 import vulkan as vk
 import numpy as np
+import time
 
 here = os.path.dirname(os.path.abspath(__file__))
 
@@ -27,8 +28,8 @@ def glsltype2python(glsltype):
     elif "vec" in glsltype:
         return np.float32
     else:
-        self.debug("type")
-        self.debug(glsltype)
+        print("type")
+        print(glsltype)
         die
 
 
@@ -131,8 +132,8 @@ class Buffer(sinode.Sinode):
         # There are several types of memory that can be allocated, and we must choose a memory type that:
         # 1) Satisfies the memory requirements(memoryRequirements.memoryTypeBits).
         # 2) Satifies our own usage requirements. We want to be able to read the buffer memory from the GPU to the CPU
-        #    with vkMapMemory, so we set VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT.
-        # Also, by setting VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, memory written by the device(GPU) will be easily
+        #    with vkMapMemory, so we set vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT.
+        # Also, by setting vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, memory written by the device(GPU) will be easily
         # visible to the host(CPU), without having to call any extra flushing commands. So mainly for convenience, we set
         # this flag.
         index = self.device.findMemoryType(
@@ -202,7 +203,7 @@ class Buffer(sinode.Sinode):
 
         # NEEDED FOR RAYTRACING, FAILS BEFORE VULKAN 1.3
         # self.bufferDeviceAddressInfo = VkBufferDeviceAddressInfo(
-        #    sType=VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+        #    sType=vk.VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
         #    pNext=None,
         #    buffer=self.vkBuffer,
         # )
@@ -493,7 +494,6 @@ class DebugBuffer(StorageBuffer):
         self.proc_kwargs(
             DEBUG=True,
             location=0,
-            shape=shape,
             format=vk.VK_FORMAT_R64_SFLOAT,
             readFromCPU=True,
             memProperties=0
@@ -555,14 +555,14 @@ class VertexBuffer(Buffer):
         )
         self.binding = location
         # the following are only needed for vertex buffers
-        # VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
-        # VK_VERTEX_INPUT_RATE_INSTANCE: Move to the next data entry after each instance
+        # vk.VK_VERTEX_INPUT_RATE_VERTEX: Move to the next data entry after each vertex
+        # vk.VK_VERTEX_INPUT_RATE_INSTANCE: Move to the next data entry after each instance
 
         # we will standardize its bindings with a attribute description
         self.attributeDescription = vk.VkVertexInputAttributeDescription(
             binding=self.binding, location=self.location, format=self.format, offset=0
         )
-        # ^^ Consider VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^
+        # ^^ Consider vk.VK_FORMAT_R32G32B32A32_SFLOAT  ?? ^^
         self.bindingDescription = vk.VkVertexInputBindingDescription(
             binding=self.binding, stride=stride, inputRate=rate  # 4 bytes/element
         )
@@ -647,7 +647,7 @@ class UniformBuffer(Buffer):
         self,
         device,
         name,
-        dimensionVals,
+        shape,
         DEBUG=False,
         qualifier="",
         memProperties=0
@@ -657,17 +657,13 @@ class UniformBuffer(Buffer):
         rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
         stride=12,
     ):
-        self.descriptorSet = descriptorSet
-        if descriptorSet is None:
-            self.descriptorSet = device.descriptorPool.descSetUniform
         Buffer.__init__(
             self,
             DEBUG=False,
             device=device,
             name=name,
             location=0,
-            descriptorSet=device.descriptorPool.descSetUniform,
-            dimensionVals=dimensionVals,
+            shape=shape,
             format=vk.VK_FORMAT_R64_SFLOAT,
             readFromCPU=True,
             usage=vk.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -680,12 +676,10 @@ class UniformBuffer(Buffer):
             stride=12,
             compress=False,
         )
-        self.getDescriptorBinding()
 
 
 class AccelerationStructure(Buffer):
     def __init__(self, setupDict, shader):
-        Descriptorset.__init__(self, shader)
         self.pipeline = shader.pipeline
         self.pipelineDict = self.pipeline.setupDict
         self.vkCommandPool = self.pipeline.device.vkCommandPool
@@ -704,24 +698,24 @@ class AccelerationStructureNV(AccelerationStructure):
         # // Get the size result back
         # std::vector<VkDeviceSize> compactSizes(m_blas.size());
         # vkGetQueryPoolResults(m_device, queryPool, 0, (uint32_t)compactSizes.size(), compactSizes.size() * sizeof(VkDeviceSize),
-        # 											compactSizes.data(), sizeof(VkDeviceSize), VK_QUERY_RESULT_WAIT_BIT);
+        # 											compactSizes.data(), sizeof(VkDeviceSize), vk.VK_QUERY_RESULT_WAIT_BIT);
 
         # just playing. we will guess that b***h
 
-        # Provided by VK_NV_ray_tracing
-        self.asCreateInfo = VkAccelerationStructureCreateInfoNV(
-            sType=VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV,
+        # Provided by vk.VK_NV_ray_tracing
+        self.asCreateInfo = vk.VkAccelerationStructureCreateInfoNV(
+            sType=vk.VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV,
             pNext=None,
             compactedSize=642000,  # VkDeviceSize
         )
 
-        # Provided by VK_NV_ray_tracing
-        self.vkAccelerationStructure = vkCreateAccelerationStructureNV(
+        # Provided by vk.VK_NV_ray_tracing
+        self.vkAccelerationStructure = vk.vkCreateAccelerationStructureNV(
             device=self.vkDevice, pCreateInfo=self.asCreateInfo, pAllocator=None
         )
 
 
-# If type is VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV then geometryCount must be 0
+# If type is vk.VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV then geometryCount must be 0
 class TLASNV(AccelerationStructureNV):
     def __init__(self, setupDict, shader):
         AccelerationStructureNV.__init__(self, setupDict, shader)
@@ -730,12 +724,12 @@ class TLASNV(AccelerationStructureNV):
             newBlas = BLASNV(blasDict, shader)
             self.children += [newBlas]
 
-        # Provided by VK_NV_ray_tracing
-        self.asInfo = VkAccelerationStructureInfoNV(
-            sType=VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV,
+        # Provided by vk.VK_NV_ray_tracing
+        self.asInfo = vk.VkAccelerationStructureInfoNV(
+            sType=vk.VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV,
             pNext=None,  # const void*
-            type=VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
-            flags=VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR,
+            type=vk.VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+            flags=vk.VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR,
             instanceCount=len(self.children),  # uint32_t
             geometryCount=0,  # uint32_t
             pGeometries=None,  # const VkGeometryNV*
@@ -759,29 +753,29 @@ class Geometry(sinode.Sinode):
 
         # ccw rotation
         theta = 0
-        self.vkTransformMatrix = VkTransformMatrixKHR(
+        self.vkTransformMatrix = vk.VkTransformMatrixKHR(
             # float    matrix[3][4];
-            [cos(theta), -sin(theta), 0, sin(theta), cos(theta), 0, 0, 0, 1]
+            [np.cos(theta), -np.sin(theta), 0, np.sin(theta), np.cos(theta), 0, 0, 0, 1]
         )
 
-        self.geometryTriangles = VkGeometryTrianglesNV(
-            sType=VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV,
+        self.geometryTriangles = vk.VkGeometryTrianglesNV(
+            sType=vk.VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV,
             pNext=None,
             vertexData=self.buffer.vkBuffer,
             vertexOffset=0,
             vertexCount=len(buffSetupDict["vertex"].flatten()),
             vertexStride=12,
-            vertexFormat=VK_FORMAT_R32G32B32_SFLOAT,
+            vertexFormat=vk.VK_FORMAT_R32G32B32_SFLOAT,
             indexData=self.indexBuffer.vkBuffer,
             indexOffset=0,
             indexCount=len(buffSetupDict["index"].flatten()),
-            indexType=VK_INDEX_TYPE_UINT32,
+            indexType=vk.VK_INDEX_TYPE_UINT32,
             transformData=self.vkTransformMatrix,
             transformOffset=0,
         )
 
-        self.aabbs = VkGeometryAABBNV(
-            sType=VK_STRUCTURE_TYPE_GEOMETRY_AABB_NV,
+        self.aabbs = vk.VkGeometryAABBNV(
+            sType=vk.VK_STRUCTURE_TYPE_GEOMETRY_AABB_NV,
             pNext=None,
             aabbData=self.aabb.vkBuffer,
             numAABBs=1,
@@ -789,44 +783,44 @@ class Geometry(sinode.Sinode):
             offset=0,
         )
 
-        self.geometryData = VkGeometryDataNV(
+        self.geometryData = vk.VkGeometryDataNV(
             triangles=self.geometryTriangles, aabbs=self.aabbs
         )
 
         # possible flags:
 
-        # VK_GEOMETRY_OPAQUE_BIT_KHR = 0x00000001,
-        # VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR = 0x00000002,
-        # // Provided by VK_NV_ray_tracing
-        # VK_GEOMETRY_OPAQUE_BIT_NV = VK_GEOMETRY_OPAQUE_BIT_KHR,
-        # // Provided by VK_NV_ray_tracing
-        # VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_NV
+        # vk.VK_GEOMETRY_OPAQUE_BIT_KHR = 0x00000001,
+        # vk.VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR = 0x00000002,
+        # // Provided by vk.VK_NV_ray_tracing
+        # vk.VK_GEOMETRY_OPAQUE_BIT_NV = vk.VK_GEOMETRY_OPAQUE_BIT_KHR,
+        # // Provided by vk.VK_NV_ray_tracing
+        # vk.VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_NV
 
-        # VK_GEOMETRY_OPAQUE_BIT_KHR indicates that this geometry does
+        # vk.VK_GEOMETRY_OPAQUE_BIT_KHR indicates that this geometry does
         # not invoke the any-hit shaders even if present in a hit group.
 
-        self.vkGeometry = VkGeometryNV(
-            sType=VK_STRUCTURE_TYPE_GEOMETRY_NV,
+        self.vkGeometry = vk.VkGeometryNV(
+            sType=vk.VK_STRUCTURE_TYPE_GEOMETRY_NV,
             pNext=None,
-            geometryType=VK_GEOMETRY_TYPE_TRIANGLES_KHR,
+            geometryType=vk.VK_GEOMETRY_TYPE_TRIANGLES_KHR,
             geometry=self.geometryData,
-            flags=VK_GEOMETRY_OPAQUE_BIT_KHR,
+            flags=vk.VK_GEOMETRY_OPAQUE_BIT_KHR,
         )
 
 
-# If type is VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV then instanceCount must be 0
+# If type is vk.VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV then instanceCount must be 0
 class BLASNV(AccelerationStructureNV):
     def __init__(self, setupDict, shader, initialMesh):
         AccelerationStructureNV.__init__(self, setupDict, shader)
 
         self.geometry = Geometry(initialMesh, self)
 
-        # Provided by VK_NV_ray_tracing
-        self.asInfo = VkAccelerationStructureInfoNV(
-            sType=VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV,
+        # Provided by vk.VK_NV_ray_tracing
+        self.asInfo = vk.VkAccelerationStructureInfoNV(
+            sType=vk.VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV,
             pNext=None,  # const void*
-            type=VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
-            flags=VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR,
+            type=vk.VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+            flags=vk.VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR,
             instanceCount=0,  # uint32_t
             geometryCount=1,  # uint32_t
             pGeometries=[self.geometry.vkGeometry],  # const VkGeometryNV*
@@ -838,51 +832,51 @@ class AccelerationStructureKHR(AccelerationStructure):
         AccelerationStructure.__init__(self, setupDict, shader)
 
         # Identify the above data as containing opaque triangles.
-        asGeom = VkAccelerationStructureGeometryKHR(
-            VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
-            geometryType=VK_GEOMETRY_TYPE_TRIANGLES_KHR,
-            flags=VK_GEOMETRY_OPAQUE_BIT_KHR,
+        asGeom = vk.VkAccelerationStructureGeometryKHR(
+            vk.VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+            geometryType=vk.VK_GEOMETRY_TYPE_TRIANGLES_KHR,
+            flags=vk.VK_GEOMETRY_OPAQUE_BIT_KHR,
             triangles=geometry.triangles,
         )
 
         # The entire array will be used to build the BLAS.
-        offset = VkAccelerationStructureBuildRangeInfoKHR(
+        offset = vk.VkAccelerationStructureBuildRangeInfoKHR(
             firstVertex=0, primitiveCount=53324234, primitiveOffset=0, transformOffset=0
         )
 
-        # Provided by VK_NV_ray_tracing
-        pCreateInfo = VkAccelerationStructureCreateInfoKHR(
-            sType=VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV,  # VkStructureType
+        # Provided by vk.VK_NV_ray_tracing
+        pCreateInfo = vk.VkAccelerationStructureCreateInfoKHR(
+            sType=vk.VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV,  # VkStructureType
             pNext=None,  # const void*
             compactedSize=642000,  # VkDeviceSize
         )
 
-        # Provided by VK_NV_ray_tracing
-        self.vkAccelerationStructure = vkCreateAccelerationStructureNV(
+        # Provided by vk.VK_NV_ray_tracing
+        self.vkAccelerationStructure = vk.vkCreateAccelerationStructureNV(
             device=self.vkDevice, pCreateInfo=self.asCreateInfo, pAllocator=None
         )
 
 
-# If type is VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_ then instanceCount must be 0
+# If type is vk.VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_ then instanceCount must be 0
 class BLAS(AccelerationStructure):
     def __init__(self, setupDict, shader, initialMesh):
         AccelerationStructure.__init__(self, setupDict, shader)
 
         self.geometry = Geometry(initialMesh, self)
 
-        # Provided by VK__ray_tracing
-        self.asInfo = VkAccelerationStructureInfo(
-            sType=VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_,
+        # Provided by vk.VK__ray_tracing
+        self.asInfo = vk.VkAccelerationStructureInfo(
+            sType=vk.VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_,
             pNext=None,  # const void*
-            type=VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
-            flags=VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR,
+            type=vk.VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+            flags=vk.VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR,
             instanceCount=0,  # uint32_t
             geometryCount=1,  # uint32_t
             pGeometries=[self.geometry.vkGeometry],  # const VkGeometry*
         )
 
 
-# If type is VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_ then geometryCount must be 0
+# If type is vk.VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_ then geometryCount must be 0
 class TLAS(AccelerationStructure):
     def __init__(self, setupDict, shader):
         AccelerationStructure.__init__(self, setupDict, shader)
@@ -891,12 +885,12 @@ class TLAS(AccelerationStructure):
             newBlas = BLAS(blasDict, shader)
             self.children += [newBlas]
 
-        # Provided by VK__ray_tracing
-        self.asInfo = VkAccelerationStructureInfo(
-            sType=VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_,
+        # Provided by vk.VK__ray_tracing
+        self.asInfo = vk.VkAccelerationStructureInfo(
+            sType=vk.VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_,
             pNext=None,  # const void*
-            type=VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
-            flags=VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR,
+            type=vk.VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+            flags=vk.VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR,
             instanceCount=len(self.children),  # uint32_t
             geometryCount=0,  # uint32_t
             pGeometries=None,  # const VkGeometry*

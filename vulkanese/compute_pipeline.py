@@ -184,17 +184,8 @@ class ComputePipeline(sinode.Sinode):
         self.fence.wait()
 
     def release(self):
-        self.fence.release()
 
-        for semaphore in self.signalSemaphores:
-            semaphore.release()
-
-        self.device.instance.debug("destroying children")
-        for child in self.children:
-            child.release()
-
-        for semaphore in self.signalSemaphores:
-            semaphore.release()
-
+        self.device.instance.debug("destroying pipeline")
         vk.vkDestroyPipeline(self.device.vkDevice, self.vkPipeline, None)
+        self.device.instance.debug("destroying pipeline layout")
         vk.vkDestroyPipelineLayout(self.device.vkDevice, self.vkPipelineLayout, None)

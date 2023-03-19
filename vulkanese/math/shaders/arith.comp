@@ -7,27 +7,26 @@
 #define LG_WG_SIZE 7
 #define THREADS_PER_WORKGROUP 128
 // This will be (or has been) replaced by constant definitions
-    
+
 layout(std430, set = 0, binding = 0) buffer x_buf
 {
-   writeonly float x[128];
+   readonly float x[];
 };
 layout(std430, set = 0, binding = 1) buffer y_buf
 {
-   writeonly float y[128];
+   readonly float y[];
 };
 layout(std430, set = 0, binding = 2) buffer result_buf
 {
-   writeonly float result[128];
+   writeonly float result[];
 };
-// This will be (or has been) replaced by buffer definitions
-    
+
 layout (local_size_x = THREADS_PER_WORKGROUP, local_size_y = 1, local_size_z = 1 ) in;
 
 void main() {
     uint workgroup_ix = gl_GlobalInvocationID.x;
-    #ifdef OPERATION
-    result[workgroup_ix] = x[workgroup_ix] OPERATION y[workgroup_ix%YLEN];
+    #ifdef operation
+    result[workgroup_ix] = x[workgroup_ix] operation y[workgroup_ix%YLEN];
     #endif
     #ifdef FUNCTION1
     result[workgroup_ix] = FUNCTION1 (x[workgroup_ix]);

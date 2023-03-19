@@ -28,8 +28,8 @@ def ctypes2dict(props, depth=0):
     elif type.kind == "array":
         return [ctypes2dict(p, depth + 1) for p in props]
     else:
-        self.instance.debug(" " * depth + type.kind)
-        self.instance.debug(" " * depth + dir(type))
+        print(" " * depth + type.kind)
+        print(" " * depth + dir(type))
         die
 
 
@@ -112,8 +112,8 @@ class Device(sinode.Sinode):
             self.imageSharingMode = vk.VK_SHARING_MODE_CONCURRENT
             self.queueFamilyIndexCount = 2
             self.pQueueFamilyIndices = [
-                device.queue_family_graphic_index,
-                device.queue_family_present_index,
+                self.device.queue_family_graphic_index,
+                self.device.queue_family_present_index,
             ]
 
         # ----------
@@ -349,7 +349,7 @@ class Device(sinode.Sinode):
         return [self.features, self.properties, self.memoryProperties]
 
     def getShader(self, **kwargs):
-        newShader = ve.shader.Shader(self.vkDevice, **kwargs)
+        newShader = ve.shader.Shader(device = self, **kwargs)
         self.shaders += [newShader]
         return newShader
 
@@ -376,8 +376,6 @@ class Device(sinode.Sinode):
     def release(self):
 
         self.instance.debug("destroying children")
-        for child in self.children:
-            child.release()
 
         for buffer in self.buffers:
             buffer.release()

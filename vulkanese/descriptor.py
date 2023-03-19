@@ -49,7 +49,6 @@ class DescriptorPool(sinode.Sinode):
     def getBinding(self, buffer, descSet):
         self.debug("Allocating ")
         self.debug(buffer)
-        self.debug(bindname)
         return self.descSet.attachBuffer(buffer)
 
     # We first need to describe which descriptor types our descriptor sets are going to contain and how many of them, using VkDescriptorPoolSize structures.
@@ -182,14 +181,12 @@ class DescriptorSet(sinode.Sinode):
         self.currBufferBinding = 0
 
 
-    def getBufferBinding(self):
-        retval = self.currBufferBinding
-        self.currBufferBinding += 1
-        return retval
-    
-
     def addBuffer(self, newBuffer):
-        newBuffer.binding = self.getBufferBinding()
+        newBuffer.binding = self.currBufferBinding
+        self.currBufferBinding += 1
+
+        newBuffer.descriptorSetBinding = self.binding
+
         self.buffers += [newBuffer]
         self.parent.buffers += [newBuffer]
         # descriptorCount is the number of descriptors contained in the binding,
@@ -213,7 +210,6 @@ class DescriptorSet(sinode.Sinode):
             buffer=newBuffer.vkBuffer, offset=0, range=newBuffer.sizeBytes
         )
 
-        newBuffer.descriptorSetBinding = self.binding
         # if "descriptorSet" not in kwargs.keys():
         #    self.descriptorSet = self.fromAbove("descriptorPool").descSetGlobal
 
