@@ -4,7 +4,7 @@ import time
 import sys
 import numpy as np
 import json
-import open3d as o3d
+#import open3d as o3d
 import copy
 import sdl2
 

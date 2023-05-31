@@ -5,28 +5,22 @@ import time
 import sys
 import numpy as np
 import json
-import trimesh
 import cv2 as cv
-import open3d as o3d
 import copy
-from exutils import *
 from PIL import Image
 
 here = os.path.dirname(os.path.abspath(__file__))
 print(sys.path)
 
-localtest = True
-if localtest == True:
-    vkpath = os.path.join(here, "..", "vulkanese")
-    sys.path.append(vkpath)
-    from vulkanese import *
-else:
-    from vulkanese.vulkanese import *
+vkpath = os.path.join(here, "..", "..", "..")
+sys.path.append(vkpath)
+import vulkanese as ve
+import vulkan as vk
 
 # from vulkanese.vulkanese import *
 
 # device selection and instantiation
-instance_inst = Instance()
+instance_inst = ve.instance.Instance()
 print("available Devices:")
 # for i, d in enumerate(instance_inst.getDeviceList()):
 # 	print("    " + str(i) + ": " + d.deviceName)
@@ -43,17 +37,18 @@ WIDTH = 3200  # Size of rendered mandelbrot set.
 HEIGHT = 2400  # Size of renderered mandelbrot set.
 WORKGROUP_SIZE = 32  # Workgroup size in compute shader.
 
-imageData = Buffer(
+imageData = ve.buffer.StorageBuffer(
     device=device,
     type="Pixel",
     descriptorSet=device.descriptorPool.descSetGlobal,
     qualifier="out",
     name="imageData",
     SIZEBYTES=4 * 4 * WIDTH * HEIGHT,
-    usage=VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-    stageFlags=VK_SHADER_STAGE_COMPUTE_BIT,
+    stageFlags=vk.VK_SHADER_STAGE_COMPUTE_BIT,
     location=0,
 )
+
+#device.descriptorPool.finalize()
 
 header = """#version 450
 #extension GL_ARB_separate_shader_objects : enable
@@ -109,10 +104,10 @@ void main() {
 
 # Stage
 existingBuffers = [imageData]
-mandleStage = Stage(
+mandleStage = ve.stage.Stage(
     device=device,
     name="mandlebrot.comp",
-    stage=VK_SHADER_STAGE_COMPUTE_BIT,
+    stage=vk.VK_SHADER_STAGE_COMPUTE_BIT,
     existingBuffers=existingBuffers,
     outputWidthPixels=700,
     outputHeightPixels=700,
@@ -123,9 +118,8 @@ mandleStage = Stage(
 
 #######################################################
 # Pipeline
-device.descriptorPool.finalize()
 
-computePipeline = ComputePipeline(device=device, stages=[mandleStage])
+computePipeline = ve.ComputePipeline(device=device, stages=[mandleStage])
 device.children += [computePipeline]
 
 # print the object hierarchy
@@ -137,8 +131,8 @@ WORKGROUP_SIZE = 32  # Workgroup size in compute shader.
 print(json.dumps(device.asDict(), indent=4))
 
 # Now we shall finally submit the recorded command buffer to a queue.
-submitInfo = VkSubmitInfo(
-    sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,
+submitInfo = vk.VkSubmitInfo(
+    sType=vk.VK_STRUCTURE_TYPE_SUBMIT_INFO,
     commandBufferCount=1,  # submit a single command buffer
     pCommandBuffers=[
         computePipeline.commandBuffer.vkCommandBuffers[0]
@@ -146,20 +140,20 @@ submitInfo = VkSubmitInfo(
 )
 
 # We create a fence.
-fenceCreateInfo = VkFenceCreateInfo(sType=VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, flags=0)
-fence = vkCreateFence(device.vkDevice, fenceCreateInfo, None)
+fenceCreateInfo = vk.VkFenceCreateInfo(sType=vk.VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, flags=0)
+fence = vk.vkCreateFence(device.vkDevice, fenceCreateInfo, None)
 
 # We submit the command buffer on the queue, at the same time giving a fence.
-vkQueueSubmit(device.compute_queue, 1, submitInfo, fence)
+vk.vkQueueSubmit(device.compute_queue, 1, submitInfo, fence)
 
 # The command will not have finished executing until the fence is signalled.
 # So we wait here.
 # We will directly after this read our buffer from the GPU,
 # and we will not be sure that the command has finished executing unless we wait for the fence.
 # Hence, we use a fence here.
-vkWaitForFences(device.vkDevice, 1, [fence], VK_TRUE, 100000000000)
+vk.vkWaitForFences(device.vkDevice, 1, [fence], vk.VK_TRUE, 100000000000)
 
-vkDestroyFence(device.vkDevice, fence, None)
+vk.vkDestroyFence(device.vkDevice, fence, None)
 
 pa = np.frombuffer(imageData.pmap, np.float32)
 pa = pa.reshape((HEIGHT, WIDTH, 4))
