@@ -1,16 +1,19 @@
 import ctypes
 import os
+import sys
 import time
 import json
 import vulkan as vk
 
-from . import vulkanese
-from . import buffer
-from . import shader
-from . import synchronization
-from . import renderpass
-from . import surface
-from . import graphics_command_buffer
+here = os.path.dirname(os.path.abspath(__file__))
+
+sys.path.insert(
+    0, os.path.abspath(os.path.join(here, ".."))
+)
+import vulkanese as ve
+from vulkanese import synchronization as synchronization
+from vulkanese import renderpass as renderpass
+from vulkanese import graphics_command_buffer as graphics_command_buffer
 
 import numpy as np
 import sys

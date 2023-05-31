@@ -2,14 +2,16 @@ import json
 import os
 import sys
 
+here = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(
-    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode"))
+    0, os.path.abspath(os.path.join(here, "..", "..", "sinode"))
 )
 import sinode.sinode as sinode
 
-from . import vulkanese as ve
-
-here = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(
+    0, os.path.abspath(os.path.join(here, ".."))
+)
+import vulkanese as ve
 import vulkan as vk
 
 class DescriptorPool(sinode.Sinode):
@@ -165,6 +167,8 @@ class DescriptorPool(sinode.Sinode):
             self.descSetGlobal.addBuffer(buffer)
         elif type(buffer) == ve.buffer.UniformBuffer:
             self.descSetUniform.addBuffer(buffer)
+        elif type(buffer) == ve.buffer.DebugBuffer:
+            self.descSetGlobal.addBuffer(buffer)
         else:
             raise Exception("Don't understand buffer type " + str(type(buffer)))
 
@@ -243,7 +247,7 @@ class DescriptorSet(sinode.Sinode):
     def release(self):
         for child in self.children:
             child.release()
-        self.device.instance.debug("destroying descriptor set")
+        self.device.instance.debug("destroying descriptor set layout")
         if hasattr(self, "vkDescriptorSetLayout"):
             vk.vkDestroyDescriptorSetLayout(
                 self.vkDevice, self.vkDescriptorSetLayout, None

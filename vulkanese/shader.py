@@ -10,7 +10,11 @@ import re
 import vulkan as vk
 from . import buffer
 from . import compute_pipeline
-from . import vulkanese as ve
+
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+)
+import vulkanese as ve
 
 from pathlib import Path
 
@@ -69,6 +73,7 @@ class Shader(sinode.Sinode):
             if buffer.DEBUG:
                 self.debugBuffers += [buffer]
 
+        # Desc Pools belong to the shader
         self.descriptorPool.finalize()
 
         outfilename = self.basename + ".spv"

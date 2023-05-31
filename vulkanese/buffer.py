@@ -100,6 +100,7 @@ class Buffer(sinode.Sinode):
         self.proc_kwargs(**kwargs)
 
         self.device = self.fromAbove("device")
+        self.device.buffers += [self]
         self.vkDevice = self.device.vkDevice
         self.itemSize = glsltype2bytesize(self.memtype)
         self.pythonType = glsltype2python(self.memtype)
@@ -303,6 +304,7 @@ class Buffer(sinode.Sinode):
         image.save(path)
 
     def release(self):
+        self.debug("releasing buffer " + self.name)
         if not self.released:
             self.debug("destroying buffer " + self.name)
             vk.vkFreeMemory(self.vkDevice, self.vkDeviceMemory, None)

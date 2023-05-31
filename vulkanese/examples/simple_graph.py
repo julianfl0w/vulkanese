@@ -45,6 +45,7 @@ class SimpleGraph(sinode.Sinode):
     def run(self):
         for shader in self.shaders:
             shader.run()
+            
 def test(device):
     # begin GPU test
     simpleGraph = SimpleGraph(device = device)
@@ -61,6 +62,7 @@ if __name__ == "__main__":
     instance = ve.instance.Instance(verbose=False)
     device = instance.getDevice(0)
     test(device = device)
+    instance.dump()
     instance.release()
 
 

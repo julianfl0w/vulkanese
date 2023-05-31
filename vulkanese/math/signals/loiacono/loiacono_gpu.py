@@ -7,7 +7,7 @@ from scipy.signal import get_window
 gpuhere = os.path.dirname(os.path.abspath(__file__))
 
 sys.path.insert(
-    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 )
 import vulkanese as ve
 import vulkan as vk
@@ -22,15 +22,14 @@ sys.path.insert(
 import sinode.sinode as sinode
 
 loiacono_home = os.path.dirname(os.path.abspath(__file__))
+import matplotlib.pyplot as plt
 
 # Create a compute shader
 class Loiacono_GPU(ve.shader.Shader):
-    def __init__(
-        self, **kwargs
-    ):
+    def __init__(self, **kwargs):
         sinode.Sinode.__init__(self, **kwargs)
         self.proc_kwargs(
-            signalLength=2 ** 15,
+            signalLength=2**15,
             constantsDict={},
             DEBUG=False,
             buffType="float",
@@ -53,7 +52,9 @@ class Loiacono_GPU(ve.shader.Shader):
         # device selection and instantiation
         self.instance = self.device.instance
         self.constantsDict = constantsDict
-        self.numSubgroups = self.signalLength * len(self.fprime) / self.device.subgroupSize
+        self.numSubgroups = (
+            self.signalLength * len(self.fprime) / self.device.subgroupSize
+        )
         self.numSubgroupsPerFprime = int(self.numSubgroups / len(self.fprime))
         self.spectrum = np.zeros((len(self.fprime)))
 
@@ -70,7 +71,7 @@ class Loiacono_GPU(ve.shader.Shader):
                 name="x",
                 memtype=self.buffType,
                 qualifier="readonly",
-                dimensionVals=[2 ** 15],  # always 32**3
+                shape=[2**15],  # always 32**3
                 memProperties=self.memProperties,
                 descriptorSet=self.descriptorPool.descSetGlobal,
             ),
@@ -80,7 +81,7 @@ class Loiacono_GPU(ve.shader.Shader):
                 device=self.device,
                 name="Li1",
                 memtype=self.buffType,
-                dimensionVals=[len(self.fprime), self.device.subgroupSize ** 2],
+                shape=[len(self.fprime), self.device.subgroupSize**2],
                 dimIndexNames=["frequency_ix", "sg"],
                 descriptorSet=self.descriptorPool.descSetGlobal,
             ),
@@ -88,7 +89,7 @@ class Loiacono_GPU(ve.shader.Shader):
                 device=self.device,
                 name="Lr1",
                 memtype=self.buffType,
-                dimensionVals=[len(self.fprime), self.device.subgroupSize ** 2],
+                shape=[len(self.fprime), self.device.subgroupSize**2],
                 dimIndexNames=["F", "sg"],
                 descriptorSet=self.descriptorPool.descSetGlobal,
             ),
@@ -96,7 +97,7 @@ class Loiacono_GPU(ve.shader.Shader):
                 device=self.device,
                 name="Li0",
                 memtype=self.buffType,
-                dimensionVals=[len(self.fprime), self.device.subgroupSize],
+                shape=[len(self.fprime), self.device.subgroupSize],
                 dimIndexNames=["F", "sg"],
                 descriptorSet=self.descriptorPool.descSetGlobal,
             ),
@@ -104,7 +105,7 @@ class Loiacono_GPU(ve.shader.Shader):
                 device=self.device,
                 name="Lr0",
                 memtype=self.buffType,
-                dimensionVals=[len(self.fprime), self.device.subgroupSize],
+                shape=[len(self.fprime), self.device.subgroupSize],
                 dimIndexNames=["F", "sg"],
                 descriptorSet=self.descriptorPool.descSetGlobal,
             ),
@@ -114,7 +115,7 @@ class Loiacono_GPU(ve.shader.Shader):
                 name="L",
                 memtype=self.buffType,
                 qualifier="writeonly",
-                dimensionVals=[len(self.fprime)],
+                shape=[len(self.fprime)],
                 dimIndexNames=["F"],
                 memProperties=self.memProperties,
                 descriptorSet=self.descriptorPool.descSetGlobal,
@@ -124,7 +125,7 @@ class Loiacono_GPU(ve.shader.Shader):
                 name="f",
                 memtype=self.buffType,
                 qualifier="readonly",
-                dimensionVals=[len(self.fprime)],
+                shape=[len(self.fprime)],
                 dimIndexNames=["F"],
                 memProperties=self.memProperties,
                 descriptorSet=self.descriptorPool.descSetGlobal,
@@ -134,7 +135,7 @@ class Loiacono_GPU(ve.shader.Shader):
                 name="offset",
                 memtype="uint",
                 qualifier="readonly",
-                dimensionVals=[16],
+                shape=[16],
                 memProperties=self.memProperties,
                 descriptorSet=self.descriptorPool.descSetGlobal,
             ),
@@ -142,7 +143,7 @@ class Loiacono_GPU(ve.shader.Shader):
             #    device=self.device,
             #    name="allShaders",
             #    memtype=buffType,
-            #    dimensionVals=[constantsDict["TOTAL_THREAD_COUNT"]],
+            #    shape=[constantsDict["TOTAL_THREAD_COUNT"]],
             # ),
         ]
 
@@ -153,12 +154,12 @@ class Loiacono_GPU(ve.shader.Shader):
                     name="window",
                     memtype=self.buffType,
                     qualifier="readonly",
-                    dimensionVals=[1024],  # always 32**3
+                    shape=[1024],  # always 32**3
                     memProperties=self.memProperties,
                 )
             ]
 
-        self.descriptorPool.finalize()
+        #self.descriptorPool.finalize()
 
         # Create a compute shader
         # Compute Stage: the only stage
@@ -191,6 +192,8 @@ class Loiacono_GPU(ve.shader.Shader):
         if constantsDict["windowed"]:
             self.gpuBuffers.window.set(get_window("hamming", 1024))
 
+        self.finalize()
+
     def debugRun(self, z):
         linst_gpu.gpuBuffers.x.set(z)
         vstart = time.time()
@@ -198,7 +201,7 @@ class Loiacono_GPU(ve.shader.Shader):
         vlen = time.time() - vstart
         self.spectrum = self.gpuBuffers.L
         print("vlen " + str(vlen))
-        # return self.sumOut.getAsNumpyArray()
+        # return self.sumOut.get()
 
     def feed(self, newData, blocking=True):
         self.gpuBuffers.x.setByIndexStart(self.offset, newData)
@@ -207,19 +210,18 @@ class Loiacono_GPU(ve.shader.Shader):
         self.run(blocking)
 
     def getSpectrum(self):
-        self.spectrum = self.gpuBuffers.L.getAsNumpyArray()
+        self.spectrum = self.gpuBuffers.L.get()
         return self.spectrum
 
 
 if __name__ == "__main__":
-
     # generate a sine wave at A440, SR=48000
     sr = 48000
     A4 = 440
-    z = np.sin(np.arange(2 ** 15) * 2 * np.pi * A4 / sr)
-    z += np.sin(2 * np.arange(2 ** 15) * 2 * np.pi * A4 / sr)
-    z += np.sin(3 * np.arange(2 ** 15) * 2 * np.pi * A4 / sr)
-    z += np.sin(4 * np.arange(2 ** 15) * 2 * np.pi * A4 / sr)
+    z = np.sin(np.arange(2**15) * 2 * np.pi * A4 / sr)
+    z += np.sin(2 * np.arange(2**15) * 2 * np.pi * A4 / sr)
+    z += np.sin(3 * np.arange(2**15) * 2 * np.pi * A4 / sr)
+    z += np.sin(4 * np.arange(2**15) * 2 * np.pi * A4 / sr)
 
     multiple = 40
     normalizedStep = 5.0 / sr
@@ -228,13 +230,13 @@ if __name__ == "__main__":
 
     # generate a Loiacono based on this SR
     # (this one runs in CPU. reference only)
-    linst = ve.math.signals.loiacono.Loiacono(
-        fprime=fprime, multiple=multiple, dtftlen=2 ** 15
+    linst = ve.math.signals.loiacono.loiacono.Loiacono(
+        fprime=fprime, multiple=multiple, dtftlen=2**15
     )
     # begin GPU test
-    instance = ve.instance.Instance(verbose=False)
+    instance = ve.instance.Instance(verbose=True)
     device = instance.getDevice(0)
-    linst_gpu = Loiacono_GPU(device=device, fprime=fprime, multiple=linst.multiple)
+    linst_gpu = Loiacono_GPU(device=device, parent=device, fprime=fprime, multiple=linst.multiple)
     print("--- Running CPU Test ---")
     for i in range(10):
         linst.debugRun(z)
@@ -243,7 +245,7 @@ if __name__ == "__main__":
         linst_gpu.debugRun(z)
     # linst_gpu.dumpMemory()
     readstart = time.time()
-    linst_gpu.spectrum = linst_gpu.gpuBuffers.L.getAsNumpyArray()
+    linst_gpu.spectrum = linst_gpu.gpuBuffers.L.get()
     print("Readtime " + str(time.time() - readstart))
 
     graph = False
@@ -256,4 +258,5 @@ if __name__ == "__main__":
 
         plt.show()
 
+    instance.dump()
     instance.release()
