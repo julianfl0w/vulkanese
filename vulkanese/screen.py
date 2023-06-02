@@ -23,6 +23,4 @@ class FullScreen:
         # Displaying the image
         cv2.imshow(self.window_name, image)
         key = int(cv2.waitKey(1))
-        if key == ord("q"):  # Q TO QUIT!
-            sys.exit()
         return key
