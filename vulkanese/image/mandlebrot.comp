@@ -7,7 +7,7 @@
 // This will be (or has been) replaced by constant definitions
 layout(std430, set = 0, binding = 0) buffer imageData_buf
 {
-   writeonly vec4 imageData[30720000];
+   writeonly uint imageData[7680000];
 };
 // This will be (or has been) replaced by buffer definitions
     
@@ -49,6 +49,16 @@ void main() {
   vec3 g = vec3(0.0, 0.1, 0.0);
   vec4 color = vec4( d + e*cos( 6.28318*(f*t+g) ) ,1.0);
 
+  // Convert the color components to 8-bit unsigned integer values
+  uint c_r = uint(color.r * 255.0);
+  uint c_g = uint(color.g * 255.0);
+  uint c_b = uint(color.b * 255.0);
+  uint c_a = uint(color.a * 255.0);
+
+
+  // Pack the components into a single uint value
+  uint pixelValue = (c_a << 24) | (c_r << 16) | (c_g << 8) | c_b;
+
   // store the rendered mandelbrot set into a storage buffer:
-  imageData[WIDTH * gl_GlobalInvocationID.y + gl_GlobalInvocationID.x] = color;
+  imageData[WIDTH * gl_GlobalInvocationID.y + gl_GlobalInvocationID.x] = pixelValue;
 }

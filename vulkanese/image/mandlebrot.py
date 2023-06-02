@@ -5,9 +5,7 @@ import time
 import sys
 import numpy as np
 import json
-import cv2 as cv
-import copy
-from PIL import Image
+import cv2
 import math
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -32,12 +30,16 @@ class Mandlebrot(ve.shader.Shader):
         HEIGHT=2400,  # Size of renderered mandelbrot set.
         **kwargs
     ):
-        imageData = ve.buffer.StorageBuffer(
+        self.WIDTH = WIDTH
+        self.HEIGHT = HEIGHT
+        
+        self.imageData = ve.buffer.StorageBuffer(
             device=device,
             name="imageData",
             type="Pixel",
             qualifier="writeonly",
-            memtype="vec4",
+            memtype="uint",
+            format="VK_FORMAT_R8G8B8A8_UINT",
             shape=[WIDTH * HEIGHT],
             stageFlags=vk.VK_SHADER_STAGE_COMPUTE_BIT,
             location=0,
@@ -52,9 +54,9 @@ class Mandlebrot(ve.shader.Shader):
             device=device,
             name="mandlebrot",
             stage=vk.VK_SHADER_STAGE_COMPUTE_BIT,
-            existingBuffers=[imageData],
+            existingBuffers=[self.imageData],
             sourceFilename=os.path.join(here, "mandlebrot.template.comp"),
-            buffers=[imageData],
+            buffers=[self.imageData],
             constantsDict=dict(
                 HEIGHT=HEIGHT,
                 WIDTH=WIDTH,
@@ -74,16 +76,15 @@ class Mandlebrot(ve.shader.Shader):
         print("Object tree:")
         print(json.dumps(device.asDict(), indent=4))
 
-        self.run()
+    def getImage(self):
+        pa = np.frombuffer(self.imageData.pmap, np.uint8)
+        pa = pa.reshape((self.HEIGHT, self.WIDTH, 4))
+        #pa = self.imageData.get()
+        return pa
 
-        pa = np.frombuffer(imageData.pmap, np.float32)
-        pa = pa.reshape((HEIGHT, WIDTH, 4))
-        pa *= 255
-
-        # Now we save the acquired color data to a .png.
-        image = Image.fromarray(pa.astype(np.uint8))
-        image.save("mandelbrot.png")
-
+    def run(self):
+        ve.shader.Shader.run(self)
+        return self.getImage()
 
 if __name__ == "__main__":
     # device selection and instantiation
@@ -97,7 +98,11 @@ if __name__ == "__main__":
     print("naively choosing device 0")
     device = instance_inst.getDevice(0)
     mandle = Mandlebrot(device=device, instance=instance_inst, parent=device)
-    mandle.run()
+    img = mandle.run()
+
+    # Now we save the acquired color data to a .png.cv2.
+    cv2.imshow('image',img)
+    cv2.waitKey(0)
 
     # elegantly free all memory
     instance_inst.release()

@@ -230,6 +230,8 @@ class Buffer(sinode.Sinode):
             and (
                 self.memtype == "float64_t"
                 or self.memtype == "float"
+                or self.memtype == "uint"
+                or self.memtype == "int"
                 or self.memtype == "vec4"
             )
         ):
@@ -251,8 +253,13 @@ class Buffer(sinode.Sinode):
         self.debug("skipval " + str(self.skipval))
         self.debug("sizeBytes " + str(self.sizeBytes))
 
-    def zeroInitialize(self):
-        self.set(np.zeros((self.itemCount), dtype=self.pythonType))
+    def zeroInitialize(self, flush=True):
+        if self.skipval == 1:
+            self.pmap[:] = np.zeros((self.itemCount), dtype=self.pythonType)
+        else:
+            self.pmap[:] = np.zeros((self.itemCount), dtype=self.pythonType)
+        if flush:
+            self.flush()
 
     def oneInitialize(self):
         self.set(np.ones((self.itemCount), dtype=self.pythonType))
