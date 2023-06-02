@@ -50,5 +50,5 @@ void main() {
   vec4 color = vec4( d + e*cos( 6.28318*(f*t+g) ) ,1.0);
 
   // store the rendered mandelbrot set into a storage buffer:
-  imageData[WIDTH * gl_GlobalInvocationID.y + gl_GlobalInvocationID.x].value = color;
+  imageData[WIDTH * gl_GlobalInvocationID.y + gl_GlobalInvocationID.x] = color;
 }

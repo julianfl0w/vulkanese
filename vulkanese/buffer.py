@@ -51,8 +51,8 @@ def glsltype2bytesize(glsltype):
         # return 12
         return 4
     elif glsltype == "vec4":
-        return 16
-        # return 4
+        #return 16
+        return 4
     else:
         raise Exception("Unrecognized type: " + glsltype)
 
@@ -102,13 +102,15 @@ class Buffer(sinode.Sinode):
         self.device = self.fromAbove("device")
         self.device.buffers += [self]
         self.vkDevice = self.device.vkDevice
-        self.itemSize = glsltype2bytesize(self.memtype)
+        self.itemSizeBytes = glsltype2bytesize(self.memtype)
         self.pythonType = glsltype2python(self.memtype)
         self.getSkipval()
 
         # for vec3 etc, the size is already bakd in
         self.itemCount = int(np.prod(self.shape))
-        self.sizeBytes = int(self.itemCount * self.itemSize * self.skipval)
+        if self.memtype == "vec4":
+            self.itemCount*=4
+        self.sizeBytes = int(self.itemCount * self.itemSizeBytes * self.skipval)
 
         self.debug("creating buffer " + self.name)
 
@@ -235,8 +237,8 @@ class Buffer(sinode.Sinode):
         elif (
             not self.usage & vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
             and not self.usage & vk.VK_BUFFER_USAGE_INDEX_BUFFER_BIT
-        ) and self.itemSize <= 8:
-            self.skipval = int(16 / self.itemSize)
+        ) and self.itemSizeBytes <= 8:
+            self.skipval = int(16 / self.itemSizeBytes)
         # vec3s (12 bytes) does not divide evenly into 16 :(
         # elif self.itemSize == 12:
         #    self.skipval = 4.0/3
@@ -245,7 +247,7 @@ class Buffer(sinode.Sinode):
 
     def debugSizeParams(self):
         self.debug("itemCount " + str(self.itemCount))
-        self.debug("itemSize " + str(self.itemSize))
+        self.debug("itemSize " + str(self.itemSizeBytes))
         self.debug("skipval " + str(self.skipval))
         self.debug("sizeBytes " + str(self.sizeBytes))
 
@@ -373,13 +375,13 @@ class Buffer(sinode.Sinode):
             + " "
             + self.name
             + "["
-            + str(int(self.sizeBytes / self.itemSize))
+            + str(int(self.sizeBytes / self.itemSizeBytes))
             + "];\n};\n"
         )
 
     def write(self, data):
         startByte = self.addrPtr
-        endByte = self.addrPtr + len(data) * self.itemSize
+        endByte = self.addrPtr + len(data) * self.itemSizeBytes
         self.addrPtr = endByte
 
         self.pmap[startByte:endByte] = data
@@ -387,7 +389,7 @@ class Buffer(sinode.Sinode):
 
     def setByIndexVec(self, index, data):
         # self.debug(self.name + " setting " + str(index) + " to " + str(data))
-        startByte = index * self.itemSize * self.skipval
+        startByte = index * self.itemSizeBytes * self.skipval
         self.pmap[startByte : startByte + 4] = np.real(data).astype(np.float32)
         self.pmap[startByte + 4 : startByte + 8] = np.imag(data).astype(np.float32)
 
@@ -396,40 +398,41 @@ class Buffer(sinode.Sinode):
 
     def setByIndex(self, index, data):
         # self.debug(self.name + " setting " + str(index) + " to " + str(data))
-        startByte = index * self.itemSize * self.skipval
-        endByte = index * self.itemSize * self.skipval + self.itemSize
+        startByte = index * self.itemSizeBytes * self.skipval
+        endByte = index * self.itemSizeBytes * self.skipval + self.itemSizeBytes
         self.pmap[startByte:endByte] = np.array(data, dtype=self.pythonType)
 
     def setByIndexStart(self, startIndex, data):
         # if self.skipval != 1:
         #    raise ("You can only do this with new-format storage buffers!")
         # self.debug(self.name + " setting " + str(index) + " to " + str(data))
-        startByte = startIndex * self.itemSize * self.skipval
-        endByte = startIndex * self.itemSize * self.skipval + self.itemSize * len(data)
+        startByte = startIndex * self.itemSizeBytes * self.skipval
+        endByte = startIndex * self.itemSizeBytes * self.skipval + self.itemSizeBytes * len(data)
         self.pmap[startByte:endByte] = np.array(data, dtype=self.pythonType)
 
     def getByIndex(self, index):
         # self.debug(self.name + " setting " + str(index) + " to " + str(data))
-        startByte = index * self.itemSize * self.skipval
-        endByte = index * self.itemSize * self.skipval + self.itemSize
+        startByte = index * self.itemSizeBytes * self.skipval
+        endByte = index * self.itemSizeBytes * self.skipval + self.itemSizeBytes
         return np.frombuffer(self.pmap[startByte:endByte], dtype=self.pythonType)
 
     def set(self, data, flush=True):
         # self.pmap[:] = data.astype(self.pythonType)
-        try:
-            if self.skipval == 1:
-                self.pmap[:] = data.astype(self.pythonType).flatten()
-            else:
-                indices = np.arange(0, len(data), 1.0 / self.skipval).astype(int)
-                data = data[indices]
-                # print(self.pythonType)
-                self.pmap[:] = data.astype(self.pythonType).flatten()
-
-        except:
+        
+        if len(self.pmap[:]) != np.prod(data.shape)*self.itemSizeBytes:
             self.debug("WRONG SIZE")
             self.debug("pmap (bytes): " + str(len(self.pmap[:])))
-            self.debug("data (bytes): " + str(len(data) * self.itemSize))
-            raise Exception("Wrong Size")
+            self.debug("data (bytes): " + str(np.prod(data.shape)*self.itemSizeBytes)*self.itemSizeBytes)
+            raise Exception("Wrong Size")   
+        
+        if self.skipval == 1:
+            #self.pmap[:] = data.astype(self.pythonType).flatten()
+            self.pmap[:] = data.astype(self.pythonType).flatten()
+        else:
+            indices = np.arange(0, len(data), 1.0 / self.skipval).astype(int)
+            data = data[indices]
+            # print(self.pythonType)
+            self.pmap[:] = data.astype(self.pythonType).flatten()
 
         if flush:
             self.flush()

@@ -8,6 +8,7 @@ import json
 import cv2 as cv
 import copy
 from PIL import Image
+import math
 
 here = os.path.dirname(os.path.abspath(__file__))
 print(sys.path)
@@ -59,22 +60,19 @@ class Mandlebrot(ve.shader.Shader):
                 WIDTH=WIDTH,
                 WORKGROUP_SIZE=32,  # Workgroup size in compute shader.
             ),
+            workgroupCount=[
+                math.ceil(float(WIDTH) / 32),
+                math.ceil(float(HEIGHT) / 32),
+                1,
+            ],
         )
 
         ve.shader.Shader.__init__(self, device=device)
+        self.finalize()
 
         # print the object hierarchy
         print("Object tree:")
         print(json.dumps(device.asDict(), indent=4))
-
-        # Now we shall finally submit the recorded command buffer to a queue.
-        submitInfo = vk.VkSubmitInfo(
-            sType=vk.VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            commandBufferCount=1,  # submit a single command buffer
-            pCommandBuffers=[
-                computePipeline.commandBuffer.vkCommandBuffers[0]
-            ],  # the command buffer to submit.
-        )
 
         self.run()
 
