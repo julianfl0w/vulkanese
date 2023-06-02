@@ -15,8 +15,12 @@ void main() {
   if(gl_GlobalInvocationID.x >= WIDTH || gl_GlobalInvocationID.y >= HEIGHT)
     return;
 
-  float x = float(gl_GlobalInvocationID.x) / float(WIDTH);
-  float y = float(gl_GlobalInvocationID.y) / float(HEIGHT);
+  float originX = paramsBuffer[0]; 
+  float originY = paramsBuffer[1]; 
+  float mandleStride = paramsBuffer[2];
+
+  float x = originX + float(gl_GlobalInvocationID.x) * mandleStride;
+  float y = originY + float(gl_GlobalInvocationID.y) * mandleStride;
 
   /*
   What follows is code for rendering the mandelbrot set.

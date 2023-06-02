@@ -51,7 +51,7 @@ def glsltype2bytesize(glsltype):
         # return 12
         return 4
     elif glsltype == "vec4":
-        #return 16
+        # return 16
         return 4
     else:
         raise Exception("Unrecognized type: " + glsltype)
@@ -109,7 +109,7 @@ class Buffer(sinode.Sinode):
         # for vec3 etc, the size is already bakd in
         self.itemCount = int(np.prod(self.shape))
         if self.memtype == "vec4":
-            self.itemCount*=4
+            self.itemCount *= 4
         self.sizeBytes = int(self.itemCount * self.itemSizeBytes * self.skipval)
 
         self.debug("creating buffer " + self.name)
@@ -414,7 +414,10 @@ class Buffer(sinode.Sinode):
         #    raise ("You can only do this with new-format storage buffers!")
         # self.debug(self.name + " setting " + str(index) + " to " + str(data))
         startByte = startIndex * self.itemSizeBytes * self.skipval
-        endByte = startIndex * self.itemSizeBytes * self.skipval + self.itemSizeBytes * len(data)
+        endByte = (
+            startIndex * self.itemSizeBytes * self.skipval
+            + self.itemSizeBytes * len(data)
+        )
         self.pmap[startByte:endByte] = np.array(data, dtype=self.pythonType)
 
     def getByIndex(self, index):
@@ -425,15 +428,18 @@ class Buffer(sinode.Sinode):
 
     def set(self, data, flush=True):
         # self.pmap[:] = data.astype(self.pythonType)
-        
-        if len(self.pmap[:]) != np.prod(data.shape)*self.itemSizeBytes:
+
+        if len(self.pmap[:]) != np.prod(data.shape) * self.itemSizeBytes:
             self.debug("WRONG SIZE")
             self.debug("pmap (bytes): " + str(len(self.pmap[:])))
-            self.debug("data (bytes): " + str(np.prod(data.shape)*self.itemSizeBytes)*self.itemSizeBytes)
-            raise Exception("Wrong Size")   
-        
+            self.debug(
+                "data (bytes): "
+                + str(np.prod(data.shape) * self.itemSizeBytes) * self.itemSizeBytes
+            )
+            raise Exception("Wrong Size")
+
         if self.skipval == 1:
-            #self.pmap[:] = data.astype(self.pythonType).flatten()
+            # self.pmap[:] = data.astype(self.pythonType).flatten()
             self.pmap[:] = data.astype(self.pythonType).flatten()
         else:
             indices = np.arange(0, len(data), 1.0 / self.skipval).astype(int)
