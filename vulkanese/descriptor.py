@@ -3,22 +3,19 @@ import os
 import sys
 
 here = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(
-    0, os.path.abspath(os.path.join(here, "..", "..", "sinode"))
-)
+sys.path.insert(0, os.path.abspath(os.path.join(here, "..", "..", "sinode")))
 import sinode.sinode as sinode
 
-sys.path.insert(
-    0, os.path.abspath(os.path.join(here, ".."))
-)
+sys.path.insert(0, os.path.abspath(os.path.join(here, "..")))
 import vulkanese as ve
 import vulkan as vk
+
 
 class DescriptorPool(sinode.Sinode):
     def __init__(self, **kwargs):
 
         sinode.Sinode.__init__(self, **kwargs)
-        self.proc_kwargs(MAX_FRAMES_IN_FLIGHT= 3, buffers = [])
+        self.proc_kwargs(MAX_FRAMES_IN_FLIGHT=3, buffers=[])
 
         self.vkDevice = self.device.vkDevice
 
@@ -172,6 +169,7 @@ class DescriptorPool(sinode.Sinode):
         else:
             raise Exception("Don't understand buffer type " + str(type(buffer)))
 
+
 class DescriptorSet(sinode.Sinode):
     def __init__(self, descriptorPool, binding, name, type, MAX_FRAMES_IN_FLIGHT=3):
         sinode.Sinode.__init__(self, parent=descriptorPool)
@@ -183,7 +181,6 @@ class DescriptorSet(sinode.Sinode):
         self.type = type
         self.binding = binding
         self.currBufferBinding = 0
-
 
     def addBuffer(self, newBuffer):
         newBuffer.binding = self.currBufferBinding

@@ -7,9 +7,7 @@ import vulkan as vk
 
 here = os.path.dirname(os.path.abspath(__file__))
 
-sys.path.insert(
-    0, os.path.abspath(os.path.join(here, ".."))
-)
+sys.path.insert(0, os.path.abspath(os.path.join(here, "..")))
 import vulkanese as ve
 from vulkanese import synchronization as synchronization
 from vulkanese import renderpass as renderpass

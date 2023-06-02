@@ -11,7 +11,7 @@ import vulkanese as ve
 
 def test(device):
     print("Testing RESNET50")
-    
+
 
 if __name__ == "__main__":
     # get the Vulkan instance

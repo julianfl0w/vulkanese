@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 import vulkanese as ve
 
+
 def test(device):
     # generate a sine wave at A440, SR=48000
     # with 3 additional harmonics
@@ -19,24 +20,19 @@ def test(device):
     z += np.sin(3 * np.arange(siglen) * 2 * np.pi * A4 / sr)
     z += np.sin(4 * np.arange(siglen) * 2 * np.pi * A4 / sr)
 
-    startFreq = 100/sr
-    endFreq = 3000/sr
+    startFreq = 100 / sr
+    endFreq = 3000 / sr
     freqCount = 200
-    normalizedStep = (endFreq - startFreq)/freqCount
+    normalizedStep = (endFreq - startFreq) / freqCount
     # create a linear distribution of desired frequencies
-    fprime = np.arange(startFreq,endFreq,normalizedStep)
+    fprime = np.arange(startFreq, endFreq, normalizedStep)
 
     # in constant-Q, select a multiple of the target period
     multiple = 40
 
-
     # create the shader manager
     linst_gpu = ve.math.signals.loiacono.loiacono_gpu.Loiacono_GPU(
-        parent = device,
-        device = device,
-        fprime = fprime,
-        multiple = multiple,
-        DEBUG=True
+        parent=device, device=device, fprime=fprime, multiple=multiple, DEBUG=True
     )
 
     # run the program
@@ -62,6 +58,7 @@ def test(device):
 
     # elegantly release everything
 
+
 if __name__ == "__main__":
 
     # get the Vulkan instance
@@ -71,5 +68,5 @@ if __name__ == "__main__":
     device = instance.getDevice(0)
 
     test(device)
-    
+
     instance.release()

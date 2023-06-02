@@ -51,8 +51,8 @@ def glsltype2bytesize(glsltype):
         # return 12
         return 4
     elif glsltype == "vec4":
-        # return 16
-        return 4
+        return 16
+        # return 4
     else:
         raise Exception("Unrecognized type: " + glsltype)
 
@@ -70,9 +70,9 @@ class Buffer(sinode.Sinode):
         return outstr
 
     def __init__(self, **kwargs):
-        
-        sinode.Sinode.__init__(self, parent = self.device, **kwargs)
-        
+
+        sinode.Sinode.__init__(self, parent=self.device, **kwargs)
+
         # set defaults
         self.proc_kwargs(
             **{
@@ -225,7 +225,11 @@ class Buffer(sinode.Sinode):
         if (
             self.compress
             and self.usage == vk.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-            and (self.memtype == "float64_t" or self.memtype == "float")
+            and (
+                self.memtype == "float64_t"
+                or self.memtype == "float"
+                or self.memtype == "vec4"
+            )
         ):
             self.skipval = 1
         elif (
@@ -458,26 +462,24 @@ class StorageBuffer(Buffer):
         sinode.Sinode.__init__(self, **kwargs)
 
         # set defaults first
-        self.proc_kwargs(
-            **{
-                "overwrite": False,
-                "DEBUG": False,
-                "qualifier": "",
-                "memProperties": 0
-                | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-                | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                "memtype": "float",
-                "rate": vk.VK_VERTEX_INPUT_RATE_VERTEX,
-                "compress": True,
-                "location": 0,
-                "format": vk.VK_FORMAT_R64_SFLOAT,
-                "readFromCPU": True,
-                "usage": vk.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                "sharingMode": vk.VK_SHARING_MODE_EXCLUSIVE,
-                "stageFlags": vk.VK_SHADER_STAGE_COMPUTE_BIT,
-                "stride": 4,
-            }
+        self.setDefaults(
+            overwrite=False,
+            DEBUG=False,
+            qualifier="",
+            memProperties=0
+            | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+            | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+            | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            memtype="float",
+            rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
+            compress=True,
+            location=0,
+            format=vk.VK_FORMAT_R64_SFLOAT,
+            readFromCPU=True,
+            usage=vk.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            sharingMode=vk.VK_SHARING_MODE_EXCLUSIVE,
+            stageFlags=vk.VK_SHADER_STAGE_COMPUTE_BIT,
+            stride=16,
         )
 
         Buffer.__init__(self, **kwargs)
@@ -487,10 +489,7 @@ class StorageBuffer(Buffer):
 
 
 class DebugBuffer(StorageBuffer):
-    def __init__(
-        self,
-        **kwargs
-    ):
+    def __init__(self, **kwargs):
         sinode.Sinode.__init__(self, **kwargs)
 
         self.proc_kwargs(
@@ -509,10 +508,7 @@ class DebugBuffer(StorageBuffer):
             stride=12,
             compress=True,
         )
-        StorageBuffer.__init__(
-            self, 
-            **kwargs
-        )
+        StorageBuffer.__init__(self, **kwargs)
 
 
 class VertexBuffer(Buffer):

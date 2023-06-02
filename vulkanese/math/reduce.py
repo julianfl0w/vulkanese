@@ -6,10 +6,9 @@ from scipy.signal import get_window
 sum_home = os.path.dirname(os.path.abspath(__file__))
 # if vulkanese isn't installed, check for a development version parallel to Loiacono repo ;)
 import pkg_resources
+
 here = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(
-    0, os.path.abspath(os.path.join(here, "..", ".."))
-)
+sys.path.insert(0, os.path.abspath(os.path.join(here, "..", "..")))
 import vulkanese as ve
 import vulkan as vk
 

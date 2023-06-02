@@ -29,7 +29,7 @@ class Loiacono_GPU(ve.shader.Shader):
     def __init__(self, **kwargs):
         sinode.Sinode.__init__(self, **kwargs)
         self.proc_kwargs(
-            signalLength=2**15,
+            signalLength=2 ** 15,
             constantsDict={},
             DEBUG=False,
             buffType="float",
@@ -71,7 +71,7 @@ class Loiacono_GPU(ve.shader.Shader):
                 name="x",
                 memtype=self.buffType,
                 qualifier="readonly",
-                shape=[2**15],  # always 32**3
+                shape=[2 ** 15],  # always 32**3
                 memProperties=self.memProperties,
                 descriptorSet=self.descriptorPool.descSetGlobal,
             ),
@@ -81,7 +81,7 @@ class Loiacono_GPU(ve.shader.Shader):
                 device=self.device,
                 name="Li1",
                 memtype=self.buffType,
-                shape=[len(self.fprime), self.device.subgroupSize**2],
+                shape=[len(self.fprime), self.device.subgroupSize ** 2],
                 dimIndexNames=["frequency_ix", "sg"],
                 descriptorSet=self.descriptorPool.descSetGlobal,
             ),
@@ -89,7 +89,7 @@ class Loiacono_GPU(ve.shader.Shader):
                 device=self.device,
                 name="Lr1",
                 memtype=self.buffType,
-                shape=[len(self.fprime), self.device.subgroupSize**2],
+                shape=[len(self.fprime), self.device.subgroupSize ** 2],
                 dimIndexNames=["F", "sg"],
                 descriptorSet=self.descriptorPool.descSetGlobal,
             ),
@@ -159,7 +159,7 @@ class Loiacono_GPU(ve.shader.Shader):
                 )
             ]
 
-        #self.descriptorPool.finalize()
+        # self.descriptorPool.finalize()
 
         # Create a compute shader
         # Compute Stage: the only stage
@@ -218,10 +218,10 @@ if __name__ == "__main__":
     # generate a sine wave at A440, SR=48000
     sr = 48000
     A4 = 440
-    z = np.sin(np.arange(2**15) * 2 * np.pi * A4 / sr)
-    z += np.sin(2 * np.arange(2**15) * 2 * np.pi * A4 / sr)
-    z += np.sin(3 * np.arange(2**15) * 2 * np.pi * A4 / sr)
-    z += np.sin(4 * np.arange(2**15) * 2 * np.pi * A4 / sr)
+    z = np.sin(np.arange(2 ** 15) * 2 * np.pi * A4 / sr)
+    z += np.sin(2 * np.arange(2 ** 15) * 2 * np.pi * A4 / sr)
+    z += np.sin(3 * np.arange(2 ** 15) * 2 * np.pi * A4 / sr)
+    z += np.sin(4 * np.arange(2 ** 15) * 2 * np.pi * A4 / sr)
 
     multiple = 40
     normalizedStep = 5.0 / sr
@@ -231,12 +231,14 @@ if __name__ == "__main__":
     # generate a Loiacono based on this SR
     # (this one runs in CPU. reference only)
     linst = ve.math.signals.loiacono.loiacono.Loiacono(
-        fprime=fprime, multiple=multiple, dtftlen=2**15
+        fprime=fprime, multiple=multiple, dtftlen=2 ** 15
     )
     # begin GPU test
     instance = ve.instance.Instance(verbose=True)
     device = instance.getDevice(0)
-    linst_gpu = Loiacono_GPU(device=device, parent=device, fprime=fprime, multiple=linst.multiple)
+    linst_gpu = Loiacono_GPU(
+        device=device, parent=device, fprime=fprime, multiple=linst.multiple
+    )
     print("--- Running CPU Test ---")
     for i in range(10):
         linst.debugRun(z)

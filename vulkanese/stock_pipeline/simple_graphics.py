@@ -4,14 +4,18 @@ import time
 import sys
 import numpy as np
 import json
-#import open3d as o3d
+
+# import open3d as o3d
 import copy
 import sdl2
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import vulkanese as ve
 import vulkan as vk
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode")))
+
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode"))
+)
 import sinode.sinode as sinode
 
 htHere = os.path.dirname(os.path.abspath(__file__))

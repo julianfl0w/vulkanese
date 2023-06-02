@@ -11,9 +11,7 @@ import vulkan as vk
 from . import buffer
 from . import compute_pipeline
 
-sys.path.insert(
-    0, os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-)
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import vulkanese as ve
 
 from pathlib import Path
@@ -29,11 +27,11 @@ class Empty:
 class Shader(sinode.Sinode):
     def __init__(self, **kwargs):
 
-        sinode.Sinode.__init__(self, parent = kwargs["device"], **kwargs)
+        sinode.Sinode.__init__(self, parent=kwargs["device"], **kwargs)
 
         if self not in self.device.shaders:
             self.device.shaders += [self]
-        
+
         self.proc_kwargs(
             **{
                 "sourceFilename": "",
@@ -42,12 +40,11 @@ class Shader(sinode.Sinode):
                 "workgroupCount": [1, 1, 1],
                 "compressBuffers": True,
                 "waitSemaphores": [],
-                "depends":[],
+                "depends": [],
                 "waitStages": None,
                 "signalSemaphores": [],  # these only used for compute shaders
             }
         )
-
 
         for shader in self.depends:
             newSemaphore = self.device.getSemaphore()
@@ -82,7 +79,7 @@ class Shader(sinode.Sinode):
             with open(self.sourceFilename, "rb") as f:
                 spirv = f.read()
         # if its not an spv, compile it
-        elif self.sourceFilename.endswith(".template"):
+        elif ".template" in self.sourceFilename:
             spirv = self.compile()
             with open(outfilename, "wb+") as f:
                 f.write(spirv)
@@ -135,7 +132,7 @@ class Shader(sinode.Sinode):
         # self.run()
 
     def release(self):
-        
+
         self.debug("destroying descriptor Pool")
         self.descriptorPool.release()
         if hasattr(self, "computePipeline"):

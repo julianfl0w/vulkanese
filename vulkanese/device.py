@@ -38,10 +38,10 @@ class Device(sinode.Sinode):
         sinode.Sinode.__init__(self, **kwargs)
 
         self.proc_kwargs(
-            buffers = [],
-            shaders = [],
-            fences = [],
-            semaphores = [],
+            buffers=[],
+            shaders=[],
+            fences=[],
+            semaphores=[],
         )
 
         self.instance.debug("initializing device " + str(self.deviceIndex))
@@ -349,7 +349,7 @@ class Device(sinode.Sinode):
         return [self.features, self.properties, self.memoryProperties]
 
     def getShader(self, **kwargs):
-        newShader = ve.shader.Shader(device = self, **kwargs)
+        newShader = ve.shader.Shader(device=self, **kwargs)
         self.shaders += [newShader]
         return newShader
 
@@ -367,12 +367,12 @@ class Device(sinode.Sinode):
         newBuffer = ve.buffer.UniformBuffer(device=self, **kwargs)
         self.buffers += [newBuffer]
         return newBuffer
-    
+
     def getStorageBuffer(self, **kwargs):
         newBuffer = ve.buffer.StorageBuffer(device=self, **kwargs)
         self.buffers += [newBuffer]
         return newBuffer
-    
+
     def release(self):
 
         self.instance.debug("destroying children")

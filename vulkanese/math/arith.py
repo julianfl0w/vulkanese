@@ -15,9 +15,10 @@ sys.path.insert(
 )
 import sinode.sinode as sinode
 
+
 class ARITH(ve.shader.Shader):
     def __init__(self, **kwargs):
-        sinode.Sinode.__init__(self, parent = kwargs["device"], **kwargs)
+        sinode.Sinode.__init__(self, parent=kwargs["device"], **kwargs)
         self.proc_kwargs(
             **{
                 "DEBUG": False,
@@ -55,7 +56,7 @@ class ARITH(ve.shader.Shader):
             self.buffers = [self.x, self.y]
             self.x.name = "x"
             self.y.name = "y"
-            
+
         else:
             self.buffers += [
                 self.device.getStorageBuffer(
@@ -71,11 +72,12 @@ class ARITH(ve.shader.Shader):
                     qualifier="readonly",
                     shape=np.shape(self.y),
                     memProperties=self.memProperties,
-                )]
-            
+                ),
+            ]
+
             self.buffers[0].set(self.x)
             self.buffers[1].set(self.y)
-        
+
         self.buffers += [
             self.device.getStorageBuffer(
                 name="result",
@@ -85,7 +87,6 @@ class ARITH(ve.shader.Shader):
                 memProperties=self.memProperties,
             ),
         ]
-
 
         # Compute Stage: the only stage
         ve.shader.Shader.__init__(
@@ -100,14 +101,11 @@ class ARITH(ve.shader.Shader):
             buffers=self.buffers,
             DEBUG=self.DEBUG,
             workgroupCount=[
-                int(
-                    np.prod(self.x.shape) / (constantsDict["THREADS_PER_WORKGROUP"])
-                ),
+                int(np.prod(self.x.shape) / (constantsDict["THREADS_PER_WORKGROUP"])),
                 1,
                 1,
             ],
         )
-
 
     def baseline(self, X, Y):
         if hasattr(self, "operation"):
@@ -145,9 +143,7 @@ def test(device):
     x = np.random.random((signalLen))
     y = np.random.random((signalLen))
     toTest = [
-        ARITH(
-            device=device, x=x, y=y, operation="+", npEquivalent=np.add
-        ),
+        ARITH(device=device, x=x, y=y, operation="+", npEquivalent=np.add),
         ARITH(device=device, x=x, y=y, operation="-", npEquivalent=np.subtract),
         ARITH(device=device, x=x, y=y, operation="*", npEquivalent=np.multiply),
         ARITH(device=device, x=x, y=y, operation="/", npEquivalent=np.divide),
@@ -170,10 +166,12 @@ def test(device):
         s.test()
         # s.release()
 
+
 class add(ARITH):
     def __init__(self, **kwargs):
         kwargs["operation"] = "+"
         ARITH.__init__(self, **kwargs)
+
 
 class multiply(ARITH):
     def __init__(self, **kwargs):

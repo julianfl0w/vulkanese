@@ -176,10 +176,9 @@ class ComputePipeline(sinode.Sinode):
             pSubmits=self.submitInfo,
             fence=vkFence,
         )
-        
+
         if hasattr(self, "fence"):
             self.wait()
-
 
     def wait(self):
         self.fence.wait()
