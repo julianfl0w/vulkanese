@@ -6,3 +6,4 @@ open3d
 librosa
 git+https://github.com/julianfl0w/vulkan
 git+https://github.com/julianfl0w/sinode
+screeninfo

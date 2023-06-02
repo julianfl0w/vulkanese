@@ -24,7 +24,6 @@ def getVulkanesePath():
 # The Vulkanese Compute Pipeline includes the following componenets
 # command buffer
 # pipeline,
-# shader
 # All in one. it is self-contained
 class ComputePipeline(sinode.Sinode):
     def __init__(self, **kwargs):
@@ -32,8 +31,7 @@ class ComputePipeline(sinode.Sinode):
         # set the defaults here
         self.proc_kwargs(
             workgroupCount=[1, 1, 1],
-            signalSemaphoreCount=0,
-            useFence=False,
+            signalSemaphores=[],
             waitSemaphores=[],
             waitStages=[],
         )
@@ -41,12 +39,10 @@ class ComputePipeline(sinode.Sinode):
 
         # synchronization is owned by the pipeline (command buffer?)
 
-        self.fence = None
-        if self.useFence:
-            self.fence = synchronization.Fence(device=self.device)
-        self.signalSemaphores = []
-        for semaphore in range(self.signalSemaphoreCount):
-            self.signalSemaphores += [synchronization.Semaphore(device=self.device)]
+        # if this shader is not signalling other ones,
+        # it's either a dead-end or an output
+        if not len(self.signalSemaphores):
+            self.fence = self.device.getFence()
 
         push_constant_ranges = vk.VkPushConstantRange(stageFlags=0, offset=0, size=0)
 
@@ -138,7 +134,7 @@ class ComputePipeline(sinode.Sinode):
         else:
             pWaitSemaphores = None
 
-        if len(self.waitSemaphores):
+        if len(self.signalSemaphores):
             pSignalSemaphores = [s.vkSemaphore for s in self.signalSemaphores]
         else:
             pSignalSemaphores = None
@@ -169,32 +165,27 @@ class ComputePipeline(sinode.Sinode):
 
     # the main loop
     def run(self, blocking=True):
+        vkFence = None
+        if hasattr(self, "fence"):
+            vkFence = self.fence.vkFence
 
         # We submit the command buffer on the queue, at the same time giving a fence.
         vk.vkQueueSubmit(
             queue=self.device.compute_queue,
             submitCount=1,
             pSubmits=self.submitInfo,
-            fence=self.fence.vkFence,
+            fence=vkFence,
         )
-        if blocking:
+
+        if hasattr(self, "fence"):
             self.wait()
 
     def wait(self):
         self.fence.wait()
 
     def release(self):
-        self.fence.release()
 
-        for semaphore in self.signalSemaphores:
-            semaphore.release()
-
-        self.device.instance.debug("destroying children")
-        for child in self.children:
-            child.release()
-
-        for semaphore in self.signalSemaphores:
-            semaphore.release()
-
+        self.device.instance.debug("destroying pipeline")
         vk.vkDestroyPipeline(self.device.vkDevice, self.vkPipeline, None)
+        self.device.instance.debug("destroying pipeline layout")
         vk.vkDestroyPipelineLayout(self.device.vkDevice, self.vkPipelineLayout, None)

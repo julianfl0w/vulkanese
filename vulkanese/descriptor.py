@@ -2,41 +2,40 @@ import json
 import os
 import sys
 
-sys.path.insert(
-    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode"))
-)
+here = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.abspath(os.path.join(here, "..", "..", "sinode")))
 import sinode.sinode as sinode
 
-
-here = os.path.dirname(os.path.abspath(__file__))
-from vulkan import *
+sys.path.insert(0, os.path.abspath(os.path.join(here, "..")))
+import vulkanese as ve
+import vulkan as vk
 
 
 class DescriptorPool(sinode.Sinode):
     def __init__(self, **kwargs):
 
         sinode.Sinode.__init__(self, **kwargs)
-        self.proc_kwargs(**{"MAX_FRAMES_IN_FLIGHT": 3})
+        self.proc_kwargs(MAX_FRAMES_IN_FLIGHT=3, buffers=[])
 
         self.vkDevice = self.device.vkDevice
 
         # The descriptor set number 0 will be used for engine-global resources, and bound once per frame.
         self.descSetGlobal = DescriptorSet(
-            self, binding=0, name="global", type=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+            self, binding=0, name="global", type=vk.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
         )
         # The descriptor set number 2 will be used for material resources,
         self.descSetUniform = DescriptorSet(
-            self, binding=1, name="uniform", type=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
+            self, binding=1, name="uniform", type=vk.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
         )
 
         # The descriptor set number 1 will be used for per-pass resources, and bound once per pass.
         self.descSetPerPass = DescriptorSet(
-            self, binding=2, name="perPass", type=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+            self, binding=2, name="perPass", type=vk.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
         )
 
         # and the number 3 will be used for per-object resources.
         self.descSetPerObject = DescriptorSet(
-            self, binding=3, name="perObject", type=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
+            self, binding=3, name="perObject", type=vk.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
         )
 
         self.descSets = [
@@ -47,9 +46,8 @@ class DescriptorPool(sinode.Sinode):
         ]
 
     def getBinding(self, buffer, descSet):
-        self.fromAbove("debug")("Allocating ")
-        self.fromAbove("debug")(buffer)
-        self.fromAbove("debug")(bindname)
+        self.debug("Allocating ")
+        self.debug(buffer)
         return self.descSet.attachBuffer(buffer)
 
     # We first need to describe which descriptor types our descriptor sets are going to contain and how many of them, using VkDescriptorPoolSize structures.
@@ -60,26 +58,26 @@ class DescriptorPool(sinode.Sinode):
         # )
 
         # 2 uniform pools, 2 storage?
-        self.poolSizeS = VkDescriptorPoolSize(
-            type=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        self.poolSizeS = vk.VkDescriptorPoolSize(
+            type=vk.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
             descriptorCount=1000,  # len(self.descSets[0].buffers)
         )
-        self.poolSizeU = VkDescriptorPoolSize(
-            type=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        self.poolSizeU = vk.VkDescriptorPoolSize(
+            type=vk.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
             descriptorCount=1000,  # len(self.descSets[1].buffers)
         )
 
         # We will allocate one of these descriptors for every frame. This pool size structure is referenced by the main VkDescriptorPoolCreateInfo:
         # Aside from the maximum number of individual descriptors that are available, we also need to specify the maximum number of descriptor sets that may be allocated:
-        self.poolInfo = VkDescriptorPoolCreateInfo(
-            sType=VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        self.poolInfo = vk.VkDescriptorPoolCreateInfo(
+            sType=vk.VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
             poolSizeCount=2,
             pPoolSizes=[self.poolSizeS, self.poolSizeU],
             maxSets=4,
         )  # imposed by some gpus
 
         # The structure has an optional flag similar to command pools that determines if individual descriptor sets can be freed or not: VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT. We're not going to touch the descriptor set after creating it, so we don't need this flag. You can leave flags to its default value of 0.
-        self.vkDescriptorPool = vkCreateDescriptorPool(
+        self.vkDescriptorPool = vk.vkCreateDescriptorPool(
             device=self.vkDevice, pCreateInfo=[self.poolInfo], pAllocator=0
         )
 
@@ -88,15 +86,15 @@ class DescriptorPool(sinode.Sinode):
             descriptor.finalize()
 
         # Establish the create info
-        descriptorSetAllocateInfo = VkDescriptorSetAllocateInfo(
-            sType=VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        descriptorSetAllocateInfo = vk.VkDescriptorSetAllocateInfo(
+            sType=vk.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
             descriptorPool=self.vkDescriptorPool,
             descriptorSetCount=len(self.descSets),
             pSetLayouts=[d.vkDescriptorSetLayout for d in self.descSets],
         )
 
         # create the allocate descriptor set.
-        self.vkDescriptorSets = vkAllocateDescriptorSets(
+        self.vkDescriptorSets = vk.vkAllocateDescriptorSets(
             self.vkDevice, descriptorSetAllocateInfo
         )
 
@@ -116,8 +114,8 @@ class DescriptorPool(sinode.Sinode):
 
             # descCOUNT = max([b.binding for b in d.buffers])+1
             # one descriptor per buffer?
-            d.vkWriteDescriptorSet = VkWriteDescriptorSet(
-                sType=VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            d.vkWriteDescriptorSet = vk.VkWriteDescriptorSet(
+                sType=vk.VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 dstSet=d.vkDescriptorSet,
                 # dstBinding=d.binding,
                 dstBinding=0,
@@ -145,7 +143,7 @@ class DescriptorPool(sinode.Sinode):
             else:
                 self.device.instance.debug("WRITING UNIFORM DESC SET")
             # perform the update of the descriptor set.
-            vkUpdateDescriptorSets(
+            vk.vkUpdateDescriptorSets(
                 device=self.vkDevice,
                 descriptorWriteCount=1,  # len(writeDescriptorSets),
                 pDescriptorWrites=wDescSet,
@@ -159,7 +157,17 @@ class DescriptorPool(sinode.Sinode):
             descSet.release()
         self.device.instance.debug("destroying descriptor pool")
         if hasattr(self, "vkDescriptorPool"):
-            vkDestroyDescriptorPool(self.vkDevice, self.vkDescriptorPool, None)
+            vk.vkDestroyDescriptorPool(self.vkDevice, self.vkDescriptorPool, None)
+
+    def addBuffer(self, buffer):
+        if type(buffer) == ve.buffer.StorageBuffer:
+            self.descSetGlobal.addBuffer(buffer)
+        elif type(buffer) == ve.buffer.UniformBuffer:
+            self.descSetUniform.addBuffer(buffer)
+        elif type(buffer) == ve.buffer.DebugBuffer:
+            self.descSetGlobal.addBuffer(buffer)
+        else:
+            raise Exception("Don't understand buffer type " + str(type(buffer)))
 
 
 class DescriptorSet(sinode.Sinode):
@@ -174,10 +182,37 @@ class DescriptorSet(sinode.Sinode):
         self.binding = binding
         self.currBufferBinding = 0
 
-    def getBufferBinding(self):
-        retval = self.currBufferBinding
+    def addBuffer(self, newBuffer):
+        newBuffer.binding = self.currBufferBinding
         self.currBufferBinding += 1
-        return retval
+
+        newBuffer.descriptorSetBinding = self.binding
+
+        self.buffers += [newBuffer]
+        self.parent.buffers += [newBuffer]
+        # descriptorCount is the number of descriptors contained in the binding,
+        # accessed in a shader as an array, except if descriptorType is
+        # VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK in which case descriptorCount
+        # is the size in bytes of the inline uniform block
+        # self.device.instance.debug("BUFFER DTYPE")
+        # self.device.instance.debug(descriptorSet.type)
+        newBuffer.descriptorSetLayoutBinding = vk.VkDescriptorSetLayoutBinding(
+            binding=newBuffer.binding,
+            descriptorType=self.type,
+            descriptorCount=1,
+            stageFlags=newBuffer.stageFlags,
+        )
+
+        # Specify the buffer to bind to the descriptor.
+        # Every buffer contains its own info for descriptor set
+        # Next, we need to connect our actual storage buffer with the descrptor.
+        # We use vkUpdateDescriptorSets() to update the descriptor set.
+        newBuffer.descriptorBufferInfo = vk.VkDescriptorBufferInfo(
+            buffer=newBuffer.vkBuffer, offset=0, range=newBuffer.sizeBytes
+        )
+
+        # if "descriptorSet" not in kwargs.keys():
+        #    self.descriptorSet = self.fromAbove("descriptorPool").descSetGlobal
 
     def finalize(self):
         # Here we specify a descriptor set layout. This allows us to bind our descriptors to
@@ -188,14 +223,14 @@ class DescriptorSet(sinode.Sinode):
         # in the compute shader.
 
         # Establish the create info
-        descriptorSetLayoutCreateInfo = VkDescriptorSetLayoutCreateInfo(
-            sType=VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        descriptorSetLayoutCreateInfo = vk.VkDescriptorSetLayoutCreateInfo(
+            sType=vk.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
             bindingCount=len(self.buffers),
             pBindings=[buffer.descriptorSetLayoutBinding for buffer in self.buffers],
         )
 
         # Create the descriptor set layout.
-        self.vkDescriptorSetLayout = vkCreateDescriptorSetLayout(
+        self.vkDescriptorSetLayout = vk.vkCreateDescriptorSetLayout(
             self.vkDevice, descriptorSetLayoutCreateInfo, None
         )
         self.device.instance.debug(
@@ -209,8 +244,8 @@ class DescriptorSet(sinode.Sinode):
     def release(self):
         for child in self.children:
             child.release()
-        self.device.instance.debug("destroying descriptor set")
+        self.device.instance.debug("destroying descriptor set layout")
         if hasattr(self, "vkDescriptorSetLayout"):
-            vkDestroyDescriptorSetLayout(
+            vk.vkDestroyDescriptorSetLayout(
                 self.vkDevice, self.vkDescriptorSetLayout, None
             )
