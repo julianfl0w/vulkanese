@@ -1,13 +1,13 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-#define HEIGHT 1080
-#define WIDTH 1920
+#define HEIGHT 540
+#define WIDTH 960
 #define WORKGROUP_SIZE 32
 // This will be (or has been) replaced by constant definitions
 layout(std430, set = 0, binding = 0) buffer imageData_buf
 {
-   writeonly uint imageData[2073600];
+   writeonly uint imageData[518400];
 };
 layout(std430, set = 0, binding = 1) buffer paramsBuffer_buf
 {
@@ -40,7 +40,8 @@ void main() {
   float n = 0.0;
   vec2 c = vec2(-.445, 0.0) +  (uv - 0.5)*(2.0+ 1.7*0.2  ),
   z = vec2(0.0);
-  const int M =128;
+  const int M = 128;
+  //const uint M =uint(1/mandleStride);
   for (int i = 0; i<M; i++)
   {
     z = vec2(z.x*z.x - z.y*z.y, 2.*z.x*z.y) + c;

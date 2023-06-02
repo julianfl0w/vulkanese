@@ -2,4 +2,8 @@
 *__pycache__
 build
 src/vulkanese.egg*
+vulkanese.egg*
 dist
+out.prof
+*.avi
+*.gif

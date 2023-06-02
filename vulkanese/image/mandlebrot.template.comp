@@ -29,7 +29,8 @@ void main() {
   float n = 0.0;
   vec2 c = vec2(-.445, 0.0) +  (uv - 0.5)*(2.0+ 1.7*0.2  ),
   z = vec2(0.0);
-  const int M =128;
+  const int M = 128;
+  //const uint M =uint(1/mandleStride);
   for (int i = 0; i<M; i++)
   {
     z = vec2(z.x*z.x - z.y*z.y, 2.*z.x*z.y) + c;
