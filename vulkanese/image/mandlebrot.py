@@ -71,7 +71,7 @@ class Mandlebrot(ve.shader.Shader):
             device=self.device,
             name="paramsBuffer",
             qualifier="readonly",
-            memtype="float",
+            memtype="double",
             shape=[16],
             stageFlags=vk.VK_SHADER_STAGE_COMPUTE_BIT,
         )
@@ -216,5 +216,5 @@ def createVideo():
 
 
 if __name__ == "__main__":  
-    #runDemo()
-    createVideo()
+    runDemo()
+    #createVideo()
