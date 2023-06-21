@@ -4,3 +4,4 @@ build
 src/vulkanese.egg*
 dist
 vulkanese/image/output.avi
+vulkanese.egg*
