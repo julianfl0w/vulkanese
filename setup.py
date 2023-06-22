@@ -21,11 +21,10 @@ setup(
         'vulkan @ git+https://github.com/julianfl0w/vulkan',
         'sinode @ git+https://github.com/julianfl0w/sinode'
     ],
-
     package_data={
-        # everything
-        # "": ["*"]
-        "": ["."]
+        '': ['*.comp'],
+        'vulkanese': ['glslc'],
+        '': ['*glslc'],
     },
     include_package_data=True,
 )

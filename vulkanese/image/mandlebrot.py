@@ -35,6 +35,7 @@ class Mandlebrot(ve.shader.Shader):
 
         self.proc_kwargs(**kwargs)
 
+        here = os.path.dirname(os.path.abspath(__file__))
         self.setDefaults(
             memProperties=0
             | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
