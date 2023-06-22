@@ -21,6 +21,8 @@ def glsltype2python(glsltype):
         return np.float32
     elif glsltype == "float64_t":
         return np.float64
+    elif glsltype == "double":
+        return np.float64
     elif glsltype == "int":
         return np.int32
     elif glsltype == "uint":
@@ -39,6 +41,8 @@ def glsltype2bytesize(glsltype):
     elif glsltype == "float32_t":
         return 4
     elif glsltype == "float64_t":
+        return 8
+    elif glsltype == "double":
         return 8
     elif glsltype == "int":
         return 4
@@ -233,6 +237,7 @@ class Buffer(sinode.Sinode):
                 or self.memtype == "uint"
                 or self.memtype == "int"
                 or self.memtype == "vec4"
+                or self.memtype == "double"
             )
         ):
             self.skipval = 1
@@ -257,7 +262,10 @@ class Buffer(sinode.Sinode):
         if self.skipval == 1:
             self.pmap[:] = np.zeros((self.itemCount), dtype=self.pythonType)
         else:
-            self.pmap[:] = np.zeros((self.itemCount), dtype=self.pythonType)
+            self.debug(len(self.pmap))
+            self.debug(self.pythonType)
+            #self.pmap[:] = np.zeros((self.itemCount), dtype=self.pythonType)
+            self.set(np.zeros((self.itemCount), dtype=self.pythonType))
         if flush:
             self.flush()
 
@@ -432,9 +440,11 @@ class Buffer(sinode.Sinode):
         if len(self.pmap[:]) != np.prod(data.shape) * self.itemSizeBytes:
             self.debug("WRONG SIZE")
             self.debug("pmap (bytes): " + str(len(self.pmap[:])))
+            self.debug("item size (bytes): " + str(self.itemSizeBytes))
+            self.debug(self.sizeBytes)
             self.debug(
                 "data (bytes): "
-                + str(np.prod(data.shape) * self.itemSizeBytes) * self.itemSizeBytes
+                + str(np.prod(data.shape) * self.itemSizeBytes)
             )
             raise Exception("Wrong Size")
 

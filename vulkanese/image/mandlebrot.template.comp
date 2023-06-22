@@ -1,5 +1,6 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_gpu_shader_fp64 : enable
 
 DEFINE_STRING// This will be (or has been) replaced by constant definitions
 BUFFERS_STRING// This will be (or has been) replaced by buffer definitions
@@ -15,24 +16,25 @@ void main() {
   if(gl_GlobalInvocationID.x >= WIDTH || gl_GlobalInvocationID.y >= HEIGHT)
     return;
 
-  float originX = paramsBuffer[0]; 
-  float originY = paramsBuffer[1]; 
-  float mandleStride = paramsBuffer[2];
+  double originX = paramsBuffer[0]; 
+  double originY = paramsBuffer[1]; 
+  double mandleStride = paramsBuffer[2];
 
-  float x = originX + float(gl_GlobalInvocationID.x) * mandleStride;
-  float y = originY + float(gl_GlobalInvocationID.y) * mandleStride;
+  double x = double(originX + float(gl_GlobalInvocationID.x) * mandleStride);
+  double y = double(originY + float(gl_GlobalInvocationID.y) * mandleStride);
 
   /*
   What follows is code for rendering the mandelbrot set.
   */
-  vec2 uv = vec2(x,y);
-  float n = 0.0;
-  vec2 c = vec2(-.445, 0.0) +  (uv - 0.5)*(2.0+ 1.7*0.2  ),
-  z = vec2(0.0);
-  const int M =128;
+  dvec2 uv = dvec2(x,y);
+  double n = 0.0;
+  dvec2 c = dvec2(-.445, 0.0) +  (uv - 0.5)*(2.0+ 1.7*0.2  );
+  dvec2 z = dvec2(0.0);
+  const int M = 128;
+  //const uint M =uint(1/mandleStride);
   for (int i = 0; i<M; i++)
   {
-    z = vec2(z.x*z.x - z.y*z.y, 2.*z.x*z.y) + c;
+    z = dvec2(z.x*z.x - z.y*z.y, 2.*z.x*z.y) + c;
     if (dot(z, z) > 2) break;
     n++;
   }
