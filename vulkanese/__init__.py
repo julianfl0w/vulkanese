@@ -8,5 +8,6 @@ from . import shapes
 from . import shader
 from . import screen
 from . import math
+from . import image
 from . import synchronization
 from . import examples

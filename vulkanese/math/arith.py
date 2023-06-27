@@ -92,7 +92,7 @@ class ARITH(ve.shader.Shader):
         ve.shader.Shader.__init__(
             self,
             sourceFilename=os.path.join(
-                arith_home, self.shader_basename + ".comp.template"
+                arith_home, self.shader_basename + ".template.comp"
             ),  # can be GLSL or SPIRV
             constantsDict=self.constantsDict,
             device=self.device,

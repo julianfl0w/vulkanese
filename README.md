@@ -1,4 +1,7 @@
 # vulkanese  
+## Sponsors
+![image](https://github.com/julianfl0w/vulkanese/assets/8158655/c980a734-61f4-41f3-94b6-52c56b5fd2f7)
+
 ## Installation  
 ```pip install git+https://github.com/julianfl0w/vulkanese```
 
@@ -15,28 +18,11 @@ This repository
 
 It is comparable to
 * Nvidia's CUDA
-* Linux's Kompute
-
-## Sponsorship Request
-This repository is looking for a sponsor! It has potential to simplify the fields of
-* High-power Computing
-* Gaming
-* Graphics Rendering
-
-Possible avenues for development include
-* A guide for Distributed High-power Computing (HPC) using Docker and Kubernetes **(ACTIVE PROJECT)**
-* A more complete math library
-* Machine Learning / AI (Tensorflow Backend)
-* Mobile (Android) port for gaming 
-* Mobile (Android) port for embedded devices 
-* No-code GUI for pipeline development
-* Raytracing support
-* Virtual Reality 
-
-Please send me an email at jcloiacon@gmail.com
+* [Linux's Kompute](https://github.com/KomputeProject/kompute)
+* [Alibaba's MNN](https://github.com/alibaba/MNN)
 
 ## The Hierarchy  
-![vulkanese API](https://user-images.githubusercontent.com/8158655/208022579-b156d471-20f8-4882-a10b-e596f461d237.png)
+<img src="https://user-images.githubusercontent.com/8158655/222509266-7af4d0d2-3c25-4ec7-8bd2-ae8859ca5b1a.png" width="50%">
 
 ## GPGPU Example: Simple Addition
 
@@ -577,3 +563,18 @@ void main(){
 python helloTriangle.py   
 ![163123559-2410ed19-96be-495f-a172-f0221c8d9167](https://user-images.githubusercontent.com/8158655/163700475-7c18ba31-1e61-48d5-986c-08da9fec427d.png)
   
+## Future Development
+Vulkanese has potential to simplify the fields of
+* High-power Computing
+* Gaming
+* Graphics Rendering
+
+Possible avenues for development include
+* A guide for Distributed High-power Computing (HPC) using Docker and Kubernetes **(ACTIVE PROJECT)**
+* A more complete math library
+* Machine Learning / AI (Tensorflow Backend)
+* Mobile (Android) port for gaming 
+* Mobile (Android) port for embedded devices 
+* No-code GUI for pipeline development
+* Raytracing support
+* Virtual Reality 
