@@ -34,7 +34,7 @@ class Shader(sinode.Sinode):
 
         self.proc_kwargs(
             **{
-                "sourceFilename": "",
+                "": "",
                 "stage": vk.VK_SHADER_STAGE_VERTEX_BIT,
                 "DEBUG": False,
                 "workgroupCount": [1, 1, 1],
@@ -74,10 +74,13 @@ class Shader(sinode.Sinode):
         self.descriptorPool.finalize()
 
         outfilename = self.basename + ".spv"
+        # if its the empty string "", just read it
+        if self.sourceFilename == "":
+            spirv = f.read()
         # if its spv (compiled), just run it
         if self.sourceFilename.endswith(".spv"):
             with open(self.sourceFilename, "rb") as f:
-                spirv = f.read()
+                spirv = self.sourceText
         # if its not an spv, compile it
         elif ".template" in self.sourceFilename:
             spirv = self.compile()
@@ -178,17 +181,25 @@ class Shader(sinode.Sinode):
         with open(glslFilename, "w+") as f:
             f.write(glslCode)
 
-        # delete the old one
         # POS always outputs to "a.spv"
         compiledFilename = "a.spv"
+
+
+        # delete the old one
         if os.path.exists(compiledFilename):
             os.remove(compiledFilename)
+
         self.debug("running " + glslFilename)
         # os.system("glslc --scalar-block-layout " + glslFilename)
         glslcbin = os.path.join(here, "glslc")
         os.system(glslcbin + " --target-env=vulkan1.1 " + glslFilename)
         with open(compiledFilename, "rb") as f:
             spirv = f.read()
+
+        # delete it after reading
+        if os.path.exists(compiledFilename):
+            os.remove(compiledFilename)
+            
         return spirv
 
     def run(self, blocking=True):

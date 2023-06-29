@@ -7,3 +7,4 @@ dist
 out.prof
 *.avi
 *.gif
+*.env
