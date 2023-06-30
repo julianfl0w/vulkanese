@@ -44,7 +44,40 @@ class ShaderToy(ve.shader.Shader):
         print(json.dumps(json_data, indent = 2))
         code = json_data["Shader"]["renderpass"][0]["code"]
         code = code.encode().decode('unicode_escape')
-        print(code)
+        #print(code)
+        code = """
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_gpu_shader_fp64 : enable
+
+DEFINE_STRING// This will be (or has been) replaced by constant definitions
+BUFFERS_STRING// This will be (or has been) replaced by buffer definitions
+    
+layout (local_size_x = WORKGROUP_SIZE, local_size_y = WORKGROUP_SIZE, local_size_z = 1 ) in;
+
+        """ + code + """
+
+void main() {
+
+    vec4 color;
+    //vec2 fragCoord = vec2(float(gl_GlobalInvocationID.x)/WIDTH, float(gl_GlobalInvocationID.y)/HEIGHT);
+    vec2 fragCoord = vec2(float(gl_GlobalInvocationID.x), float(gl_GlobalInvocationID.y));
+    mainImage(color, fragCoord);
+
+    // Convert the color components to 8-bit unsigned integer values
+    uint c_r = uint(color.r * 255.0);
+    uint c_g = uint(color.g * 255.0);
+    uint c_b = uint(color.b * 255.0);
+    uint c_a = uint(color.a * 255.0);
+
+
+    // Pack the components into a single uint value
+    uint pixelValue = (c_a << 24) | (c_r << 16) | (c_g << 8) | c_b;
+
+    // store the rendered mandelbrot set into a storage buffer:
+    imageData[WIDTH * gl_GlobalInvocationID.y + gl_GlobalInvocationID.x] = pixelValue;
+}
+        """
 
         
         self.setDefaults(
@@ -72,37 +105,42 @@ class ShaderToy(ve.shader.Shader):
         )
 
 
+        self.buffers=[
+            ve.buffer.StorageBuffer(
+                device=self.device,
+                name="imageData",
+                qualifier="writeonly",
+                memtype="uint",
+                format="VK_FORMAT_R8G8B8A8_UINT",
+                shape=[self.WIDTH * self.HEIGHT],
+                stageFlags=vk.VK_SHADER_STAGE_COMPUTE_BIT,
+            ),
 
-        self.imageData = ve.buffer.StorageBuffer(
-            device=self.device,
-            name="imageData",
-            qualifier="writeonly",
-            memtype="uint",
-            format="VK_FORMAT_R8G8B8A8_UINT",
-            shape=[self.WIDTH * self.HEIGHT],
-            stageFlags=vk.VK_SHADER_STAGE_COMPUTE_BIT,
-        )
+            ve.buffer.StorageBuffer(
+                device=self.device,
+                name="iTime",
+                qualifier="readonly",
+                memtype="float",
+            ),
 
-        self.paramsBuffer = ve.buffer.StorageBuffer(
-            device=self.device,
-            name="paramsBuffer",
-            qualifier="readonly",
-            memtype="double",
-            shape=[16],
-            stageFlags=vk.VK_SHADER_STAGE_COMPUTE_BIT,
-        )
-
-        self.buffers=[self.imageData, self.paramsBuffer]
+            ve.buffer.StorageBuffer(
+                device=self.device,
+                name="iResolution",
+                qualifier="readonly",
+                memtype="vec4",
+            ),
+        ]
 
         ve.shader.Shader.__init__(self, device=self.device)
         self.finalize()
 
+        self.gpuBuffers.iResolution.set(np.array([self.WIDTH,self.HEIGHT,0,0]))
         # print the object hierarchy
         print("Object tree:")
         print(json.dumps(self.device.asDict(), indent=4))
 
     def getImage(self):
-        pa = np.frombuffer(self.imageData.pmap, np.uint8)
+        pa = np.frombuffer(self.gpuBuffers.imageData.pmap, np.uint8)
         pa = pa.reshape((self.HEIGHT, self.WIDTH, 4))
         # pa = self.imageData.get()
         return pa
@@ -131,7 +169,7 @@ class ShaderToy(ve.shader.Shader):
         self.dumpPos()
 
     def run(self):
-        self.paramsBuffer.set(np.array([self.originX, self.originY, self.shaderToyStride, 0] + [0]*12))
+        #self.paramsBuffer.set(np.array([self.originX, self.originY, self.shaderToyStride, 0] + [0]*12))
         ve.shader.Shader.run(self)
         return self.getImage()
 
