@@ -2,13 +2,13 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_gpu_shader_fp64 : enable
 
-#define HEIGHT 864
-#define WIDTH 1536
+#define HEIGHT 800
+#define WIDTH 1280
 #define WORKGROUP_SIZE 32
 // This will be (or has been) replaced by constant definitions
 layout(std430, set = 0, binding = 0) buffer imageData_buf
 {
-   writeonly uint imageData[1327104];
+   writeonly uint imageData[1024000];
 };
 layout(std430, set = 0, binding = 1) buffer paramsBuffer_buf
 {

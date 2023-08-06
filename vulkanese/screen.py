@@ -14,7 +14,7 @@ class FullScreen:
 
         # Create a fullscreen window
         cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
-        # Set the window properties to fullscreen
+        # Set the window properties to fullscreen   
         cv2.setWindowProperty(
             self.window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN
         )
