@@ -7,7 +7,7 @@ from scipy.signal import get_window
 gpuhere = os.path.dirname(os.path.abspath(__file__))
 
 sys.path.insert(
-    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 )
 import vulkanese as ve
 import vulkan as vk
@@ -16,7 +16,7 @@ import numpy as np
 sys.path.insert(
     0,
     os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "sinode")
+        os.path.join(os.path.dirname(__file__), "..", "..", "..", "sinode")
     ),
 )
 import sinode.sinode as sinode
@@ -217,7 +217,7 @@ if __name__ == "__main__":
 
     # generate a Loiacono based on this SR
     # (this one runs in CPU. reference only)
-    linst = ve.math.signals.loiacono.loiacono.Loiacono(
+    linst = ve.math.signals.loiacono.Loiacono(
         fprime=fprime, multiple=multiple, dtftlen=2 ** 15
     )
     # begin GPU test
@@ -237,7 +237,7 @@ if __name__ == "__main__":
     linst_gpu.spectrum = linst_gpu.gpuBuffers.L.get()
     print("Readtime " + str(time.time() - readstart))
 
-    graph = False
+    graph = True
     if graph:
         fig, ((ax1, ax2)) = plt.subplots(1, 2)
         ax1.plot(linst.fprime * sr, linst_gpu.spectrum)

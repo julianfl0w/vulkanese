@@ -178,12 +178,10 @@ class Shader(sinode.Sinode):
             spirv = f.read()
 
 
-        self.dump()
-        die
         return spirv
 
     def run(self, blocking=True):
-        die
+        self.dump()
         self.computePipeline.run(blocking=blocking)
 
     def wait(self):

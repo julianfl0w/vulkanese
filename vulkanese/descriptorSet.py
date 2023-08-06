@@ -40,6 +40,7 @@ class DescriptorSet(sinode.Sinode):
         newBuffer.descriptorSetBinding = self.binding
 
         self.buffers += [newBuffer]
+        self.children += [newBuffer]
         self.parent.buffers += [newBuffer]
         # descriptorCount is the number of descriptors contained in the binding,
         # accessed in a shader as an array, except if descriptorType is
@@ -75,46 +76,34 @@ class DescriptorSet(sinode.Sinode):
                 and b.name == "fragColor"
             ):
                 buffer.qualifier = "in"
-                
+
             if self.fromAbove("stage") != vk.VK_SHADER_STAGE_COMPUTE_BIT:
                 BUFFERS_STRING += b.getDeclaration(descSet=self.descriptorSet)
             else:
-                BUFFERS_STRING += self.descriptorPool.getComputeDeclaration()
-
-            if buffer.usage == vk.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT:
-                b = "uniform "
-                std = "std140"
-            else:
-                b = "buffer "
-                if buffer.compress:
-                    std = "std430"
-                else:
+                if buffer.usage == vk.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT:
+                    b = "uniform "
                     std = "std140"
+                else:
+                    b = "buffer "
+                    if buffer.compress:
+                        std = "std430"
+                    else:
+                        std = "std140"
 
-            BUFFERS_STRING += (
-                "layout("
-                + std
-                + ", set = "
-                + str(self.getBindingNumber(buffer))
-                + ", binding = "
-                + str(self.binding)
-                # + ", "
-                # + "xfb_stride = " + str(self.stride)
-                + ") "
-                + b
-                + self.name
-                + "_buf\n{\n   "
-                + self.qualifier
-                + " "
-                + self.memtype
-                + " "
-                + self.name
-                + "["
-                + str(int(self.sizeBytes / self.itemSizeBytes))
-                + "];\n};\n"
-            )
+                BUFFERS_STRING += (
+                    f"layout({std}, set = {self.binding}, binding = {self.getBindingNumber(buffer)} ) "
+                    + f"{b}{buffer.name}_buf\n" + "{\n   "
+                    + buffer.qualifier
+                    + " "
+                    + buffer.memtype
+                    + " "
+                    + buffer.name
+                    + "["
+                    + str(int(buffer.sizeBytes / buffer.itemSizeBytes))
+                    + "];\n};\n"
+                )
 
-        if self.DEBUG:
+        if hasattr(self, "DEBUG") and self.DEBUG:
             BUFFERS_STRING = self.addIndicesToOutputs(BUFFERS_STRING)
 
         return BUFFERS_STRING
