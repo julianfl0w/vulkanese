@@ -51,7 +51,7 @@ class Shader(sinode.Sinode):
             shader.signalSemaphores += [newSemaphore]
             self.waitSemaphores += [newSemaphore]
 
-        self.descriptorPool = ve.descriptor.DescriptorPool(
+        self.descriptorPool = ve.descriptorPool.DescriptorPool(
             device=self.device, parent=self
         )
 
@@ -149,21 +149,8 @@ class Shader(sinode.Sinode):
         # PREPROCESS THE SHADER CODE
         # RELATIVE TO DEFINED BUFFERS
 
-        BUFFERS_STRING = ""
-        # novel INPUT buffers belong to THIS Stage (others are linked)
-        for b in self.buffers:
-            if self.stage == vk.VK_SHADER_STAGE_FRAGMENT_BIT and b.name == "fragColor":
-                b.qualifier = "in"
-            if self.stage != vk.VK_SHADER_STAGE_COMPUTE_BIT:
-                BUFFERS_STRING += b.getDeclaration()
-            else:
-                BUFFERS_STRING += b.getComputeDeclaration()
-
-        if self.DEBUG:
-            glslCode = self.addIndicesToOutputs(glslCode)
-
         # put structs and buffers into the code
-        glslCode = glslCode.replace("BUFFERS_STRING", BUFFERS_STRING)
+        glslCode = glslCode.replace("BUFFERS_STRING", self.descriptorPool.getComputeDeclaration())
 
         # add definitions from constants dict
         DEFINE_STRING = ""
@@ -189,9 +176,14 @@ class Shader(sinode.Sinode):
         os.system(glslcbin + " --target-env=vulkan1.1 " + glslFilename)
         with open(compiledFilename, "rb") as f:
             spirv = f.read()
+
+
+        self.dump()
+        die
         return spirv
 
     def run(self, blocking=True):
+        die
         self.computePipeline.run(blocking=blocking)
 
     def wait(self):

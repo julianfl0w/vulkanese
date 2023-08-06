@@ -58,11 +58,6 @@ class Loiacono_GPU(ve.shader.Shader):
         self.numSubgroupsPerFprime = int(self.numSubgroups / len(self.fprime))
         self.spectrum = np.zeros((len(self.fprime)))
 
-        # every shader chain has its own descriptor pool
-        self.descriptorPool = ve.descriptor.DescriptorPool(
-            device=self.device, parent=self
-        )
-
         # declare buffers. they will be in GPU memory, but visible from the host (!)
         buffers = [
             # x is the input signal
@@ -73,7 +68,6 @@ class Loiacono_GPU(ve.shader.Shader):
                 qualifier="readonly",
                 shape=[2 ** 15],  # always 32**3
                 memProperties=self.memProperties,
-                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             # The following 4 are reduction buffers
             # Intermediate buffers for computing the sum
@@ -83,7 +77,6 @@ class Loiacono_GPU(ve.shader.Shader):
                 memtype=self.buffType,
                 shape=[len(self.fprime), self.device.subgroupSize ** 2],
                 dimIndexNames=["frequency_ix", "sg"],
-                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
@@ -91,7 +84,6 @@ class Loiacono_GPU(ve.shader.Shader):
                 memtype=self.buffType,
                 shape=[len(self.fprime), self.device.subgroupSize ** 2],
                 dimIndexNames=["F", "sg"],
-                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
@@ -99,7 +91,6 @@ class Loiacono_GPU(ve.shader.Shader):
                 memtype=self.buffType,
                 shape=[len(self.fprime), self.device.subgroupSize],
                 dimIndexNames=["F", "sg"],
-                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
@@ -107,7 +98,6 @@ class Loiacono_GPU(ve.shader.Shader):
                 memtype=self.buffType,
                 shape=[len(self.fprime), self.device.subgroupSize],
                 dimIndexNames=["F", "sg"],
-                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             # L is the final output
             ve.buffer.StorageBuffer(
@@ -118,7 +108,6 @@ class Loiacono_GPU(ve.shader.Shader):
                 shape=[len(self.fprime)],
                 dimIndexNames=["F"],
                 memProperties=self.memProperties,
-                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
@@ -128,7 +117,6 @@ class Loiacono_GPU(ve.shader.Shader):
                 shape=[len(self.fprime)],
                 dimIndexNames=["F"],
                 memProperties=self.memProperties,
-                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
@@ -137,7 +125,6 @@ class Loiacono_GPU(ve.shader.Shader):
                 qualifier="readonly",
                 shape=[16],
                 memProperties=self.memProperties,
-                descriptorSet=self.descriptorPool.descSetGlobal,
             ),
             # StorageBuffer(
             #    device=self.device,

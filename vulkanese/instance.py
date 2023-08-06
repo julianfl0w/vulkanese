@@ -9,7 +9,7 @@ import vulkan as vk
 import sys
 
 from . import shader
-from . import descriptor
+from . import descriptorPool
 from . import device
 from . import buffer
 

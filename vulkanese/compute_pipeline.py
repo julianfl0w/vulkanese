@@ -106,6 +106,8 @@ class ComputePipeline(sinode.Sinode):
             self.vkCommandBuffer, vk.VK_PIPELINE_BIND_POINT_COMPUTE, self.vkPipeline
         )
 
+        self.parent.parent.dump()
+        die
         vk.vkCmdBindDescriptorSets(
             commandBuffer=self.vkCommandBuffer,
             pipelineBindPoint=vk.VK_PIPELINE_BIND_POINT_COMPUTE,

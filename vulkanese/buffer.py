@@ -360,39 +360,6 @@ class Buffer(sinode.Sinode):
                 + ";\n"
             )
 
-    def getComputeDeclaration(self):
-        if self.usage == vk.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT:
-            b = "uniform "
-            std = "std140"
-        else:
-            b = "buffer "
-            if self.compress:
-                std = "std430"
-            else:
-                std = "std140"
-
-        return (
-            "layout("
-            + std
-            + ", set = "
-            + str(self.descriptorSetBinding)
-            + ", binding = "
-            + str(self.binding)
-            # + ", "
-            # + "xfb_stride = " + str(self.stride)
-            + ") "
-            + b
-            + self.name
-            + "_buf\n{\n   "
-            + self.qualifier
-            + " "
-            + self.memtype
-            + " "
-            + self.name
-            + "["
-            + str(int(self.sizeBytes / self.itemSizeBytes))
-            + "];\n};\n"
-        )
 
     def write(self, data):
         startByte = self.addrPtr
@@ -483,8 +450,6 @@ class Buffer(sinode.Sinode):
 class StorageBuffer(Buffer):
     def __init__(self, **kwargs):
 
-        self.parent = kwargs["device"]
-
         sinode.Sinode.__init__(self, **kwargs)
 
         # set defaults first
@@ -509,10 +474,6 @@ class StorageBuffer(Buffer):
         )
 
         Buffer.__init__(self, **kwargs)
-
-        # if "descriptorSet" not in kwargs.keys():
-        #    self.descriptorSet = self.fromAbove("descriptorPool").descSetGlobal
-
 
 class DebugBuffer(StorageBuffer):
     def __init__(self, **kwargs):
