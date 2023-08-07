@@ -11,3 +11,4 @@ from . import math
 from . import image
 from . import synchronization
 from . import examples
+from . import surface

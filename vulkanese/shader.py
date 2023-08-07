@@ -54,8 +54,8 @@ class Shader(sinode.Sinode):
 
         self.gpuBuffers = Empty()
         self.basename = self.sourceFilename.replace(".template", "")
-        if not self.basename.endswith(".comp"):
-            self.basename += ".comp"
+        #if not self.basename.endswith(".comp"):
+        #    self.basename += ".comp"
 
         self.debugBuffers = []
         for buffer in self.buffers:
@@ -155,7 +155,7 @@ class Shader(sinode.Sinode):
         for b in self.buffers:
             if self.stage == vk.VK_SHADER_STAGE_FRAGMENT_BIT and b.name == "fragColor":
                 b.qualifier = "in"
-            if self.stage != vk.VK_SHADER_STAGE_COMPUTE_BIT:
+            if self.stage == vk.VK_SHADER_STAGE_VERTEX_BIT:
                 BUFFERS_STRING += b.getDeclaration()
             else:
                 BUFFERS_STRING += b.getComputeDeclaration()
@@ -260,22 +260,12 @@ class Shader(sinode.Sinode):
 class VertexStage(Shader):
     def __init__(
         self,
-        device,
-        buffers,
-        constantsDict,
-        sourceFilename,
-        name="mandlebrot",
-        DEBUG=False,
+        **kwargs
     ):
         Shader.__init__(
             self,
-            device=device,
-            buffers=buffers,
-            constantsDict=constantsDict,
-            sourceFilename=sourceFilename,
             stage=vk.VK_SHADER_STAGE_VERTEX_BIT,
-            name=name,
-            DEBUG=DEBUG,
+            **kwargs
         )
 
 

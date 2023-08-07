@@ -105,6 +105,10 @@ class Buffer(sinode.Sinode):
         self.device.buffers += [self]
         self.vkDevice = self.device.vkDevice
         self.itemSizeBytes = glsltype2bytesize(self.memtype)
+        self.vectorMultiplier = 1
+        if self.memtype.startswith("vec"):
+            self.vectorMultiplier = int(self.memtype[3])
+
         self.pythonType = glsltype2python(self.memtype)
         self.getSkipval()
 
@@ -112,6 +116,8 @@ class Buffer(sinode.Sinode):
         self.itemCount = int(np.prod(self.shape))
         if self.memtype == "vec4":
             self.itemCount *= 4
+        if self.memtype == "vec3":
+            self.itemCount *= 3
         self.sizeBytes = int(self.itemCount * self.itemSizeBytes * self.skipval)
 
         self.debug("creating buffer " + self.name)
@@ -234,6 +240,8 @@ class Buffer(sinode.Sinode):
                 or self.memtype == "float"
                 or self.memtype == "uint"
                 or self.memtype == "int"
+                or self.memtype == "vec2"
+                or self.memtype == "vec3"
                 or self.memtype == "vec4"
                 or self.memtype == "double"
             )
@@ -351,7 +359,7 @@ class Buffer(sinode.Sinode):
                 + ") "
                 + self.qualifier
                 + " "
-                + self.type
+                + self.memtype
                 + " "
                 + self.name
                 + ";\n"

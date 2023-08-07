@@ -23,7 +23,7 @@ import vulkanese as ve
 import vulkan as vk
 
 
-class ShaderToy(ve.graphics_pipeline.GraphicsPipeline):
+class ShaderToy(ve.shader.Shader):
     def __init__(self, **kwargs):
         self.proc_kwargs(**kwargs)
         self.WIDTH = int(self.WIDTH / 2)
@@ -92,10 +92,12 @@ void main() {
             originY=0,
             name="ShaderToy",
             stage=vk.VK_SHADER_STAGE_COMPUTE_BIT,
-            fragSourceText=code,
-            HEIGHT=self.HEIGHT,
-            WIDTH=self.WIDTH,
-            WORKGROUP_SIZE=32,  # Workgroup size in compute shader.
+            sourceText=code,
+            constantsDict=dict(
+                HEIGHT=self.HEIGHT,
+                WIDTH=self.WIDTH,
+                WORKGROUP_SIZE=32,  # Workgroup size in compute shader.
+            ),
             workgroupCount=[
                 math.ceil(float(self.WIDTH) / 32),
                 math.ceil(float(self.HEIGHT) / 32),
@@ -103,37 +105,7 @@ void main() {
             ],
         )
 
-        self.vertexBuffers = [
-            ve.buffer.StorageBuffer(
-                device=self.device,
-                name="fragBuffer",
-                qualifier="out",
-                memtype="vec4",
-                format="VK_FORMAT_R8G8B8A8_UINT",
-                shape=[self.WIDTH * self.HEIGHT],
-                stageFlags=vk.VK_SHADER_STAGE_VERTEX_BIT,
-                location=2,
-            ),
-            ve.buffer.StorageBuffer(
-                device=self.device,
-                name="position",
-                qualifier="in",
-                memtype="vec3",
-                shape=[12],
-                location=1,
-                stageFlags=vk.VK_SHADER_STAGE_VERTEX_BIT,
-            ),
-            ve.buffer.StorageBuffer(
-                device=self.device,
-                name="color",
-                qualifier="in",
-                memtype="vec4",
-                shape=[12],
-                location=0,
-                stageFlags=vk.VK_SHADER_STAGE_VERTEX_BIT,
-            ),
-        ]
-        self.fragBuffers = [
+        self.buffers = [
             ve.buffer.StorageBuffer(
                 device=self.device,
                 name="imageData",
@@ -141,14 +113,13 @@ void main() {
                 memtype="uint",
                 format="VK_FORMAT_R8G8B8A8_UINT",
                 shape=[self.WIDTH * self.HEIGHT],
-                stageFlags=vk.VK_SHADER_STAGE_FRAGMENT_BIT,
+                stageFlags=vk.VK_SHADER_STAGE_COMPUTE_BIT,
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
                 name="iTime",
                 qualifier="readonly",
                 memtype="float",
-                stageFlags=vk.VK_SHADER_STAGE_FRAGMENT_BIT,
             ),
             ve.buffer.StorageBuffer(
                 device=self.device,
@@ -161,39 +132,11 @@ void main() {
                 name="iMouse",
                 qualifier="readonly",
                 memtype="vec4",
-                stageFlags=vk.VK_SHADER_STAGE_FRAGMENT_BIT,
             ),
         ]
 
-        #self.finalize()
-        self.shaders = [
-            # (vertex -> tesselate -> fragment)
-            # Vertex Stage
-            ve.shader.VertexStage(
-                device=self.device,
-                buffers=self.vertexBuffers,
-                name="vertexStage",
-                sourceFilename=os.path.join(here, "shaders", "passthrough.template.vert"),
-                constantsDict={}
-            )]
-        
-        self.gpuBuffers = sinode.Generic()
-        for b in self.vertexBuffers + self.fragBuffers:
-            exec(f"self.gpuBuffers.{b.name}=b")
-
-        self.gpuBuffers.fragBuffer.qualifier = "in"
-        self.shaders += [
-            # fragment stage
-            ve.shader.FragmentStage(
-                device=self.device,
-                buffers=self.fragBuffers,
-                name="fragmentStage",
-                sourceFilename=os.path.join(here, "shaders", "passthrough.template.frag"),
-                constantsDict={}
-            )
-        ]
-
-        ve.graphics_pipeline.GraphicsPipeline.__init__(self)
+        ve.shader.Shader.__init__(self, device=self.device)
+        self.finalize()
 
         self.gpuBuffers.iResolution.set(np.array([self.WIDTH, self.HEIGHT, 0, 0]))
         # print the object hierarchy
