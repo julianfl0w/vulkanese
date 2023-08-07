@@ -153,7 +153,7 @@ class Loiacono_GPU(ve.shader.Shader):
         ve.shader.Shader.__init__(
             self,
             sourceFilename=os.path.join(
-                loiacono_home, "shaders/loiacono.comp.template"
+                loiacono_home, "shaders/loiacono.template.comp"
             ),
             constantsDict=self.constantsDict,
             device=self.device,

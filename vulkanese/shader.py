@@ -152,13 +152,14 @@ class Shader(sinode.Sinode):
 
         BUFFERS_STRING = ""
         # novel INPUT buffers belong to THIS Stage (others are linked)
-        for b in self.buffers:
-            if self.stage == vk.VK_SHADER_STAGE_FRAGMENT_BIT and b.name == "fragColor":
-                b.qualifier = "in"
-            if self.stage == vk.VK_SHADER_STAGE_VERTEX_BIT:
-                BUFFERS_STRING += b.getDeclaration()
-            else:
-                BUFFERS_STRING += b.getComputeDeclaration()
+        if self.stage == vk.VK_SHADER_STAGE_VERTEX_BIT:
+
+            for b in self.buffers:
+                if self.stage == vk.VK_SHADER_STAGE_FRAGMENT_BIT and b.name == "fragColor":
+                    b.qualifier = "in"
+                    BUFFERS_STRING += b.getDeclaration()
+        else:
+            BUFFERS_STRING += self.descriptorPool.getComputeDeclaration()
 
         if self.DEBUG:
             self.glslCode = self.addIndicesToOutputs(self.glslCode)
