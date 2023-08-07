@@ -74,31 +74,29 @@ class Buffer(sinode.Sinode):
         return outstr
 
     def __init__(self, **kwargs):
-
         sinode.Sinode.__init__(self, parent=self.device, **kwargs)
 
         # set defaults
         self.proc_kwargs(
-            **{
-                "overwrite": False,
-                "DEBUG": False,
-                "format": vk.VK_FORMAT_R64_SFLOAT,
-                "readFromCPU": True,
-                "usage": vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                "memProperties": 0
-                | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-                | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-                | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                | vk.VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
-                "sharingMode": vk.VK_SHARING_MODE_EXCLUSIVE,
-                "stageFlags": vk.VK_SHADER_STAGE_COMPUTE_BIT,
-                "qualifier": "",
-                "memtype": "float",
-                "rate": vk.VK_VERTEX_INPUT_RATE_VERTEX,
-                "stride": 4,
-                "compress": True,
-                "released": False,
-            }
+            overwrite=False,
+            DEBUG=False,
+            format=vk.VK_FORMAT_R64_SFLOAT,
+            readFromCPU=True,
+            usage=vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            memProperties=0
+            | vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+            | vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+            | vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+            | vk.VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+            sharingMode=vk.VK_SHARING_MODE_EXCLUSIVE,
+            stageFlags=vk.VK_SHADER_STAGE_COMPUTE_BIT,
+            qualifier="",
+            memtype="float",
+            rate=vk.VK_VERTEX_INPUT_RATE_VERTEX,
+            stride=4,
+            compress=True,
+            released=False,
+            shape=[]
         )
 
         self.proc_kwargs(**kwargs)
@@ -107,6 +105,10 @@ class Buffer(sinode.Sinode):
         self.device.buffers += [self]
         self.vkDevice = self.device.vkDevice
         self.itemSizeBytes = glsltype2bytesize(self.memtype)
+        self.vectorMultiplier = 1
+        if self.memtype.startswith("vec"):
+            self.vectorMultiplier = int(self.memtype[3])
+
         self.pythonType = glsltype2python(self.memtype)
         self.getSkipval()
 
@@ -114,6 +116,8 @@ class Buffer(sinode.Sinode):
         self.itemCount = int(np.prod(self.shape))
         if self.memtype == "vec4":
             self.itemCount *= 4
+        if self.memtype == "vec3":
+            self.itemCount *= 3
         self.sizeBytes = int(self.itemCount * self.itemSizeBytes * self.skipval)
 
         self.debug("creating buffer " + self.name)
@@ -236,6 +240,8 @@ class Buffer(sinode.Sinode):
                 or self.memtype == "float"
                 or self.memtype == "uint"
                 or self.memtype == "int"
+                or self.memtype == "vec2"
+                or self.memtype == "vec3"
                 or self.memtype == "vec4"
                 or self.memtype == "double"
             )
@@ -264,7 +270,7 @@ class Buffer(sinode.Sinode):
         else:
             self.debug(len(self.pmap))
             self.debug(self.pythonType)
-            #self.pmap[:] = np.zeros((self.itemCount), dtype=self.pythonType)
+            # self.pmap[:] = np.zeros((self.itemCount), dtype=self.pythonType)
             self.set(np.zeros((self.itemCount), dtype=self.pythonType))
         if flush:
             self.flush()
@@ -306,7 +312,6 @@ class Buffer(sinode.Sinode):
         return rcvdArray
 
     def saveAsImage(self, height, width, path="mandelbrot.png"):
-
         # Get the color data from the buffer, and cast it to bytes.
         # We save the data to a vector.
         st = time.time()
@@ -354,12 +359,11 @@ class Buffer(sinode.Sinode):
                 + ") "
                 + self.qualifier
                 + " "
-                + self.type
+                + self.memtype
                 + " "
                 + self.name
                 + ";\n"
             )
-
 
     def write(self, data):
         startByte = self.addrPtr
@@ -409,10 +413,7 @@ class Buffer(sinode.Sinode):
             self.debug("pmap (bytes): " + str(len(self.pmap[:])))
             self.debug("item size (bytes): " + str(self.itemSizeBytes))
             self.debug(self.sizeBytes)
-            self.debug(
-                "data (bytes): "
-                + str(np.prod(data.shape) * self.itemSizeBytes)
-            )
+            self.debug("data (bytes): " + str(np.prod(data.shape) * self.itemSizeBytes))
             raise Exception("Wrong Size")
 
         if self.skipval == 1:
@@ -449,7 +450,6 @@ class Buffer(sinode.Sinode):
 
 class StorageBuffer(Buffer):
     def __init__(self, **kwargs):
-
         sinode.Sinode.__init__(self, **kwargs)
 
         # set defaults first
