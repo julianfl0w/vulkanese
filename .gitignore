@@ -7,3 +7,4 @@ dist
 out.prof
 *.avi
 *.gif
+vulkanese/image/.env
