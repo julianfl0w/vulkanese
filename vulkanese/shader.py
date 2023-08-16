@@ -10,6 +10,7 @@ import re
 import vulkan as vk
 from . import buffer
 from . import compute_pipeline
+import platform
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import vulkanese as ve
@@ -48,7 +49,7 @@ class Shader(sinode.Sinode):
             shader.signalSemaphores += [newSemaphore]
             self.waitSemaphores += [newSemaphore]
 
-        self.descriptorPool = ve.descriptorPool.DescriptorPool(
+        self.descriptorPool = ve.descriptor_pool.DescriptorPool(
             device=self.device, parent=self
         )
 
@@ -190,7 +191,10 @@ class Shader(sinode.Sinode):
 
         self.debug("running " + glslFilename)
         # os.system("glslc --scalar-block-layout " + glslFilename)
-        glslcbin = os.path.join(here, "glslc")
+        if platform.system() == "Windows":
+            glslcbin = "glslc"
+        else:
+            glslcbin = os.path.join(here, "glslc")
         os.system(glslcbin + " --target-env=vulkan1.1 " + glslFilename)
         with open(compiledFilename, "rb") as f:
             self.spirv = f.read()
