@@ -171,6 +171,14 @@ class DescriptorPool(sinode.Sinode):
         if hasattr(self, "vkDescriptorPool"):
             vk.vkDestroyDescriptorPool(self.vkDevice, self.vkDescriptorPool, None)
 
+    def createStorageBuffer(self, **kwargs):
+        newB = ve.buffer.StorageBuffer(**kwargs)
+        self.addBuffer(newB)
+
+    def createDebugBuffer(self, **kwargs):
+        newB = ve.buffer.DebugBuffer(**kwargs)
+        self.addBuffer(newB)
+
     def addBuffer(self, buffer):
         if type(buffer) == ve.buffer.StorageBuffer:
             self.descSetGlobal.addBuffer(buffer)

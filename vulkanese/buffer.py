@@ -2,17 +2,16 @@ import json
 import sys
 import os
 
+here = os.path.dirname(os.path.abspath(__file__))
+
 sys.path.insert(
-    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sinode"))
+    0, os.path.join(here, "..", "..", "sinode")
 )
 import sinode.sinode as sinode
 
 import vulkan as vk
 import numpy as np
 import time
-
-here = os.path.dirname(os.path.abspath(__file__))
-
 
 def glsltype2python(glsltype):
     if glsltype == "float":
@@ -221,6 +220,12 @@ class Buffer(sinode.Sinode):
 
         # Maintain an address pointer for feed operations
         self.addrPtr = 0
+
+    def __getitem__(self, index):
+        return self.getByIndex(index)
+
+    def __setitem__(self, index, value):
+        self.setByIndexStart(index, value)
 
     def flush(self):
         return vk.vkFlushMappedMemoryRanges(
