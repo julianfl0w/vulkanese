@@ -174,10 +174,12 @@ class DescriptorPool(sinode.Sinode):
     def createStorageBuffer(self, **kwargs):
         newB = ve.buffer.StorageBuffer(**kwargs)
         self.addBuffer(newB)
+        return newB
 
     def createDebugBuffer(self, **kwargs):
         newB = ve.buffer.DebugBuffer(**kwargs)
         self.addBuffer(newB)
+        return newB
 
     def addBuffer(self, buffer):
         if type(buffer) == ve.buffer.StorageBuffer:

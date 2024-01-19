@@ -9,7 +9,6 @@ import vulkan as vk
 import sys
 
 from . import shader
-from . import descriptorPool
 from . import device
 
 sys.path.insert(
