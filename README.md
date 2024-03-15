@@ -1,7 +1,4 @@
 # vulkanese  
-## Sponsors
-![image](https://github.com/julianfl0w/vulkanese/assets/8158655/c980a734-61f4-41f3-94b6-52c56b5fd2f7)
-
 ## Installation  
 ```pip install git+https://github.com/julianfl0w/vulkanese```
 
@@ -24,6 +21,9 @@ It is comparable to
 ## The Topology
 For simplicity, the Python Classes contain one another in the following topology  
 <img src="https://github.com/julianfl0w/vulkanese/assets/8158655/7f45a7b3-f642-4e8a-b106-8bf85cf8aae3" width="60%">
+
+## Sponsors
+![image](https://github.com/julianfl0w/vulkanese/assets/8158655/c980a734-61f4-41f3-94b6-52c56b5fd2f7)
 
 ## GPGPU Example: Pitch Detection 
 I've implemented a world class pitch detector in GPU, based on the Loiacono Transform. 
