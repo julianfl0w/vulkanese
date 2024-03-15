@@ -25,6 +25,26 @@ For simplicity, the Python Classes contain one another in the following topology
 ## Sponsors
 ![image](https://github.com/julianfl0w/vulkanese/assets/8158655/c980a734-61f4-41f3-94b6-52c56b5fd2f7)
 
+## Mandlebrot Example
+```python
+import vulkanese as ve
+# device selection and instantiation
+instance_inst = ve.instance.Instance(verbose=True)
+# choose a device
+print("naively choosing device 0")
+device = instance_inst.getDevice(0)
+screen = ve.screen.FullScreen()
+
+ve.image.Mandlebrot(
+    device=device,
+    instance=instance_inst,
+    parent=device,
+    WIDTH=screen.display.width,
+    HEIGHT=screen.display.height
+    ).runDemo()
+```
+<img src="https://github.com/julianfl0w/vulkanese/assets/8158655/b0180362-bf91-4698-a4cc-48d8a08c71e1" width="60%">
+
 ## GPGPU Example: Pitch Detection 
 I've implemented a world class pitch detector in GPU, based on the Loiacono Transform. 
 Here is a snapshot of that code, which shows how to use Vulkanese to manage compute shaders:
@@ -74,7 +94,6 @@ ax2.plot(linst.fprime*sr, linst.spectrum)
 ax2.set_title("CPU Result")
 
 plt.show()
-
 ```
 
 We have sucessfully detected the 440Hz signal in this simple example:
