@@ -36,9 +36,6 @@ import vulkanese as ve
 sr = 48000
 A4 = 440
 z = np.sin(np.arange(2**15)*2*np.pi*A4/sr)
-z += np.sin(2*np.arange(2**15)*2*np.pi*A4/sr)
-z += np.sin(3*np.arange(2**15)*2*np.pi*A4/sr)
-z += np.sin(4*np.arange(2**15)*2*np.pi*A4/sr)
 
 multiple = 40
 normalizedStep = 5.0/sr
